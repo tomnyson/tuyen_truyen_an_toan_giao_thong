@@ -1,145 +1,140 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  laws,
+  normalizeVietnamese,
+  sources,
+  topics,
+  type LawItem,
+  type Topic,
+} from "@/lib/legal-content";
 
-type Topic = "Tất cả" | "Giao thông" | "Mạng xã hội" | "Sở hữu trí tuệ";
-
-type LawItem = {
-  id: number;
-  topic: Exclude<Topic, "Tất cả">;
-  icon: string;
-  title: string;
-  legal: string;
-  penalty: string;
-  remedy: string;
-  caseStudy: string;
-  tags: string[];
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
 };
 
-const topics: { name: Topic; icon: string; detail: string }[] = [
-  { name: "Tất cả", icon: "⌕", detail: "Mọi chủ đề" },
-  { name: "Giao thông", icon: "◉", detail: "Xe điện & xe máy" },
-  { name: "Mạng xã hội", icon: "@", detail: "Ứng xử trên mạng" },
-  { name: "Sở hữu trí tuệ", icon: "©", detail: "Bản quyền & đạo văn" },
-];
+type PublishedContent = {
+  laws?: Array<{
+    id: number;
+    topic: LawItem["topic"];
+    icon: string;
+    title: string;
+    legalBasis: string;
+    penalty: string;
+    remedy: string;
+    caseStudy: string;
+    tags: string;
+  }>;
+  showcases?: Array<{
+    id: number;
+    topic: string;
+    title: string;
+    summary: string;
+    sourceUrl: string;
+  }>;
+};
 
-const laws: LawItem[] = [
-  {
-    id: 1,
-    topic: "Giao thông",
-    icon: "◉",
-    title: "Không đội mũ bảo hiểm khi đi xe máy, xe máy điện",
-    legal: "Điểm h khoản 2 Điều 7 Nghị định 168/2024/NĐ-CP",
-    penalty: "400.000 – 600.000đ",
-    remedy: "Chấp hành quyết định xử phạt; trang bị và cài quai mũ đúng quy cách.",
-    caseStudy:
-      "Minh, 16 tuổi, đi xe máy điện tới trường nhưng để mũ trong cốp. Khi được kiểm tra, Minh mới hiểu việc có mũ mà không đội vẫn là vi phạm.",
-    tags: ["xemaydien", "mu-baohiem", "antoan"],
-  },
-  {
-    id: 2,
-    topic: "Giao thông",
-    icon: "⚑",
-    title: "Chưa đủ tuổi điều khiển xe từ 50 cm³ trở lên",
-    legal: "Điều 18 Nghị định 168/2024/NĐ-CP",
-    penalty: "Cảnh cáo hoặc xử phạt theo độ tuổi và loại xe",
-    remedy: "Dừng điều khiển phương tiện không phù hợp; phụ huynh không giao xe.",
-    caseStudy:
-      "Lan 15 tuổi mượn xe 110 cm³ của anh để đi học thêm. Cả người điều khiển và người giao xe đều có thể phát sinh trách nhiệm.",
-    tags: ["duoi18", "xemay", "phuhuynh"],
-  },
-  {
-    id: 3,
-    topic: "Mạng xã hội",
-    icon: "@",
-    title: "Đăng thông tin sai sự thật, xúc phạm người khác",
-    legal: "Điểm a khoản 1 Điều 101 Nghị định 15/2020/NĐ-CP",
-    penalty: "5 – 10 triệu đồng đối với cá nhân*",
-    remedy: "Buộc gỡ bỏ thông tin sai sự thật hoặc gây nhầm lẫn.",
-    caseStudy:
-      "Sau khi bất mãn vì điểm số, một học sinh đăng bài quy kết giáo viên gian lận nhưng không có bằng chứng. Bài đăng bị yêu cầu gỡ và học sinh phải xin lỗi.",
-    tags: ["facebook", "tinsai", "dan-du"],
-  },
-  {
-    id: 4,
-    topic: "Mạng xã hội",
-    icon: "□",
-    title: "Phát tán hình ảnh riêng tư của bạn học",
-    legal: "Điểm e khoản 3 Điều 102 Nghị định 15/2020/NĐ-CP",
-    penalty: "Có thể bị xử phạt hành chính và áp dụng biện pháp khác",
-    remedy: "Gỡ nội dung, ngừng chia sẻ và khắc phục hậu quả cho người bị ảnh hưởng.",
-    caseStudy:
-      "Một ảnh chụp riêng tư bị chuyển tiếp trong nhóm lớp. Dù không phải người chụp, người tiếp tục phát tán vẫn có thể phải chịu trách nhiệm.",
-    tags: ["quyenriengtu", "zalo", "baolucmang"],
-  },
-  {
-    id: 5,
-    topic: "Sở hữu trí tuệ",
-    icon: "©",
-    title: "Sao chép tác phẩm trái phép, đạo văn",
-    legal: "Khoản 1 Điều 18 Nghị định 131/2013/NĐ-CP",
-    penalty: "15 – 35 triệu đồng",
-    remedy: "Buộc dỡ bỏ bản sao vi phạm hoặc tiêu hủy tang vật theo quy định.",
-    caseStudy:
-      "Bài dự thi khoa học sao chép phần lớn nội dung từ một nghiên cứu trên mạng. Nhóm bị hủy kết quả và phải thực hiện lại quy trình trích dẫn.",
-    tags: ["daovan", "banquyen", "bailuan"],
-  },
-  {
-    id: 6,
-    topic: "Sở hữu trí tuệ",
-    icon: "⌘",
-    title: "Cố ý vô hiệu biện pháp bảo vệ phần mềm",
-    legal: "Điều 35 Nghị định 131/2013/NĐ-CP",
-    penalty: "Có thể bị phạt tiền tùy hành vi và chủ thể",
-    remedy: "Gỡ bỏ bản sao vi phạm; chấm dứt công cụ hoặc biện pháp xâm phạm.",
-    caseStudy:
-      "Một máy tính phòng thực hành cài phần mềm crack rồi nhiễm mã độc. Ngoài rủi ro bản quyền, toàn bộ dữ liệu học tập có thể bị khóa hoặc đánh cắp.",
-    tags: ["phanmem", "crack", "malware"],
-  },
-];
-
-const sources = [
-  {
-    label: "Nghị định 168/2024/NĐ-CP",
-    href: "https://xaydungchinhsach.chinhphu.vn/toan-van-nghi-dinh-168-2024-nd-cp-quy-dinh-xu-phat-vi-pham-hanh-chinh-ve-trat-tu-atgt-duong-bo-119241231164556785.htm",
-  },
-  {
-    label: "Luật Xử lý vi phạm hành chính",
-    href: "https://vbpl.moj.gov.vn/FileData/TW/Lists/vbpq/Attachments/147301/tvHienThiToanVan_31.VBHN.VPQH.1.pdf",
-  },
-  {
-    label: "Nghị định 131/2013/NĐ-CP",
-    href: "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/32506/VanBanGoc_131_2013_N%C4%90-CP.pdf",
-  },
-];
-
-function normalize(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .toLowerCase();
+function parseTags(value: string) {
+  try {
+    const tags = JSON.parse(value) as unknown;
+    return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === "string") : [];
+  } catch {
+    return [];
+  }
 }
+
+const initialChatMessage: ChatMessage = {
+  role: "assistant",
+  content: "Chào bạn! Mình là trợ lý AI Luật Học Đường. Bạn có thể hỏi về giao thông, mạng xã hội hoặc bản quyền nhé.",
+};
 
 export default function Home() {
   const [topic, setTopic] = useState<Topic>("Tất cả");
   const [query, setQuery] = useState("");
-  const [activeItem, setActiveItem] = useState<LawItem | null>(null);
+  const [selectedLaw, setSelectedLaw] = useState<LawItem | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([initialChatMessage]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [managedLaws, setManagedLaws] = useState<LawItem[]>([]);
+  const [managedShowcases, setManagedShowcases] = useState<NonNullable<PublishedContent["showcases"]>>([]);
 
-  const filtered = useMemo(() => {
-    const q = normalize(query.trim());
-    return laws.filter((item) => {
+  useEffect(() => {
+    fetch("/api/content")
+      .then((response) => response.json() as Promise<PublishedContent>)
+      .then((content) => {
+        setManagedLaws((content.laws ?? []).map((item) => ({
+          id: 100_000 + item.id,
+          topic: item.topic,
+          icon: item.icon,
+          title: item.title,
+          legal: item.legalBasis,
+          penalty: item.penalty,
+          remedy: item.remedy,
+          caseStudy: item.caseStudy,
+          tags: parseTags(item.tags),
+        })));
+        setManagedShowcases(content.showcases ?? []);
+      })
+      .catch(() => {
+        // Nội dung nền bên dưới vẫn hoạt động nếu kho quản trị tạm thời gián đoạn.
+      });
+  }, []);
+
+  const availableLaws = useMemo(() => [...managedLaws, ...laws], [managedLaws]);
+
+  const filteredLaws = useMemo(() => {
+    const q = normalizeVietnamese(query.trim());
+    return availableLaws.filter((item) => {
       const matchesTopic = topic === "Tất cả" || item.topic === topic;
-      const haystack = normalize(
+      const haystack = normalizeVietnamese(
         [item.title, item.legal, item.topic, item.tags.join(" ")].join(" "),
       );
       return matchesTopic && (!q || haystack.includes(q));
     });
-  }, [query, topic]);
+  }, [availableLaws, query, topic]);
 
   function scrollToResults() {
     document.getElementById("tra-cuu")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  async function submitChatQuestion(event?: FormEvent, suggestedQuestion?: string) {
+    event?.preventDefault();
+    const question = (suggestedQuestion ?? chatInput).trim();
+    if (!question || isChatLoading) return;
+
+    const pendingMessages: ChatMessage[] = [
+      ...chatMessages,
+      { role: "user", content: question },
+    ];
+    setChatMessages(pendingMessages);
+    setChatInput("");
+    setIsChatLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: pendingMessages.slice(-8) }),
+      });
+      const data = (await response.json()) as { answer?: string; error?: string };
+      setChatMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: data.answer ?? data.error ?? "Mình chưa thể trả lời lúc này. Bạn thử lại sau nhé.",
+        },
+      ]);
+    } catch {
+      setChatMessages((current) => [
+        ...current,
+        { role: "assistant", content: "Kết nối đang gián đoạn. Bạn thử gửi lại câu hỏi sau ít phút nhé." },
+      ]);
+    } finally {
+      setIsChatLoading(false);
+    }
   }
 
   return (
@@ -229,7 +224,7 @@ export default function Home() {
             <span className="section-kicker">TRA CỨU THEO TÌNH HUỐNG</span>
             <h2>Điều bạn cần biết, ngay khi cần.</h2>
           </div>
-          <p>{filtered.length} kết quả phù hợp</p>
+          <p>{filteredLaws.length} kết quả phù hợp</p>
         </div>
 
         <div className="filter-bar" role="group" aria-label="Bộ lọc lĩnh vực">
@@ -244,7 +239,7 @@ export default function Home() {
           ))}
         </div>
 
-        {filtered.length ? (
+        {filteredLaws.length ? (
           <div className="law-table-wrap">
             <table>
               <thead>
@@ -257,13 +252,13 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((item) => (
+                {filteredLaws.map((item) => (
                   <tr key={item.id}>
                     <td><span className="row-icon">{item.icon}</span><strong>{item.title}</strong></td>
                     <td>{item.legal}</td>
                     <td><span className="penalty">{item.penalty}</span></td>
                     <td>{item.remedy}</td>
-                    <td><button className="detail-button" onClick={() => setActiveItem(item)} aria-label={`Xem tình huống: ${item.title}`}>→</button></td>
+                    <td><button className="detail-button" onClick={() => setSelectedLaw(item)} aria-label={`Xem tình huống: ${item.title}`}>→</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -284,19 +279,19 @@ export default function Home() {
           <span className="section-kicker light">GÓC CẢNH BÁO</span>
           <h2>Đừng để một cú nhấp trở thành bài học đắt giá.</h2>
           <p>Các tình huống dưới đây được biên soạn để giáo dục, giúp bạn nhận diện rủi ro trước khi hành động.</p>
-          <button onClick={() => setActiveItem(laws[2])}>Xem tình huống mạng xã hội <span>→</span></button>
+          <button onClick={() => setSelectedLaw(availableLaws.find((item) => item.topic === "Mạng xã hội") ?? laws[2])}>Xem tình huống mạng xã hội <span>→</span></button>
         </div>
         <div className="case-cards">
           <article className="case-card yellow">
             <div className="case-meta"><span>MẠNG XÃ HỘI</span><span>3 PHÚT ĐỌC</span></div>
             <div className="message-bubbles" aria-hidden="true"><i></i><i></i><i></i></div>
-            <h3>Chia sẻ lại tin sai: “Em chỉ đăng lại” có miễn trách nhiệm?</h3>
+            <h3>{managedShowcases[0]?.title ?? "Chia sẻ lại tin sai: “Em chỉ đăng lại” có miễn trách nhiệm?"}</h3>
             <div className="tag-row"><span>#facebook</span><span>#tinsai</span></div>
           </article>
           <article className="case-card mint">
             <div className="case-meta"><span>BẢN QUYỀN</span><span>4 PHÚT ĐỌC</span></div>
             <div className="paper-stack" aria-hidden="true"><i>A+</i><i>≠</i></div>
-            <h3>Sao chép bài luận: một điểm cao có đáng để đánh đổi?</h3>
+            <h3>{managedShowcases[1]?.title ?? "Sao chép bài luận: một điểm cao có đáng để đánh đổi?"}</h3>
             <div className="tag-row"><span>#daovan</span><span>#bailuan</span></div>
           </article>
         </div>
@@ -327,18 +322,18 @@ export default function Home() {
         <span>?</span><b>Hỏi nhanh</b>
       </button>
 
-      {activeItem && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setActiveItem(null)}>
+      {selectedLaw && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelectedLaw(null)}>
           <section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="modal-close" onClick={() => setActiveItem(null)} aria-label="Đóng">×</button>
-            <span className="modal-topic">{activeItem.topic}</span>
-            <h2 id="modal-title">{activeItem.title}</h2>
+            <button className="modal-close" onClick={() => setSelectedLaw(null)} aria-label="Đóng">×</button>
+            <span className="modal-topic">{selectedLaw.topic}</span>
+            <h2 id="modal-title">{selectedLaw.title}</h2>
             <div className="modal-facts">
-              <div><span>Căn cứ</span><strong>{activeItem.legal}</strong></div>
-              <div><span>Mức phạt tham khảo</span><strong>{activeItem.penalty}</strong></div>
+              <div><span>Căn cứ</span><strong>{selectedLaw.legal}</strong></div>
+              <div><span>Mức phạt tham khảo</span><strong>{selectedLaw.penalty}</strong></div>
             </div>
-            <div className="story-box"><span>TÌNH HUỐNG MINH HỌA</span><p>{activeItem.caseStudy}</p></div>
-            <div className="tag-row">{activeItem.tags.map((tag) => <span key={tag}>#{tag}</span>)}</div>
+            <div className="story-box"><span>TÌNH HUỐNG MINH HỌA</span><p>{selectedLaw.caseStudy}</p></div>
+            <div className="tag-row">{selectedLaw.tags.map((tag) => <span key={tag}>#{tag}</span>)}</div>
             <p className="modal-note">Tình huống được biên soạn để giáo dục, không phải hồ sơ xử phạt có thật. Mức áp dụng thực tế phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể.</p>
           </section>
         </div>
@@ -347,16 +342,39 @@ export default function Home() {
       {chatOpen && (
         <div className="chat-panel" role="dialog" aria-modal="true" aria-labelledby="chat-title">
           <div className="chat-head">
-            <div><span>THỬ NGHIỆM</span><h2 id="chat-title">Trợ lý Luật Học Đường</h2></div>
+            <div><span>AI • ĐANG HOẠT ĐỘNG</span><h2 id="chat-title">Trợ lý Luật Học Đường</h2></div>
             <button onClick={() => setChatOpen(false)} aria-label="Đóng trợ lý">×</button>
           </div>
-          <div className="chat-body">
-            <div className="bot-message">Chào bạn! Hãy chọn một câu hỏi mẫu để bắt đầu tra cứu.</div>
-            {["Em 15 tuổi đi xe 50cc được không?", "Đăng lại tin sai có bị phạt không?", "Dùng ảnh trên mạng trong bài thuyết trình?"] .map((question) => (
-              <button key={question} onClick={() => { setQuery(question.includes("tin sai") ? "tin sai" : question.includes("ảnh") ? "bản quyền" : "dưới 18"); setChatOpen(false); scrollToResults(); }}>{question}</button>
-            ))}
+          <div className="chat-body" aria-live="polite">
+            <div className="chat-messages">
+              {chatMessages.map((message, index) => (
+                <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
+                  {message.content}
+                </div>
+              ))}
+              {isChatLoading && <div className="chat-message assistant typing">Đang tìm hiểu<span>•••</span></div>}
+            </div>
+            {chatMessages.length === 1 && (
+              <div className="chat-suggestions">
+                {["Em 15 tuổi đi xe 50cc được không?", "Đăng lại tin sai có bị phạt không?", "Dùng ảnh trên mạng trong bài thuyết trình?"].map((question) => (
+                  <button key={question} onClick={() => void submitChatQuestion(undefined, question)}>{question}</button>
+                ))}
+              </div>
+            )}
+            <form className="chat-form" onSubmit={(event) => void submitChatQuestion(event)}>
+              <label htmlFor="chat-question" className="sr-only">Nhập câu hỏi pháp luật</label>
+              <input
+                id="chat-question"
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                placeholder="Nhập câu hỏi của bạn…"
+                maxLength={600}
+                disabled={isChatLoading}
+              />
+              <button type="submit" disabled={isChatLoading || !chatInput.trim()} aria-label="Gửi câu hỏi">↑</button>
+            </form>
           </div>
-          <p>Trợ lý chỉ hỗ trợ tìm nội dung, không đưa ra tư vấn pháp lý cá nhân.</p>
+          <p>AI có thể nhầm lẫn. Nội dung chỉ để học tập, không thay thế tư vấn pháp lý.</p>
         </div>
       )}
     </main>

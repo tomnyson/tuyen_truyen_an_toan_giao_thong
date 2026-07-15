@@ -9,6 +9,9 @@ interface D1Database {
 declare module "cloudflare:workers" {
   export const env: {
     DB?: D1Database;
+    ADMIN_USERNAME?: string;
+    ADMIN_PASSWORD?: string;
+    ADMIN_SESSION_SECRET?: string;
     [key: string]: unknown;
   };
 }

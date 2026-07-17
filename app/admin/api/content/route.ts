@@ -1,5 +1,5 @@
 import { desc, eq, sql } from "drizzle-orm";
-import { getDb } from "@/db";
+import { getInitializedDb } from "@/db";
 import { legalEntries, showcases } from "@/db/schema";
 import { hasTrustedOrigin, isAdminRequest } from "@/lib/admin-auth";
 
@@ -62,7 +62,7 @@ async function authorize(request: Request, mutation = false) {
 export async function GET(request: Request) {
   const denied = await authorize(request);
   if (denied) return denied;
-  const db = getDb();
+  const db = await getInitializedDb();
   const [laws, caseStudies] = await Promise.all([
     db.select().from(legalEntries).orderBy(desc(legalEntries.updatedAt), desc(legalEntries.id)),
     db.select().from(showcases).orderBy(desc(showcases.updatedAt), desc(showcases.id)),
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
   if (denied) return denied;
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const entity = body?.entity as Entity | undefined;
-  const db = getDb();
+  const db = await getInitializedDb();
 
   if (entity === "law") {
     const values = body && normalizeLaw(body);
@@ -99,7 +99,7 @@ export async function PATCH(request: Request) {
   const entity = body?.entity as Entity | undefined;
   const id = parseId(body?.id);
   if (!body || !id) return Response.json({ error: "ID không hợp lệ." }, { status: 400 });
-  const db = getDb();
+  const db = await getInitializedDb();
 
   if (entity === "law") {
     const values = normalizeLaw(body);
@@ -123,7 +123,7 @@ export async function DELETE(request: Request) {
   const entity = body?.entity as Entity | undefined;
   const id = parseId(body?.id);
   if (!id) return Response.json({ error: "ID không hợp lệ." }, { status: 400 });
-  const db = getDb();
+  const db = await getInitializedDb();
   if (entity === "law") await db.delete(legalEntries).where(eq(legalEntries.id, id));
   else if (entity === "showcase") await db.delete(showcases).where(eq(showcases.id, id));
   else return Response.json({ error: "Loại nội dung không hợp lệ." }, { status: 400 });

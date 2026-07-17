@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { getDb } from "@/db";
+import { getInitializedDb } from "@/db";
 import { legalEntries } from "@/db/schema";
 import { laws, normalizeVietnamese } from "./legal-content";
 
@@ -62,8 +62,8 @@ export async function findManagedAnswer(question: string): Promise<string | null
   if (!terms.length) return null;
 
   try {
-    const entries = await getDb()
-      .select()
+    const db = await getInitializedDb();
+    const entries = await db.select()
       .from(legalEntries)
       .where(eq(legalEntries.status, "published"))
       .orderBy(desc(legalEntries.updatedAt))

@@ -70,6 +70,15 @@ test("redirects anonymous visitors away from the admin dashboard", async () => {
   assert.equal(new URL(response.headers.get("location"), "http://localhost").pathname, "/admin/login");
 });
 
+test("defers password-manager targets until after hydration", async () => {
+  const response = await request("/admin/login");
+  const html = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(html, /Đang mở trang quản trị/);
+  assert.doesNotMatch(html, /autoComplete="(?:username|current-password)"/);
+});
+
 test("rejects invalid admin credentials", async () => {
   const response = await request("/admin/api/login", {
     method: "POST",

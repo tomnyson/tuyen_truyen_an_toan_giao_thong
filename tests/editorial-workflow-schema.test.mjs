@@ -165,7 +165,7 @@ function decide(
   );
 }
 
-test("Drizzle and journal declare 0003 without runtime bootstrap activation", () => {
+test("Drizzle and journal retain 0003 without runtime bootstrap activation", () => {
   for (const table of editorialTables) {
     assert.match(
       drizzleSchema,
@@ -176,11 +176,13 @@ test("Drizzle and journal declare 0003 without runtime bootstrap activation", ()
       new RegExp(`CREATE TABLE IF NOT EXISTS [\`\"]${table}[\`\"]`, "i"),
     );
   }
-  assert.equal(journal.entries.at(-1)?.idx, 3);
+  assert.equal(journal.entries[3]?.idx, 3);
   assert.equal(
-    journal.entries.at(-1)?.tag,
+    journal.entries[3]?.tag,
     "0003_editorial_trust_primitives",
   );
+  assert.equal(journal.entries.at(-1)?.idx, 4);
+  assert.equal(journal.entries.at(-1)?.tag, "0004_rate_limit_v1");
   assert.doesNotMatch(bootstrap, /0003_editorial_trust_primitives|editorialTrust/);
   for (const table of editorialTables) {
     assert.doesNotMatch(

@@ -1,0 +1,20 @@
+{
+  "providerKey": "vbpl_national",
+  "upstreamId": "173920",
+  "canonicalUrl": "https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=173920",
+  "metadataUrl": "https://vbpl.vn/TW/Pages/vbpq-thuoctinh.aspx?ItemID=173920",
+  "fetchedAt": "2026-07-31T00:00:00.000Z",
+  "contentChecksum": "6044655105f338732e0cb637fb347e01b2b6e38a06766a0aa92f12b1269211a2",
+  "documentNumber": "168/2024/NĐ-CP",
+  "title": "Quy định xử phạt vi phạm hành chính về trật tự, an toàn giao thông trong lĩnh vực giao thông đường bộ; trừ điểm, phục hồi điểm giấy phép lái xe",
+  "issuedAt": "2024-12-26",
+  "effectiveFrom": "2025-01-01",
+  "provision": {
+    "sourceAnchor": "Điều 53 khoản 1",
+    "article": "53",
+    "clause": "1",
+    "point": null,
+    "originalText": "Nghị định này có hiệu lực thi hành từ ngày 01 tháng 01 năm 2025, trừ quy định tại khoản 2 Điều này.",
+    "simplifiedText": "Mẫu kỹ thuật chỉ để kiểm tra mapping; hiệu lực từng phần vẫn phải được reviewer nội bộ xác minh trước khi publish."
+  }
+}

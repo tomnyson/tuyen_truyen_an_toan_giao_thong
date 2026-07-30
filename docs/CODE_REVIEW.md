@@ -157,9 +157,9 @@ bắt đầu.
 - `docs/PRODUCT_REQUIREMENTS.md:7-154`,
   `docs/USER_STORIES.md:1-390` và `docs/TECHNICAL_SPEC.md:43-150` mô tả khá sát
   kiến trúc as-is và không đánh đồng prototype với backend production.
-- `.env.example:1-30` và `README.md:15-18` hiện đã khớp runtime:
-  `ADMIN_PASSWORD` vẫn là plaintext secret, `ADMIN_PASSWORD_HASH` chưa được hỗ
-  trợ, password mẫu đã để trống và các biến chưa dùng đã được ghi rõ.
+- `.env.example` và `README.md` khớp runtime hash sau US-018:
+  `ADMIN_PASSWORD_HASH` là server-only, plaintext bị bỏ qua và không có password
+  mặc định.
 - `docs/TECHNICAL_SPEC.md:3-4` xác định Sprint 0 không thay đổi business logic,
   schema hoặc API; trạng thái source code sau Sprint 0 phù hợp giới hạn này.
 - Tổng số và trạng thái story trong `docs/PROGRESS.md:18-25` khớp các row tracker
@@ -430,24 +430,16 @@ và README là documentation evidence; chúng không sửa CR-008 trong runtime.
   citation hợp lệ. Nếu chưa có căn cứ đã duyệt, dùng `insufficient_evidence`
   và không khẳng định kết luận pháp lý.
 
-#### CR-008 — Runtime vẫn yêu cầu mật khẩu quản trị plaintext
+#### CR-008 — Runtime vẫn yêu cầu mật khẩu quản trị plaintext — Resolved
 
-- **Vị trí:** `lib/admin-auth.ts:43-53`, `.env.example:1-8`,
-  `README.md:15-18`, `tests/rendered-html.test.mjs:5-8`.
-- **Bằng chứng:** Sprint 0 đã sửa tài liệu cấu hình: password mặc định bị bỏ,
-  `.env.example` và README nói chính xác rằng runtime đọc `ADMIN_PASSWORD` từ
-  secret manager và chưa hỗ trợ hash. Tuy vậy implementation vẫn tải password
-  nguyên văn rồi so sánh trực tiếp; `ADMIN_PASSWORD_HASH` không được runtime
-  dùng. `admin/admin` trong test là fixture cục bộ, không còn là giá trị deploy
-  được đề xuất.
-- **Impact:** Documentation drift/default-credential risk đã giảm, nhưng secret
-  store/config dump vẫn làm lộ ngay password có thể đăng nhập. NFR-02 và US-018
-  về salted password hash vẫn chưa đạt.
-- **Recommendation:** Giữ finding là **current defect P1** cho production
-  readiness. Triển khai `ADMIN_PASSWORD_HASH` bằng Argon2id/scrypt theo spec đã
-  chốt, loại plaintext khỏi production runtime, thêm CLI/runbook tạo/rotate hash
-  và test cấu hình thiếu/không hợp lệ. Documentation cleanup Sprint 0 chỉ là
-  evidence một phần của US-018, không phải bản sửa security.
+- **Vị trí:** `lib/password-hash.ts`, `lib/admin-auth.ts`,
+  `tests/admin-auth.test.mjs`, `docs/ADMIN_CREDENTIAL_ROTATION.md`.
+- **Resolution 2026-07-31:** Runtime dùng versioned salted
+  PBKDF2-HMAC-SHA256 qua Worker Web Crypto, chỉ đọc `ADMIN_PASSWORD_HASH` và
+  fail closed với cấu hình thiếu/malformed. Plaintext legacy bị bỏ qua; đã có
+  generator, rotation/session invalidation runbook và focused tests.
+- **Rollout gate còn lại:** benchmark 600.000 vòng trên Worker production-like;
+  không hạ iteration hoặc đổi scheme nếu chưa version hóa và security review.
 
 #### CR-009 — Không có rate limit cho login và chat
 

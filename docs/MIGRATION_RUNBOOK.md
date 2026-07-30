@@ -35,7 +35,7 @@ guessed database name or a database identifier copied from another environment.
 That path is prohibited until the repository has an explicit, reviewed Wrangler
 configuration and a verified environment-to-database mapping.
 
-## 2. Scope of migrations 0001–0003
+## 2. Scope of migrations 0001–0004
 
 `0001_citation_foundation` is expand-only. It creates:
 
@@ -78,6 +78,12 @@ SHA-256 from canonical JSON. A future authenticated runtime must canonicalize
 the snapshot, recompute `editorial-sha256-v1` before insert and reject a digest
 mismatch.
 
+`0004_rate_limit_v1` is expand-only. It creates `rate_limit_buckets` and
+`rate_limit_penalties` with HMAC-key shape constraints, expiry indexes and
+versioned scope checks. It stores no raw IP, username, question or credential.
+It is intentionally excluded from `db/index.ts` runtime bootstrap: login/chat
+must fail closed until the ordered migration ledger applies 0004 before code.
+
 ## 3. Preflight
 
 1. Confirm the intended Sites project and environment. Treat IDs returned by
@@ -108,12 +114,13 @@ mismatch.
    dist/.openai/drizzle/0001_citation_foundation.sql
    dist/.openai/drizzle/0002_reviewed_rag_bridge.sql
    dist/.openai/drizzle/0003_editorial_trust_primitives.sql
+   dist/.openai/drizzle/0004_rate_limit_v1.sql
    dist/.openai/drizzle/meta/_journal.json
    ```
 
-6. Confirm journal order is `0000`, `0001`, `0002`, `0003`; confirm migration
-   0003 contains no principal/role/content seed and `db/index.ts` does not
-   import or auto-apply it.
+6. Confirm journal order is `0000`, `0001`, `0002`, `0003`, `0004`; confirm
+   migration 0003 contains no principal/role/content seed and neither 0003 nor
+   0004 is imported/auto-applied by `db/index.ts`.
 7. Through the Sites/D1 control plane, create or record a pre-migration backup,
    Time Travel bookmark/timestamp or equivalent restore point. Assign an owner
    and verify the restore procedure before continuing.
@@ -125,7 +132,7 @@ not activate the application version until the control plane reports:
 
 - the artifact is associated with the intended Sites project;
 - D1 binding `DB` resolves to the intended environment database;
-- ordered migrations through `0003_editorial_trust_primitives` completed
+- ordered migrations through `0004_rate_limit_v1` completed
   exactly once;
 - no migration is failed, pending or partially applied.
 
@@ -141,7 +148,9 @@ Use the read-only query facility attached to the exact Sites/D1 environment:
 ```sql
 SELECT name, type
 FROM sqlite_master
-WHERE name LIKE 'legal_%' OR name LIKE 'editorial_%'
+WHERE name LIKE 'legal_%'
+   OR name LIKE 'editorial_%'
+   OR name LIKE 'rate_limit_%'
 ORDER BY type, name;
 
 PRAGMA foreign_key_check;
@@ -170,6 +179,15 @@ WHERE type = 'trigger'
     'legal_sources_material_change_invalidates_rag'
   )
 ORDER BY name;
+
+SELECT name
+FROM sqlite_master
+WHERE type = 'index'
+  AND name IN (
+    'rate_limit_buckets_expiry_idx',
+    'rate_limit_penalties_expiry_idx'
+  )
+ORDER BY name;
 ```
 
 Expected:
@@ -179,13 +197,19 @@ Expected:
 - all foundation and reviewed-bridge triggers exist;
 - `PRAGMA foreign_key_check` returns no rows;
 - `PRAGMA integrity_check` returns `ok`;
-- the control plane records migrations 0001, 0002 and 0003 exactly once, in
+- the control plane records migrations 0001, 0002, 0003 and 0004 exactly once, in
   journal order;
 - all seven `editorial_*` tables and 0003 integrity triggers exist, while every
   editorial table remains empty immediately after migration.
+- both `rate_limit_*` tables and expiry indexes exist and are empty immediately
+  after migration.
 
 Constraint probes belong in a non-production D1 clone. They must prove:
 
+- rate-limit scope/hash/state-version constraints reject malformed state;
+- concurrent account/client/pair-attempt/chat bucket batches cannot authorize
+  above policy threshold and any `success: false` result fails closed;
+- stale login reset tokens cannot clear a newer pair failure;
 - non-HTTPS URLs are rejected;
 - `official_host` is lowercase, contains only `a-z0-9.-`, and contains no `..`;
 - URL authority matches `official_host`, including URL query/fragment cases;
@@ -227,14 +251,17 @@ Only after migration and database verification:
 
 1. activate/deploy the saved Sites version built from the exact verified source;
 2. confirm the Worker starts and existing public/admin routes still work;
-3. confirm current routes do not write to the new tables, and do not provision
-   principals or activate editorial workflow;
+3. confirm login/chat write only HMAC-keyed state to the two `rate_limit_*`
+   tables; confirm no raw identity/body is stored, and no route provisions
+   principals or activates editorial workflow;
 4. confirm chat remains fail-closed outside reviewed retrieval;
-5. monitor Worker and D1 errors before ending the maintenance window.
+5. confirm the scheduled expiry sweep and its owner before claiming physical
+   retention; lazy cleanup alone is not retention evidence;
+6. monitor Worker and D1 errors before ending the maintenance window.
 
 ## 7. Rollback and restore
 
-Because migrations 0001 through 0003 are expand-only, the preferred application
+Because migrations 0001 through 0004 are expand-only, the preferred application
 rollback is:
 
 1. roll back the Sites application version;
@@ -255,13 +282,13 @@ If migration execution corrupts or blocks D1:
 5. document the incident before attempting a corrected, newly versioned
    migration.
 
-Never modify migration 0001, migration 0002, migration 0003 or any migration
+Never modify migration 0001, migration 0002, migration 0003, migration 0004 or any migration
 after it has been applied to a shared environment. Corrections require a new
 migration.
 
 ## 8. Drizzle metadata limitation
 
-`drizzle/meta/_journal.json` records migrations 0001, 0002 and 0003, and the
+`drizzle/meta/_journal.json` records migrations 0001, 0002, 0003 and 0004, and the
 Sites artifact contains the journal and all three SQL files. The repository did
 not fabricate `0001_snapshot.json`, `0002_snapshot.json` or
 `0003_snapshot.json`. Before relying on a Drizzle Kit workflow that requires

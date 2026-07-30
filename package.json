@@ -12,7 +12,13 @@
     "test": "npm run build && node --test tests/*.test.mjs",
     "test:ai-adapter": "node --experimental-strip-types --test tests/openai-evidence.test.mjs",
     "test:retriever": "node --experimental-strip-types --test tests/legal-evidence-retriever.test.mjs",
+    "test:admin-auth": "node --experimental-strip-types --test tests/admin-auth.test.mjs",
+    "test:rate-limit": "node --experimental-strip-types --test tests/rate-limit.test.mjs",
+    "test:telemetry": "node --experimental-strip-types --test tests/telemetry.test.mjs",
+    "test:ingestion-local": "node --experimental-strip-types --test tests/ingestion-local.test.mjs",
+    "test:image-intent": "node --experimental-strip-types --test tests/image-intent.test.mjs",
     "smoke:ai": "node --env-file=.env.local --experimental-strip-types scripts/smoke-openai-evidence.mjs",
+    "auth:hash": "node --experimental-strip-types scripts/generate-admin-password-hash.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

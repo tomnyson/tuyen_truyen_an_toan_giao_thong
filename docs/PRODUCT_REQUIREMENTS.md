@@ -171,6 +171,11 @@ sau khi có dữ liệu sử dụng thật:
 - Tìm trên tiêu đề, chủ đề, tags, căn cứ và các từ khóa đồng nghĩa đã quản lý.
 - Hỗ trợ tiếng Việt có/không dấu.
 - Có trạng thái không tìm thấy và cách quay lại toàn bộ kết quả.
+- Public catalog phải có stable content key và một resolver duy nhất; managed
+  published có thể override static cùng key nhưng không được nối hai bản thành
+  duplicate.
+- Dependency failure được phân biệt với success-empty; static fallback chỉ dùng
+  record còn đủ điều kiện và phải được đánh dấu degraded.
 
 ### FR-02 — Chi tiết câu trả lời
 
@@ -204,6 +209,9 @@ Mỗi kết quả phải hiển thị:
 - Nhận tối đa 8 message gần nhất, tối đa 600 ký tự/message trong MVP hiện tại.
 - Ưu tiên nội dung đã xuất bản trước nhánh AI.
 - Phân biệt rõ `curated`, `ai_assisted` và `unavailable`.
+- Intent ảnh riêng tư/nhạy cảm phải ưu tiên safety guidance; intent bản quyền
+  chỉ match dấu hiệu tác giả/tác phẩm/giấy phép/ghi nguồn. Từ chung “hình ảnh”
+  hoặc câu mơ hồ không được tự chọn một nhánh.
 - Response mục tiêu dùng contract canonical tại
   `docs/TECHNICAL_SPEC.md#6-api-contract-đích`. Shape cấp cao:
 
@@ -253,6 +261,9 @@ type LegalAnswerResponse = {
 ### FR-05 — CMS
 
 - Quản lý câu trả lời, ví dụ, nguồn và điều/khoản/điểm.
+- Showcase public render toàn bộ record published đủ title/topic/summary/source,
+  có detail accessible; không cố định hai vị trí hoặc dựng fallback thiếu dữ
+  liệu bắt buộc.
 - Kiểm tra độ dài, trường bắt buộc, topic/status hợp lệ và URL HTTPS.
 - Có tìm kiếm, phân trang và bộ lọc trạng thái khi dữ liệu tăng.
 - Không xóa cứng nội dung đã từng xuất bản nếu cần giữ audit; ưu tiên archive.
@@ -274,16 +285,26 @@ type LegalAnswerResponse = {
 ### FR-08 — Logging và quan sát
 
 - Ghi mode trả lời, ID record truy xuất, citation ID, latency và lỗi provider.
+- Record/citation ID trong log phải đến từ structured retrieval metadata và
+  khớp canonical response/evidence; không suy ID từ answer text.
 - Không log nguyên văn dữ liệu cá nhân không cần thiết.
 - Có correlation ID để truy vết request.
 
 ### FR-09 — Nhập dữ liệu ngoài có kiểm soát
 
+- Production ingestion chỉ chạy với source registry durable đạt `green`, có
+  terms/retention và hai approval độc lập; nguồn `yellow` chỉ dùng cho
+  local/manual feasibility spike.
 - Ưu tiên API/export chính thức; nếu chưa có API, connector HTML/PDF chỉ được
   fetch từ host allowlist và phải tuân thủ điều khoản/attribution.
 - Lưu provenance, canonical URL, external ID, thời điểm fetch, checksum,
   version và raw snapshot reference.
 - Import phải idempotent, có quarantine/retry và không auto-publish.
+- Queue/retry phải chịu được at-least-once delivery và crash-resume mà không tạo
+  raw/candidate/audit trùng hoặc bỏ qua bước review.
+- Upstream update/supersede/delete phải tạo revision/tombstone, invalidate graph
+  phụ thuộc và đưa về review; không hard-delete canonical content đang được
+  trích dẫn.
 - AI chỉ trích xuất, phân loại hoặc gợi ý candidate; editor và reviewer khác
   nhau phải duyệt trước khi record vào corpus.
 
@@ -389,8 +410,9 @@ type LegalAnswerResponse = {
   re-index.
 - Đã có AI composer adapter cô lập với strict evidence/four-eyes/freshness
   gate và contract tests, nhưng chưa có retriever production, DB citation
-  assembly, semantic claim-span validation, rate limit/telemetry hoặc
-  `/api/chat` integration. API key không làm chat dùng kiến thức mở.
+  assembly, semantic claim-span validation hoặc production rate-limit/telemetry
+  verification; chưa có `/api/chat` integration. API key không làm chat dùng
+  kiến thức mở.
 - Đã có candidate retriever foundation cô lập: join relational graph, kiểm
   policy/effectivity/four-eyes/checksum và deterministic lexical top-k. Một
   reviewed migration fixture tạo được internal candidate; corpus legacy vẫn
@@ -400,11 +422,15 @@ type LegalAnswerResponse = {
   CMS chưa có authenticated actor/session, reviewer API, history UI, archive
   hoặc graph-promotion transaction.
 - Showcase public chỉ dùng tiêu đề của hai record đầu tiên.
-- Chưa có rate limit, pagination, CI evidence hoặc test D1 end-to-end.
-- Runtime vẫn đọc `ADMIN_PASSWORD` plaintext. `.env.example` hiện đã bỏ
-  credential `admin/admin`, ghi đúng giới hạn này và đánh dấu
-  `ADMIN_PASSWORD_HASH` là chưa được runtime hỗ trợ; bước chuyển sang password
-  hash vẫn chưa được triển khai.
+- Đã có local-safe `rate-limit-v1` cho login/chat với D1 atomic state, HMAC
+  identity và fail-closed route guards. Production vẫn chưa được bật vì thiếu
+  migration-before-code, Cloudflare header/concurrency smoke, telemetry và
+  threshold/retention approval. Pagination, CI và D1 production E2E vẫn thiếu.
+- Auth một admin hiện dùng `ADMIN_PASSWORD_HASH` với PBKDF2-HMAC-SHA256, salt
+  ngẫu nhiên và format versioned; plaintext `ADMIN_PASSWORD` bị bỏ qua. Runtime
+  fail closed khi thiếu/sai cấu hình, có script tạo hash và runbook xoay
+  credential/session. Benchmark 600.000 vòng trên Worker production-like vẫn là
+  rollout gate, không phải lý do quay lại plaintext.
 - Cloudflare Worker + D1 đã được chốt là production primary và migration runbook
   đã có. Production rollout vẫn **BLOCKED** vì Sites `project_id` hiện không
   resolve được và hành vi control plane áp migration trước activation chưa được
@@ -485,6 +511,7 @@ activation; do đó production deployment vẫn bị chặn.
 | 2026-07-29 | DEC-004 | Chỉ publish nguồn Chính phủ thuộc allowlist mặc định: `vbpl.vn`, `vbpl.moj.gov.vn`, `chinhphu.vn` và subdomain chính thức. | Nguồn ngoài allowlist bị từ chối; reviewer là người duyệt nội dung nội bộ, không bắt buộc là external legal reviewer. |
 | 2026-07-30 | DEC-005 | Sản phẩm là RAG-first; MVP retrieve corpus đã reviewed/published/effective trước khi dùng model compose và không bắt buộc vector database. | Structured search/alias/FTS5 là baseline; không có evidence hợp lệ thì trả `unavailable`. |
 | 2026-07-30 | DEC-006 | Dữ liệu ngoài chỉ được ingest vào staging/draft có provenance và qua bốn mắt; AI không auto-publish hoặc làm nguồn xác minh. | API key chỉ dùng cho discovery/extraction draft hoặc evidence-bound composer; end-user query không live-search và không dùng kiến thức mở làm fallback. |
+| 2026-07-31 | DEC-007 | Credential admin chỉ lưu dạng hash versioned `PBKDF2-HMAC-SHA256`, không hỗ trợ plaintext. | Cấu hình thiếu/malformed fail closed; rotation đổi cả password hash và session secret; benchmark Worker là rollout gate. |
 
 ## 16. Open questions cần chủ dự án xác nhận
 

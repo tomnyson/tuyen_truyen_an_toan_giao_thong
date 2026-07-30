@@ -211,7 +211,7 @@ match.
 ### Hiện tại
 
 - `ADMIN_USERNAME`
-- `ADMIN_PASSWORD`
+- `ADMIN_PASSWORD_HASH`
 - `ADMIN_SESSION_SECRET` tối thiểu 32 ký tự
 - Cloudflare D1 binding `DB`
 

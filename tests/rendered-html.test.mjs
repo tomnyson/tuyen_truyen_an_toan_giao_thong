@@ -2,10 +2,123 @@ import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
 
+function createD1Mock() {
+  const buckets = new Map();
+  const penalties = new Map();
+  let stateVersion = 0;
+  const nextStateVersion = () => (++stateVersion).toString(16).padStart(32, "0");
+
+  function statement(query, values = []) {
+    return {
+      query,
+      values,
+      bind(...nextValues) {
+        return statement(query, nextValues);
+      },
+      async all() {
+        return { success: true, results: [] };
+      },
+      async first() {
+        return null;
+      },
+      async run() {
+        return { success: true, results: [] };
+      },
+    };
+  }
+
+  function execute({ query, values }) {
+    if (/DELETE FROM rate_limit_buckets/i.test(query)) {
+      for (const [key, value] of buckets) {
+        if (value.expires_at <= values[0]) buckets.delete(key);
+      }
+      return [];
+    }
+    if (/DELETE FROM rate_limit_penalties/i.test(query)) {
+      for (const [key, value] of penalties) {
+        if (value.expires_at <= values[0]) penalties.delete(key);
+      }
+      return [];
+    }
+    if (/INSERT INTO rate_limit_buckets/i.test(query)) {
+      const [scope, keyHash, windowStart, expiresAt, cap] = values;
+      const key = `${scope}:${keyHash}:${windowStart}`;
+      const current = buckets.get(key);
+      const value = {
+        request_count: Math.min((current?.request_count ?? 0) + 1, cap),
+        expires_at: expiresAt,
+      };
+      buckets.set(key, value);
+      return [{ request_count: value.request_count }];
+    }
+    if (/SELECT request_count[\s\S]+FROM rate_limit_buckets/i.test(query)) {
+      const [scope, keyHash, windowStart] = values;
+      const value = buckets.get(`${scope}:${keyHash}:${windowStart}`);
+      return value ? [{ request_count: value.request_count }] : [];
+    }
+    if (/SELECT consecutive_failures, blocked_until/i.test(query)) {
+      const [scope, keyHash, windowStart] = values;
+      const value = penalties.get(`${scope}:${keyHash}`);
+      return value?.window_start === windowStart ? [value] : [];
+    }
+    if (/INSERT INTO rate_limit_penalties/i.test(query)) {
+      const [scope, keyHash, windowStart, expiresAt, windowEnd, fourthBlock, thirdBlock] = values;
+      const key = `${scope}:${keyHash}`;
+      const current = penalties.get(key);
+      const failures =
+        current?.window_start === windowStart
+          ? Math.min(current.consecutive_failures + 1, 5)
+          : 1;
+      const value = {
+        window_start: windowStart,
+        consecutive_failures: failures,
+        blocked_until:
+          failures >= 5 ? windowEnd : failures === 4 ? fourthBlock : failures === 3 ? thirdBlock : 0,
+        state_version: nextStateVersion(),
+        expires_at: expiresAt,
+      };
+      penalties.set(key, value);
+      return [{
+        consecutive_failures: failures,
+        blocked_until: value.blocked_until,
+        state_version: value.state_version,
+      }];
+    }
+    if (/UPDATE rate_limit_penalties/i.test(query)) {
+      const [scope, keyHash, windowStart, stateVersion] = values;
+      const key = `${scope}:${keyHash}`;
+      const current = penalties.get(key);
+      if (
+        current?.window_start === windowStart &&
+        current.state_version === stateVersion
+      ) {
+        current.consecutive_failures = 0;
+        current.blocked_until = 0;
+        current.state_version = nextStateVersion();
+        return [{ state_version: current.state_version }];
+      }
+      return [];
+    }
+    return [];
+  }
+
+  return {
+    prepare(query) {
+      return statement(query);
+    },
+    async batch(statements) {
+      return statements.map((item) => ({ success: true, results: execute(item) }));
+    },
+  };
+}
+
 const workerEnv = {
   ADMIN_USERNAME: "admin",
-  ADMIN_PASSWORD: "admin",
+  ADMIN_PASSWORD_HASH:
+    "v1$pbkdf2-sha256$600000$AAECAwQFBgcICQoLDA0ODw$mh0FvdOLp8VMUZ6wViUAazeYRmrnaBisZZF2AE9PVbA",
   ADMIN_SESSION_SECRET: "test-session-secret-at-least-32-characters-long",
+  RATE_LIMIT_KEY_SECRET: "test-rate-limit-secret-at-least-32-characters",
+  DB: createD1Mock(),
   ASSETS: {
     fetch: async () => new Response("Not found", { status: 404 }),
   },
@@ -38,8 +151,12 @@ const executionContext = {
 };
 
 function request(pathname, init) {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("cf-connecting-ip")) {
+    headers.set("cf-connecting-ip", "203.0.113.10");
+  }
   return worker.fetch(
-    new Request(`http://localhost${pathname}`, init),
+    new Request(`http://localhost${pathname}`, { ...init, headers }),
     workerEnv,
     executionContext,
   );
@@ -57,7 +174,7 @@ async function validAdminCookie() {
   const response = await request("/admin/api/login", {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://localhost" },
-    body: JSON.stringify({ username: "admin", password: "admin" }),
+    body: JSON.stringify({ username: "admin", password: "test-admin-password-strong" }),
   });
   assert.equal(response.status, 200);
   const header = response.headers.get("set-cookie");

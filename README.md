@@ -13,9 +13,9 @@ npm run dev
 ```
 
 Các biến môi trường được mô tả trong `.env.example`. Sao chép chúng vào
-`.env.local`; không commit secret. Runtime hiện dùng `ADMIN_PASSWORD` dạng
-plaintext từ secret manager, chưa hỗ trợ `ADMIN_PASSWORD_HASH`. Không dùng
-credential mặc định như `admin/admin` trong production.
+`.env.local`; không commit secret. Runtime chỉ dùng password hash có salt trong
+`ADMIN_PASSWORD_HASH`; plaintext `ADMIN_PASSWORD` bị bỏ qua. Tạo hash bằng
+`npm run auth:hash` và làm theo `docs/ADMIN_CREDENTIAL_ROTATION.md`.
 
 ## Kiểm tra
 
@@ -30,8 +30,12 @@ chatbot.
 
 ## Quản trị nội dung
 
-Mở `/admin/login` và đăng nhập bằng `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Phiên
-đăng nhập được ký bằng `ADMIN_SESSION_SECRET` và lưu trong cookie `HttpOnly`.
+Mở `/admin/login` và đăng nhập bằng `ADMIN_USERNAME` cùng mật khẩu tương ứng với
+`ADMIN_PASSWORD_HASH`. Phiên đăng nhập được ký bằng `ADMIN_SESSION_SECRET` và
+lưu trong cookie `HttpOnly`.
+Login và chat dùng `rate-limit-v1`, cần `RATE_LIMIT_KEY_SECRET`, trusted
+`CF-Connecting-IP` và migration `0004_rate_limit_v1` trên D1. Thiếu một dependency
+sẽ trả 503 theo fail-closed; xem `docs/MIGRATION_RUNBOOK.md`.
 Dashboard cho phép tạo, sửa, xóa và xuất bản điều luật hoặc case study. Nội dung
 CMS có trạng thái `published` được đưa vào trang công khai và được chatbot dùng
 cho retrieval. Câu hỏi không khớp kho nội dung trả `unavailable`; AI provider

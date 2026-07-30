@@ -1,9 +1,10 @@
 import { env } from "cloudflare:workers";
+import { verifyAdminPassword } from "@/lib/password-hash";
 
 export const adminCookieName = "law_school_admin";
 const sessionTtlSeconds = 8 * 60 * 60;
 
-function getSecret(name: "ADMIN_USERNAME" | "ADMIN_PASSWORD" | "ADMIN_SESSION_SECRET") {
+function getSecret(name: "ADMIN_USERNAME" | "ADMIN_PASSWORD_HASH" | "ADMIN_SESSION_SECRET") {
   const value = env[name] ?? process.env[name];
   return typeof value === "string" ? value : "";
 }
@@ -42,13 +43,19 @@ async function sign(payload: string) {
 
 export async function validateAdminCredentials(username: string, password: string) {
   const expectedUsername = getSecret("ADMIN_USERNAME");
-  const expectedPassword = getSecret("ADMIN_PASSWORD");
-  if (!expectedUsername || !expectedPassword || getSecret("ADMIN_SESSION_SECRET").length < 32) {
+  const expectedPasswordHash = getSecret("ADMIN_PASSWORD_HASH");
+  if (
+    !expectedUsername ||
+    !expectedPasswordHash ||
+    getSecret("ADMIN_SESSION_SECRET").length < 32 ||
+    !password ||
+    new TextEncoder().encode(password).length > 1024
+  ) {
     return false;
   }
   const [usernameMatches, passwordMatches] = await Promise.all([
     safeEqual(username, expectedUsername),
-    safeEqual(password, expectedPassword),
+    verifyAdminPassword(password, expectedPasswordHash),
   ]);
   return usernameMatches && passwordMatches;
 }

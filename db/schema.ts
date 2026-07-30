@@ -606,3 +606,85 @@ export const editorialAuditEvents = sqliteTable(
     ),
   ],
 );
+
+export const rateLimitBuckets = sqliteTable(
+  "rate_limit_buckets",
+  {
+    scope: text("scope", {
+      enum: [
+        "login-client-15m-v1",
+        "login-account-60m-v1",
+        "login-pair-attempt-15m-v1",
+        "chat-client-60s-v1",
+        "chat-client-day-v1",
+      ],
+    }).notNull(),
+    keyHash: text("key_hash").notNull(),
+    windowStart: integer("window_start").notNull(),
+    requestCount: integer("request_count").notNull().default(1),
+    expiresAt: integer("expires_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.scope, table.keyHash, table.windowStart] }),
+    index("rate_limit_buckets_expiry_idx").on(table.expiresAt),
+    check(
+      "rate_limit_buckets_scope_check",
+      sql`${table.scope} in (
+        'login-client-15m-v1',
+        'login-account-60m-v1',
+        'login-pair-attempt-15m-v1',
+        'chat-client-60s-v1',
+        'chat-client-day-v1'
+      )`,
+    ),
+    check(
+      "rate_limit_buckets_key_hash_check",
+      sql`length(${table.keyHash}) = 64
+        and ${table.keyHash} = lower(${table.keyHash})
+        and ${table.keyHash} not glob '*[^0-9a-f]*'`,
+    ),
+    check(
+      "rate_limit_buckets_window_check",
+      sql`${table.windowStart} >= 0
+        and ${table.requestCount} >= 1
+        and ${table.expiresAt} > ${table.windowStart}`,
+    ),
+  ],
+);
+
+export const rateLimitPenalties = sqliteTable(
+  "rate_limit_penalties",
+  {
+    scope: text("scope", { enum: ["login-pair-penalty-15m-v1"] }).notNull(),
+    keyHash: text("key_hash").notNull(),
+    windowStart: integer("window_start").notNull(),
+    consecutiveFailures: integer("consecutive_failures").notNull().default(1),
+    blockedUntil: integer("blocked_until").notNull().default(0),
+    stateVersion: text("state_version").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.scope, table.keyHash] }),
+    index("rate_limit_penalties_expiry_idx").on(table.expiresAt),
+    check(
+      "rate_limit_penalties_scope_check",
+      sql`${table.scope} = 'login-pair-penalty-15m-v1'`,
+    ),
+    check(
+      "rate_limit_penalties_key_hash_check",
+      sql`length(${table.keyHash}) = 64
+        and ${table.keyHash} = lower(${table.keyHash})
+        and ${table.keyHash} not glob '*[^0-9a-f]*'`,
+    ),
+    check(
+      "rate_limit_penalties_state_check",
+      sql`${table.windowStart} >= 0
+        and ${table.consecutiveFailures} >= 0
+        and ${table.blockedUntil} >= 0
+        and length(${table.stateVersion}) = 32
+        and ${table.stateVersion} = lower(${table.stateVersion})
+        and ${table.stateVersion} not glob '*[^0-9a-f]*'
+        and ${table.expiresAt} > ${table.windowStart}`,
+    ),
+  ],
+);

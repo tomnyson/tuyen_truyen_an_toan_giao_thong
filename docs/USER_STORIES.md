@@ -66,12 +66,30 @@
 - [x] Nội dung nền có căn cứ, mức xử lý, khắc phục và case study.
 - [ ] API trả riêng `conclusion`, `explanation`, `citations`, `examples`,
   `recommendedActions` và `warnings`.
+- [ ] Endpoint v1 trả contract versioned với `requestId`,
+  `mode=curated|ai_assisted|unavailable`, `confidence`, `answer`, `sanctions`
+  và `citations`; không dùng mode legacy `knowledge` hoặc parse text tự do để
+  dựng field/citation.
 - [ ] Mọi câu trả lời đủ điều kiện đều có ít nhất một citation và một example.
+- [ ] `curated`/`ai_assisted` chỉ được trả khi canonical answer key đã
+  deduplicate, citation/provision/source revision hợp lệ và example thuộc đúng
+  answer revision; thiếu bất kỳ phần bắt buộc nào trả contract `unavailable`
+  ổn định với mảng rỗng.
 - [ ] Frontend render từng phần với nhãn rõ ràng.
-- [ ] Có contract test cho response.
+- [ ] Frontend không render HTML từ answer, link nguồn chỉ lấy từ citation
+  HTTPS đã validate, mở an toàn và hiển thị loading/error/unavailable rõ ràng;
+  keyboard/screen-reader đọc được từng section.
+- [ ] `/api/chat` legacy chạy song song trong deprecation window; frontend chỉ
+  cutover sang v1 sau contract/integration/telemetry tests và có rollback flag.
+- [ ] Contract tests bao phủ curated, ai-assisted fixture, unavailable,
+  malformed input, missing example/citation, unknown/duplicate evidence ID,
+  canonical numeric/date/article mapping, schema field thừa/thiếu và
+  `429`/`503` không bị render thành answer.
 
 **Evidence hiện có:** `lib/legal-content.ts`, `app/api/chat/route.ts`,
-`app/page.tsx`
+`app/page.tsx`. AC/spec đã được refine trước code; US-004 phụ thuộc US-003,
+US-017 và validated bundle/citation assembly của US-025, còn nhánh AI phụ thuộc
+US-008/US-026. Không check AC mới từ fixture hoặc text legacy.
 
 ### [ ] US-005 — Xem đầy đủ case study được xuất bản
 
@@ -87,8 +105,25 @@
 - [ ] Render danh sách theo dữ liệu thay vì cố định hai vị trí đầu.
 - [ ] Hiển thị summary, topic và URL nguồn.
 - [ ] Có trang/modal chi tiết và trạng thái rỗng.
+- [ ] Renderer dùng toàn bộ DTO theo thứ tự deterministic từ API, không đọc
+  `showcases[0]`/`[1]`, không giới hạn ngầm hai item và không dùng array index
+  làm identity.
+- [ ] Showcase public chỉ đủ điều kiện khi có title/topic/summary không rỗng và
+  `sourceUrl` HTTPS đã validate theo exact authority policy DEC-004; link dùng
+  `target="_blank"` + `rel="noreferrer"` và record lỗi không được render như đã
+  xuất bản.
+- [ ] UI phân biệt loading, success-empty và dependency-error. D1 lỗi không
+  được giả thành success-empty; có thể hiển thị degraded state nhưng không dựng
+  showcase fallback chỉ từ title hard-code thiếu summary/source.
+- [ ] Modal/detail hiển thị đúng full summary, topic và source của item được
+  chọn; đóng bằng nút/Escape, quản lý focus và trả focus về trigger.
+- [ ] Component/integration tests bao phủ 0, 1 và ít nhất 3 showcase, API order,
+  draft/invalid-source exclusion, đúng item khi mở/đóng modal và degraded state.
 
-**Evidence hiện có:** `app/api/content/route.ts`, `app/page.tsx`
+**Evidence hiện có:** `app/api/content/route.ts`, `app/page.tsx`. AC/spec được
+refine trước code; story giữ `Partial`. US-005 không tự giải quyết merge/dedup:
+component nhận danh sách đã resolve; US-017 sẽ thay resolver mà không đổi
+contract hiển thị.
 
 ## Epic B — Hỏi đáp có kiểm soát
 
@@ -157,7 +192,7 @@ kiểm tra credential không tạo outbound call đã chạy pass trong
 composition guard và 15/15 tests pass, nhưng D1 validated bundle,
 canonical citation/sanction assembly và runtime integration vẫn chưa triển khai.
 
-### [ ] US-009 — Phân biệt câu hỏi ảnh riêng tư và bản quyền
+### [x] US-009 — Phân biệt câu hỏi ảnh riêng tư và bản quyền
 
 - **Priority:** P0
 - **Persona:** Học sinh
@@ -168,14 +203,38 @@ canonical citation/sanction assembly và runtime integration vẫn chưa triển
 
 - [x] Kho nội dung nền có một mục riêng về phát tán hình ảnh riêng tư.
 - [x] Prompt có hướng dẫn an toàn cho ảnh nhạy cảm.
-- [ ] Intent/ranking phân biệt quyền riêng tư với quyền tác giả.
+- [x] Intent/ranking phân biệt quyền riêng tư với quyền tác giả.
 - [x] Keyword chung `hình ảnh` không tự động chọn câu trả lời bản quyền.
-- [ ] Có regression test cho cả hai intent.
+- [x] Có regression test cho cả hai intent.
+- [x] Classifier deterministic, versioned và dùng Unicode normalization +
+  token/phrase boundary; trả `privacy_safety|copyright|unknown` cùng reason
+  allowlist, không dựa vào substring `hình ảnh` đơn lẻ hoặc thứ tự record mới
+  cập nhật.
+- [x] Dấu hiệu phát tán không đồng thuận/ảnh riêng tư/nhạy cảm/bạn học/nhóm lớp
+  ưu tiên `privacy_safety`; dấu hiệu tác giả/tác phẩm/giấy phép/sử dụng lại/ghi
+  nguồn ưu tiên `copyright`. Câu mixed có nguy cơ riêng tư phải chạy safety
+  action trước; câu mơ hồ trả `unknown`/`unavailable`, không đoán.
+- [x] Retrieval chỉ nhận answer có intent tag khớp classifier và đạt eligibility
+  hiện hành. Khi corpus copyright chưa có record đã duyệt, copyright intent trả
+  `unavailable`, không bị map sang privacy; privacy intent không được trả answer
+  bản quyền hoặc managed weak-match.
+- [x] Privacy response ưu tiên dừng chia sẻ, không phát tán thêm, lưu bằng chứng
+  an toàn và báo phụ huynh/giáo viên/cơ quan phù hợp; không yêu cầu gửi ảnh,
+  danh tính, trường/lớp hoặc dữ liệu nhạy cảm cho hệ thống.
+- [x] Table-driven tests có dấu/không dấu và negative pairs cho: ảnh riêng tư
+  bị phát tán, ảnh nhạy cảm trong nhóm lớp, xin phép tác giả dùng ảnh cho bài
+  học, ghi nguồn/giấy phép, từ chung “hình ảnh”, mixed privacy+copyright và
+  managed candidate cạnh tranh.
 
-**Evidence hiện có:** `lib/legal-content.ts` giữ mục riêng tư; branch
-copyright/`hình ảnh` đã được gỡ khỏi `findCuratedAnswer` trong
-`lib/legal-chat.ts`. Chưa có intent/ranking riêng hoặc test đủ cả privacy và
-copyright.
+**Evidence:** `lib/image-intent.ts` triển khai classifier
+`image-intent-v1`, NFKC/tiếng Việt normalization, phrase boundary, reason
+allowlist, privacy precedence và safe guidance có intent tag.
+`app/api/chat/route.ts` chạy gate trước legacy managed/curated retrieval:
+privacy trả guidance an toàn, copyright chưa có reviewed intent-tagged record và
+câu ảnh mơ hồ đều fail closed `unavailable`. `tests/image-intent.test.mjs` chạy
+18/18, gồm có dấu/không dấu, mixed risk, negative substring/unanchored pairs,
+managed candidate cạnh tranh và không yêu cầu upload/dữ liệu nhạy cảm. Full
+suite 142/142, typecheck, lint và build đều pass ngày 2026-07-31.
 
 ## Epic C — Quản trị nội dung
 
@@ -412,12 +471,36 @@ reviewer, nhưng four-eyes của DEC-003 vẫn bắt buộc.
 - [ ] Có stable slug/key để deduplicate.
 - [ ] Seed dữ liệu nền vào datastore hoặc có quy tắc override rõ ràng.
 - [ ] Managed content không bị nối trực tiếp thành bản sao với dữ liệu hard-code.
+- [ ] Mỗi law/showcase có immutable `contentKey` dạng `law:<slug>` hoặc
+  `showcase:<slug>` do editor/migration khai báo; không sinh lại từ
+  title ở read path, không dùng offset ID như `100_000 + id`, và có unique
+  constraint theo entity/key.
+- [ ] Resolver dùng một policy versioned chung cho public API/page/chat:
+  eligible managed `published` cùng key thay thế static; managed
+  draft/pending-review không che static; blocklist/invalidation hoặc durable
+  suppression đã duyệt không được làm static cũ xuất hiện lại.
+- [ ] D1 success-empty và dependency failure là hai trạng thái khác nhau.
+  Dependency failure chỉ fallback sang static record còn allowlisted/eligible
+  và trả metadata `degraded`; không fallback sang content đã bị suppress,
+  hết hiệu lực hoặc block.
+- [ ] Backfill key/override là migration/review packet tường minh; collision,
+  orphan hoặc nhiều managed published record cùng key fail closed và được báo
+  cáo, không tự chọn record mới nhất hay tự gộp theo title.
+- [ ] Thứ tự public deterministic theo topic/display order/content key, không
+  phụ thuộc `updatedAt`; resolver không mutate input và không trả duplicate key.
+- [ ] Unit/integration tests bao phủ managed override, draft không override,
+  durable suppression, duplicate/collision, D1 success-empty, D1 failure
+  fallback, blocked/stale static exclusion và cùng kết quả ở page/chat/API.
 
-**Evidence hiện có:** `app/page.tsx`, `lib/legal-content.ts`
+**Evidence hiện có:** `app/page.tsx`, `lib/legal-content.ts`. AC/spec được
+refine trước code; hiện vẫn nối `managedLaws` và `laws`, dùng offset ID và chưa
+có resolver/migration/test nên story giữ `Partial`. Durable suppression cần
+authenticated workflow/audit của US-013/US-014; local resolver có thể được test
+trước bằng fixture.
 
 ## Epic E — Bảo mật, vận hành và chất lượng
 
-### [ ] US-018 — Lưu mật khẩu quản trị an toàn
+### [x] US-018 — Lưu mật khẩu quản trị an toàn
 
 - **Priority:** P0
 - **Persona:** Quản trị hệ thống
@@ -427,16 +510,18 @@ reviewer, nhưng four-eyes của DEC-003 vẫn bắt buộc.
 **Acceptance criteria**
 
 - [x] Secret được đọc server-side từ environment.
-- [ ] Implementation dùng `ADMIN_PASSWORD_HASH`, không dùng plaintext.
+- [x] Implementation dùng `ADMIN_PASSWORD_HASH`, không dùng plaintext.
 - [x] Đã loại bỏ credential `admin/admin` khỏi `.env.example`.
-- [x] `.env.example` ghi đúng runtime hiện dùng plaintext và
-  `ADMIN_PASSWORD_HASH` chưa được hỗ trợ.
-- [ ] Có quy trình tạo/rotate credential.
-- [ ] Test xác thực hash và cấu hình thiếu.
+- [x] `.env.example` chỉ mô tả hash runtime đang hỗ trợ và không khai báo
+  plaintext `ADMIN_PASSWORD`.
+- [x] Có quy trình tạo/rotate credential.
+- [x] Test xác thực hash đúng/sai, format malformed, cấu hình thiếu và plaintext
+  legacy bị bỏ qua.
 
-**Evidence hiện có:** `lib/admin-auth.ts` vẫn đọc `ADMIN_PASSWORD` trực tiếp;
-`.env.example` để `ADMIN_PASSWORD=` rỗng, cảnh báo không dùng credential mặc
-định và ghi `ADMIN_PASSWORD_HASH` là chưa được runtime sử dụng.
+**Evidence:** `lib/password-hash.ts`, `lib/admin-auth.ts`,
+`scripts/generate-admin-password-hash.mjs`, `.env.example`,
+`docs/ADMIN_CREDENTIAL_ROTATION.md`, `tests/admin-auth.test.mjs` và regression
+login/session trong `tests/rendered-html.test.mjs`.
 
 ### [ ] US-019 — Chống lạm dụng login và chat
 
@@ -447,12 +532,50 @@ reviewer, nhưng four-eyes của DEC-003 vẫn bắt buộc.
 
 **Acceptance criteria**
 
-- [ ] Rate limit theo IP/session cho login.
-- [ ] Rate limit và quota cho chat.
-- [ ] Có backoff/lockout hợp lý mà không tiết lộ credential tồn tại.
-- [ ] Có telemetry và test cho ngưỡng giới hạn.
+- [x] Policy server-side bất biến `rate-limit-v1`: login giới hạn 5 attempt/15
+  phút theo client+username, 20 attempt/15 phút theo client và 20 attempt/60
+  phút theo account; chat giới hạn 20 request/60 giây và 200 request/ngày UTC
+  theo client. Client không được override; production threshold chỉ đổi qua
+  decision record và test.
+- [x] Login backoff không sleep Worker: sau lần sai thứ 3 block 2 giây, lần 4
+  block 4 giây, lần 5 block đến hết cửa sổ 15 phút. Login thành công reset
+  consecutive-failure pair nhưng không hoàn IP/account quota; response sai
+  credential không tiết lộ username tồn tại.
+- [x] Client identity chỉ đọc `CF-Connecting-IP`, bỏ qua
+  `X-Forwarded-For`; IPv4 và IPv6 `/64` được normalize rồi HMAC-SHA-256 bằng
+  `RATE_LIMIT_KEY_SECRET` server-only tối thiểu 32 byte và scope separation.
+  Username cũng normalize/HMAC. DB/log không lưu raw IP, username, token, câu
+  hỏi hoặc message.
+- [x] Thiếu/sai secret, thiếu trusted client identity hoặc D1/dependency lỗi
+  đều fail closed trước credential verification/retrieval/provider: trả 503
+  generic, `Retry-After: 5`, `Cache-Control: no-store`.
+- [x] Migration D1 tạo bucket/penalty state có expiry/index; consume dùng atomic
+  UPSERT/RETURNING, multi-bucket decision nằm trong một batch/transaction, không
+  read-then-write. Client/account/pair-attempt capacity được reserve trước
+  PBKDF2; concurrent request không vượt threshold. Pair penalty/reset dùng HMAC
+  scope riêng và exact `state_version` CAS.
+- [x] Vượt limit trả 429 generic, `Retry-After` integer theo `blockedUntil` và
+  `Cache-Control: no-store`; window boundary dùng injected clock và response
+  không lộ key/count nội bộ.
+- [x] Logical expiry làm bucket hết hạn không còn tham gia decision; bounded lazy
+  cleanup idempotent xóa tối đa 100 bucket/penalty mỗi batch. Telemetry chỉ cho
+  phép scope, outcome, policy version, retryAfter và requestId; không log
+  key/hash.
+- [x] Focused tests bao phủ migration/idempotency, threshold ±1, rollover,
+  backoff/reset, IP/account/pair isolation, IPv6 `/64`, spoofed XFF, HMAC/no raw
+  data, 429/503, missing secret/identity, D1 failure, concurrent atomicity,
+  daily quota, cleanup và denied request không chạy auth/retrieval/provider.
+- [ ] Production gate: migration apply-before-code trên actual D1, Cloudflare
+  header behavior, concurrent smoke và telemetry đã verify; production
+  thresholds được phê duyệt; scheduled sweep chứng minh physical retention tối
+  đa 25 giờ cho daily chat và 61 phút cho account state cộng bounded grace.
 
-**Evidence:** Chưa có.
+**Evidence local:** `drizzle/0004_rate_limit_v1.sql`, `db/schema.ts`,
+`lib/rate-limit.ts`, guards trong `app/admin/api/login/route.ts` và
+`app/api/chat/route.ts`, `.env.example`, `cloudflare-env.d.ts`,
+`tests/rate-limit.test.mjs` và D1 mock trong `tests/rendered-html.test.mjs`.
+Focused suite kiểm policy/atomicity/failure paths; production gate vẫn mở nên
+story giữ `Partial`.
 
 ### [ ] US-020 — Log an toàn và quan sát được luồng trả lời
 
@@ -463,12 +586,54 @@ reviewer, nhưng four-eyes của DEC-003 vẫn bắt buộc.
 
 **Acceptance criteria**
 
-- [ ] Có correlation ID.
-- [ ] Log mode, latency, retrieved record IDs, citation IDs và lỗi provider.
-- [ ] Có redaction/retention policy cho câu hỏi người dùng.
-- [ ] Có dashboard hoặc query hướng dẫn cho các chỉ số chính.
+- [x] Outer Worker tạo `requestId = crypto.randomUUID()`, ghi đè mọi ID client,
+  truyền nội bộ và trả `X-Request-ID` cho mọi response. Route direct-test chỉ
+  được tạo fallback server-side; không dùng provider response ID làm app ID.
+- [x] Structured event dùng typed exact allowlist `telemetry-v1`: timestamp,
+  requestId, static route/event ID, method, status, outcome/mode, latency,
+  policy/ranking/freshness version, bounded internal record/citation IDs và
+  allowlisted provider outcome/latency/usage. Unknown field bị drop/reject.
+- [x] Không event/sink nào chứa raw URL query, request/response body, question,
+  messages/evidence/legal text, cookie/header, password/hash, session/API key,
+  raw IP, username/email, rate-limit HMAC key/hash, provider body/refusal,
+  exception message hoặc stack. Error chỉ map thành stable enum.
+- [x] Instrument tối thiểu một `http.response_ready` ở outer Worker,
+  `chat.completed` ở chat và `auth.login` ở login; không duplicate provider
+  event. Chỉ log retrieved/citation IDs sau khi retrieval trả metadata có cấu
+  trúc, không tạo ID giả từ answer text.
+- [x] Application local phát 100% event hợp lệ, không nhận sampling override từ
+  client; policy/runbook đề xuất Workers Logs MVP dùng 100% sampling ở lưu lượng
+  thấp. Thay đổi sampling phải có policy/version và metric caveat. Security
+  audit bắt buộc không dựa vào platform head-sampling; editorial audit thuộc
+  US-014.
+- [x] Policy/runbook quy định retention MVP là 3 ngày trên Workers Logs,
+  least-privilege access, không Logpush/export hoặc lưu D1 khi chưa có approval
+  riêng. Không lưu raw question ở bất kỳ retention tier nào.
+- [x] Query/runbook bao phủ volume/status, p50/p95 latency, mode/unavailable,
+  retrieval no-match, provider stable error, login failure và 429/503; mỗi
+  query ghi timezone/sampling caveat và alert owner.
+- [x] Telemetry sink inject được; serialization/sink failure không đổi HTTP
+  result và không fallback log raw object/stack.
+- [x] Focused tests bao phủ request ID overwrite/propagation/uniqueness,
+  allowlist/bounds, canary secret/PII exclusion, safe error mapping, sink
+  failure và 200/400/401/403/429/503 paths; full suite vẫn pass.
+- [ ] Khi US-025/US-026 được nối vào chat, `chat.completed` phải nhận metadata
+  có cấu trúc từ validated bundle/provider owner và phát canonical
+  answer/provision/citation IDs cùng provider outcome/latency/token usage đã
+  allowlist; không suy ID từ answer text. Integration test và query smoke phải
+  chứng minh các event dùng cùng `requestId`, IDs khớp response/evidence trong
+  D1 và mỗi provider call chỉ có một owner phát telemetry.
+- [ ] Production gate: đúng Sites project đã bật Workers Logs; retention/access
+  và sampling được verify; response request ID tìm được log tương ứng; query
+  runbook, no-secret canary và alert smoke đã chạy.
 
-**Evidence:** Chưa có.
+**Evidence local:** `lib/telemetry.ts`, `lib/worker-observability.ts`, outer
+wrapper trong `worker/index.ts`, instrumentation tại
+`app/admin/api/login/route.ts` và `app/api/chat/route.ts`, correlation an toàn
+trong `lib/rate-limit.ts`, `tests/telemetry.test.mjs` và
+`docs/OBSERVABILITY_RUNBOOK.md`. Focused suite 12/12, full suite 124/124,
+typecheck, lint và Vinext build pass; structured retrieval/provider telemetry
+và production gate vẫn mở nên story giữ `Partial`.
 
 ### [ ] US-021 — Kiểm thử backend và workflow end-to-end
 
@@ -538,24 +703,30 @@ test.
 
 **Acceptance criteria**
 
-- [ ] Source registry ghi owner, endpoint/export, format, auth, quota, update
+- [x] Source registry ghi owner, endpoint/export, format, auth, quota, update
   cadence, trường dữ liệu, availability, terms/license và attribution.
-- [ ] Mỗi nguồn có cả `trust_class`
+- [x] Mỗi nguồn có cả `trust_class`
   (`official|discovery_only|rejected`) và `readiness`
-  (`green|yellow|red|unverified`); chỉ PM + internal content reviewer khác
-  người đăng ký nguồn được nâng readiness lên `green`.
-- [ ] Có sample payload/file và feasibility spike mapping vào
+  (`green|yellow|red|unverified`); static registry từ chối mọi record `green`.
+- [ ] Chỉ authenticated PM + internal content reviewer khác người đăng ký được
+  persist readiness `green`, kèm durable approval và audit.
+- [x] Có sample payload/file và feasibility spike mapping vào
   `legal_sources`/`legal_provisions`.
-- [ ] Có quyết định go/no-go cùng rủi ro, chi phí và cơ chế xử lý thay thế/xóa.
-- [ ] Secret/test credential không được commit hoặc ghi log.
+- [x] Có quyết định go/no-go cùng rủi ro, chi phí và cơ chế xử lý thay thế/xóa.
+- [x] Secret/test credential không được commit hoặc ghi log trong registry,
+  fixture và spike.
 
 **Decision (2026-07-30):** DEC-006 chốt dữ liệu ngoài không tự động trở thành
 citation hoặc được publish. Đánh giá sơ bộ các nguồn Chính phủ hiện biết nằm tại
 `docs/THIRD_PARTY_DATA_ASSESSMENT.md`; chưa có provider/API cụ thể đủ đầu vào để
 go production.
 
-**Evidence:** Chưa có registry, provider-specific implementation hoặc spike;
-landscape assessment hiện tại chỉ là pre-story context nên story vẫn `Todo`.
+**Evidence hiện có:** `docs/SOURCE_REGISTRY.md`, `lib/source-registry.ts`,
+`fixtures/source-registry/vbpl-nd168.sample.json` và
+`tests/source-registry.test.mjs` (8/8 pass). Registry local ghi ba nguồn và
+sample chỉ map thành draft có exact URL/anchor/checksum; `green` fail-closed.
+Chưa có authenticated/durable approval workflow, terms/license approval hoặc
+provider connector nên story còn `Partial`.
 
 ### [ ] US-024 — Nhập dữ liệu vào staging/draft có kiểm soát
 
@@ -567,18 +738,37 @@ landscape assessment hiện tại chỉ là pre-story context nên story vẫn `
 
 **Acceptance criteria**
 
+- [ ] Production ingestion chỉ nhận source registry durable đang active,
+  `readiness=green`, có terms/retention được duyệt và đủ hai approval độc lập
+  của US-023. Source `yellow`, static fixture hoặc source bị revoke chỉ được
+  dùng cho local/manual spike và job phải fail closed trước fetch.
+- [ ] Job chỉ được tạo bởi actor nội bộ có quyền hoặc platform schedule đã xác
+  thực; provider/endpoint/policy version được resolve server-side từ registry,
+  không nhận base URL, credential, allowlist hoặc limit từ request body.
 - [ ] Connector/manual import lưu provider, upstream ID/URL, `fetched_at`,
   checksum/version và raw snapshot reference.
 - [ ] Raw snapshot immutable lưu R2; editor/reviewer chỉ đọc qua protected
   review API/service binding có RBAC, exact-object authorization, TTL ngắn nếu
   dùng capability URL và audit access.
+- [ ] D1 có expand-only migration cho registry/job/raw/candidate/quarantine;
+  raw/candidate checksum và R2 object metadata được kiểm tra chéo. Cleanup tuân
+  thủ retention/legal hold, không xóa snapshot đang làm provenance cho revision
+  published và ghi audit cho mọi delete/tombstone.
 - [ ] Fetcher validate HTTPS allowlist, redirect, private IP, MIME, size và
   timeout; có rate limit theo nguồn.
 - [ ] URL guard từ chối userinfo/port ngoài policy/IP literal, resolve và pin
   public IP, re-check từng redirect; parser giới hạn compressed/decompressed
   bytes, page count, CPU/memory/time.
+- [ ] Manual upload đi qua cùng magic-byte/MIME, size, parser sandbox và
+  quarantine policy như remote fetch; không thực thi script, macro, embedded
+  file hoặc instruction nằm trong tài liệu.
 - [ ] Import idempotent/deduplicate; parser giữ original text và tạo candidate
   source/provision.
+- [ ] Queue consumer an toàn với at-least-once delivery: idempotency key và
+  transaction/unique constraint ngăn raw/candidate/audit trùng; có lease hoặc
+  compare-and-swap chống hai worker xử lý cùng job, bounded retry/backoff và
+  poison message sang DLQ. Resume sau crash không được bỏ qua hoặc auto-promote
+  bước dang dở.
 - [ ] Parser versioned giữ page/section anchor, kiểm tra completeness, xử lý
   PDF không có text/OCR và cho reviewer xem diff candidate với raw snapshot.
 - [ ] AI extraction backoffice dùng output schema, chỉ tạo field draft và không
@@ -586,13 +776,33 @@ landscape assessment hiện tại chỉ là pre-story context nên story vẫn `
 - [ ] Record lỗi/malicious vào quarantine, retry có giới hạn và có báo cáo.
 - [ ] Mọi candidate chỉ ở `draft`/`pending_review`; không có đường auto-publish.
 - [ ] Four-eyes bắt buộc trước khi candidate trở thành corpus RAG.
+- [ ] Upstream update/supersede/delete tạo revision hoặc tombstone và đưa graph
+  phụ thuộc về review/invalidate index; không hard-delete hay âm thầm thay
+  canonical content. Reprocess luôn bind exact raw checksum, parser/extractor
+  version và review decision.
+- [ ] Telemetry/audit dùng stable job/source/candidate IDs, state transition,
+  count, latency và error code; không log raw document/text, URL query,
+  credential, provider payload hoặc exception message/stack. Có runbook query
+  backlog/failure/quarantine/DLQ và owner xử lý.
 - [ ] Integration fixtures bao phủ duplicate, malformed input, DNS rebinding,
-  malicious redirect, malware/polyglot/decompression-bomb PDF và document
-  prompt injection.
+  malicious redirect, malware/polyglot/decompression-bomb PDF, document prompt
+  injection, unauthorized raw access, queue redelivery/concurrent lease,
+  crash-resume, R2 checksum mismatch, upstream tombstone và no-auto-publish.
+- [x] **Local-only feasibility slice:** pure planner nhận exact
+  `local_fixture`, resolve canonical static registry server-side, chỉ cho
+  `official/yellow/conditional_go` có exact `sampleRef`, tái sử dụng mapper
+  draft, tạo deterministic length-prefixed SHA-256 idempotency key và trả
+  deep-frozen plan với `persistence=none`, `rawSnapshotRef=null`. Unknown
+  policy/secret/URL override, production mode, forged/ineligible source,
+  unsafe/tampered/oversized/malformed fixture bị từ chối bằng stable redacted
+  error; document prompt injection chỉ là inert draft text và không có side
+  effect. AC này không hoàn thành bất kỳ production AC nào phía trên.
 
-**Evidence:** `.env.example` đã có placeholder/feature flags nhưng runtime chưa
-có ingestion consumer; chưa có connector/raw store/quarantine/test nên story
-vẫn `Todo`.
+**Evidence local:** `lib/ingestion-local.ts`,
+`tests/ingestion-local.test.mjs`, `docs/INGESTION_LOCAL_RUNBOOK.md` và
+`npm run test:ingestion-local` (**7/7 pass**). Full suite 124/124, typecheck,
+lint và Vinext build pass. Không có ingestion consumer, connector, raw store,
+quarantine, migration hoặc production activation nên story giữ `Partial`.
 
 **Proposal (2026-07-30):** PROP-001 đề xuất giữ public/admin/query backend trong
 Worker hiện tại; scheduled/batch ingestion triển khai ở Worker riêng với source

@@ -107,10 +107,10 @@
 - [ ] Có test đã chạy pass cho bốn nhóm câu hỏi kiến thức nền hiện tại.
 
 **Evidence hiện có:** `app/page.tsx`, `app/api/chat/route.ts`,
-`lib/legal-chat.ts`; `tests/rendered-html.test.mjs` có test definitions nhưng
-chưa có bằng chứng full suite đã chạy và chưa đủ bốn nhóm.
+`lib/legal-chat.ts`; `tests/rendered-html.test.mjs` đã chạy 15/15 pass nhưng
+chưa đủ bốn nhóm kiến thức nền.
 
-### [ ] US-007 — Fail closed khi không đủ kiến thức
+### [x] US-007 — Fail closed khi không đủ kiến thức
 
 - **Priority:** P0
 - **Persona:** Học sinh
@@ -122,11 +122,12 @@ chưa có bằng chứng full suite đã chạy và chưa đủ bốn nhóm.
 - [x] Không có dữ liệu và không có AI thì trả mode `unavailable`.
 - [x] Lỗi xử lý/provider cũng rơi về câu trả lời an toàn.
 - [x] Câu hỏi rỗng hoặc message sai định dạng bị từ chối.
-- [ ] Có regression test đã chạy pass cho nhánh ngoài phạm vi và input không
+- [x] Có regression test đã chạy pass cho nhánh ngoài phạm vi và input không
   hợp lệ.
 
-**Evidence hiện có:** `app/api/chat/route.ts`; regression definitions ở
-`tests/rendered-html.test.mjs` chưa có bằng chứng full suite đã chạy.
+**Evidence:** `app/api/chat/route.ts`;
+`tests/rendered-html.test.mjs` chạy 15/15 pass, gồm ngoài phạm vi, empty request
+và malformed messages.
 
 ### [ ] US-008 — Không cho AI tạo căn cứ ngoài dữ liệu
 
@@ -151,10 +152,10 @@ ngoài kho đã duyệt phải `unavailable`.
 
 **Evidence hiện có:** `app/api/chat/route.ts` đã gỡ các provider call và trả
 `unavailable` ngay khi managed/curated retrieval không match. Regression
-definition kiểm tra credential không tạo outbound call nằm ở
-`tests/rendered-html.test.mjs`, nhưng chưa có bằng chứng suite đã chạy.
-Evidence-bound AI composition, structured validation và citation guard vẫn chưa
-được triển khai.
+kiểm tra credential không tạo outbound call đã chạy pass trong
+`tests/rendered-html.test.mjs`. `lib/openai-evidence.ts` có evidence-only
+composition guard và 15/15 tests pass, nhưng D1 validated bundle,
+canonical citation/sanction assembly và runtime integration vẫn chưa triển khai.
 
 ### [ ] US-009 — Phân biệt câu hỏi ảnh riêng tư và bản quyền
 
@@ -178,7 +179,7 @@ copyright.
 
 ## Epic C — Quản trị nội dung
 
-### [ ] US-010 — Đăng nhập và bảo vệ khu vực quản trị
+### [x] US-010 — Đăng nhập và bảo vệ khu vực quản trị
 
 - **Priority:** P0
 - **Persona:** Quản trị hệ thống
@@ -191,12 +192,12 @@ copyright.
 - [x] Credential hợp lệ tạo session ký HMAC, hết hạn sau 8 giờ.
 - [x] Cookie có `HttpOnly`, `SameSite=Strict` và `Secure` trên HTTPS.
 - [x] Mutation kiểm tra origin cùng site.
-- [ ] Có test đã chạy pass cho login sai, login đúng và truy cập admin.
+- [x] Có test đã chạy pass cho login sai, login đúng và truy cập admin.
 
 **Evidence hiện có:** `lib/admin-auth.ts`, `app/admin/page.tsx`,
 `app/admin/api/login/route.ts`, `app/admin/api/logout/route.ts`,
-`tests/rendered-html.test.mjs`; test definitions chưa có bằng chứng full suite
-đã chạy.
+`tests/rendered-html.test.mjs` chạy 15/15 pass, gồm redirect anonymous, login
+sai, session hợp lệ và admin access.
 
 ### [x] US-011 — CRUD điều luật và tình huống
 
@@ -465,10 +466,9 @@ reviewer, nhưng four-eyes của DEC-003 vẫn bắt buộc.
 
 **Evidence hiện có:** `tests/rendered-html.test.mjs` có regression definitions
 cho render, auth, fail-closed copyright, không gọi ungrounded provider và admin
-từ chối publish Nghị định 131 trước DB access; `package.json` có test command.
-Bundled Node syntax checks và direct matcher probe đã pass, nhưng chưa có bằng
-chứng full suite đã chạy; chưa có D1 fixture/API/managed-retrieval integration
-execution.
+từ chối publish Nghị định 131 trước DB access; suite đã chạy 15/15 pass.
+Schema 17/17 và retriever D1 fixture 16/16 pass, nhưng chưa có CRUD/API
+editor→reviewer workflow E2E, production D1 smoke hoặc CI execution.
 
 ### [ ] US-022 — Thống nhất nền tảng deploy và cấu hình môi trường
 
@@ -596,6 +596,10 @@ credential, R2 raw store và Queue/DLQ khi chạy batch production. Chờ owner 
   validated evidence bundle.
 - [x] Không match, policy/config không hợp lệ, graph không đủ điều kiện hoặc D1
   lỗi trả kết quả nội bộ `unavailable`; không fallback sang legacy text.
+- [x] Migration expand-only giữ row legacy ở trạng thái unverified, đồng thời
+  hỗ trợ four-eyes review cho answer-citation relation và provision revision,
+  checksum/effectivity canonical; retriever chỉ nhận graph mới khi metadata,
+  revision binding và checksum tự kiểm tra đều hợp lệ.
 - [ ] PM + internal content reviewer duyệt evaluation gate; initial proposal là
   100% citation/numeric exact-match, 0 critical unsupported claim, Recall@5 ≥
   90%, top-answer precision ≥ 95%, refusal ≥ 95% và latency P95 theo PRD.
@@ -609,17 +613,28 @@ vector database.
 **Delivery slice 1 (2026-07-31):** chỉ xây canonical relational join và
 deterministic lexical candidate ranking. Không có FTS5/index migration, không
 nối `/api/chat`, không gọi AI và không thay public response. `legal_entries` và
-`legal_entry_citations` hiện thiếu review attribution; `legal_provisions` thiếu
-revision/checksum/effectivity, nên row D1 hiện tại bị đánh dấu
-`legacy_unverified`/`unverified` và không thể trở thành RAG evidence.
+`legal_entry_citations` khi đó thiếu review attribution; `legal_provisions`
+thiếu revision/checksum/effectivity, nên row D1 legacy bị đánh dấu
+`legacy_unverified`/`unknown` và không thể trở thành RAG evidence.
 
 **Evidence:** `lib/legal-evidence-retriever.ts` và
-`tests/legal-evidence-retriever.test.mjs`; focused suite chạy 14/14 pass, gồm
+`tests/legal-evidence-retriever.test.mjs`; slice 1 focused suite chạy 14/14 pass,
+gồm
 fail-closed khi candidate scan bị cắt, canonical revision xung đột, policy bị
-caller mutate và metadata không hợp lệ. Story
-`Partial`: FTS5, alias/index, revision/checksum schema, reviewed citation
-mapping, invalidation/re-index, approved production policies và golden-set eval
-vẫn mở.
+caller mutate và metadata không hợp lệ.
+
+**Delivery slice 2 (2026-07-31):** migration 0002 thêm reviewed graph bridge,
+immutable provision revision, `provision-sha256-v1`, effectivity canonical và
+revision-bound citation. Legacy rows không được backfill/promote. Retriever
+recompute checksum bằng Web Crypto và D1 reviewed fixture chỉ tạo internal
+candidate.
+
+**Evidence slice 2:** `drizzle/0002_reviewed_rag_bridge.sql`, `db/schema.ts`,
+`db/index.ts`, `tests/schema-foundation.test.mjs` (**17/17 pass**) và
+`tests/legal-evidence-retriever.test.mjs` (**16/16 pass**). Story `Partial`:
+FTS5/alias/index, source revision và partially-in-force spans,
+invalidation/re-index jobs, authenticated RBAC/audit review transaction,
+validated evidence bundle, production policies và golden-set eval vẫn mở.
 
 ### [ ] US-026 — AI phân tích và gợi ý dựa trên evidence
 

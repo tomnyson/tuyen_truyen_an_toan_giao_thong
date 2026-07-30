@@ -8,6 +8,7 @@ const [
   schema,
   baselineMigration,
   migration,
+  readinessMigration,
   bootstrap,
   journalText,
   sitesPlugin,
@@ -16,6 +17,7 @@ const [
   readFile(new URL("db/schema.ts", repositoryRoot), "utf8"),
   readFile(new URL("drizzle/0000_groovy_cerise.sql", repositoryRoot), "utf8"),
   readFile(new URL("drizzle/0001_citation_foundation.sql", repositoryRoot), "utf8"),
+  readFile(new URL("drizzle/0002_reviewed_rag_bridge.sql", repositoryRoot), "utf8"),
   readFile(new URL("db/index.ts", repositoryRoot), "utf8"),
   readFile(new URL("drizzle/meta/_journal.json", repositoryRoot), "utf8"),
   readFile(new URL("build/sites-vite-plugin.ts", repositoryRoot), "utf8"),
@@ -47,6 +49,21 @@ function createDatabase() {
 
 function withDatabase(run) {
   const database = createDatabase();
+  try {
+    run(database);
+  } finally {
+    database.close();
+  }
+}
+
+function createReadyDatabase() {
+  const database = createDatabase();
+  database.exec(readinessMigration);
+  return database;
+}
+
+function withReadyDatabase(run) {
+  const database = createReadyDatabase();
   try {
     run(database);
   } finally {
@@ -134,8 +151,9 @@ test("Sites build packages migration inputs but does not prove execution", () =>
     sitesPlugin,
     /cp\(drizzleSource,\s*resolve\(outputDirectory,\s*"drizzle"\)/s,
   );
-  assert.equal(journal.entries.at(-1)?.tag, "0001_citation_foundation");
+  assert.equal(journal.entries.at(-1)?.tag, "0002_reviewed_rag_bridge");
   assert.match(migration, /CREATE TABLE IF NOT EXISTS `legal_sources`/);
+  assert.match(readinessMigration, /ALTER TABLE `legal_entries`/);
 });
 
 test("citation foundation migration contains no legal-content seed", () => {
@@ -162,6 +180,12 @@ test("migration journal records citation foundation after baseline", () => {
         idx: 1,
         version: "6",
         tag: "0001_citation_foundation",
+        breakpoints: true,
+      },
+      {
+        idx: 2,
+        version: "6",
+        tag: "0002_reviewed_rag_bridge",
         breakpoints: true,
       },
     ],
@@ -544,5 +568,381 @@ test(
       1,
     );
     assert.deepEqual(database.prepare("PRAGMA foreign_key_check").all(), []);
+  }),
+);
+
+test("reviewed RAG bridge preserves legacy rows and declares fresh-schema parity", () => {
+  const database = createDatabase();
+  try {
+    database.exec(`
+      INSERT INTO legal_entries (
+        topic, title, legal_basis, penalty, remedy, case_study, status
+      ) VALUES (
+        'Giao thông', 'Legacy answer', 'Legacy only', 'N/A', 'N/A', 'N/A',
+        'published'
+      );
+      INSERT INTO legal_sources (
+        document_number, title, official_url, official_host, effective_from,
+        status, created_by, last_verified_at, verified_by
+      ) VALUES (
+        'LEGACY-SOURCE', 'Legacy source', 'https://vbpl.vn/legacy-source',
+        'vbpl.vn', '2026-01-01', 'in_force', 'source-editor',
+        '2026-07-01T00:00:00Z', 'source-reviewer'
+      );
+      INSERT INTO legal_provisions (
+        source_id, original_text, simplified_text, status, created_by,
+        reviewed_by, reviewed_at
+      ) VALUES (
+        (SELECT id FROM legal_sources WHERE document_number = 'LEGACY-SOURCE'),
+        'Legacy provision', 'Legacy provision', 'published',
+        'provision-editor', 'provision-reviewer', '2026-07-01T00:00:00Z'
+      );
+      INSERT INTO legal_entry_citations (legal_entry_id, provision_id)
+      VALUES (
+        (SELECT id FROM legal_entries WHERE title = 'Legacy answer'),
+        (SELECT id FROM legal_provisions WHERE original_text = 'Legacy provision')
+      );
+    `);
+
+    database.exec(readinessMigration);
+    assert.deepEqual(
+      { ...database.prepare(`
+        SELECT review_status, created_by, reviewed_by, reviewed_at
+        FROM legal_entries WHERE title = 'Legacy answer'
+      `).get() },
+      {
+        review_status: "legacy_unverified",
+        created_by: null,
+        reviewed_by: null,
+        reviewed_at: null,
+      },
+    );
+    assert.deepEqual(
+      { ...database.prepare(`
+        SELECT revision_id, checksum_version, checksum_sha256,
+               effectivity_status, effective_from, effective_to
+        FROM legal_provisions WHERE original_text = 'Legacy provision'
+      `).get() },
+      {
+        revision_id: null,
+        checksum_version: null,
+        checksum_sha256: null,
+        effectivity_status: "unknown",
+        effective_from: null,
+        effective_to: null,
+      },
+    );
+    assert.equal(
+      database.prepare(`
+        SELECT review_status FROM legal_entry_citations
+      `).get().review_status,
+      "legacy_unverified",
+    );
+    assert.deepEqual(database.prepare("PRAGMA foreign_key_check").all(), []);
+    assert.equal(
+      database.prepare("PRAGMA integrity_check").get().integrity_check,
+      "ok",
+    );
+  } finally {
+    database.close();
+  }
+
+  for (const marker of [
+    /reviewStatus: text\("review_status"/,
+    /revisionId: text\("revision_id"\)/,
+    /checksumVersion: text\("checksum_version"\)/,
+    /checksumSha256: text\("checksum_sha256"\)/,
+    /citedRevisionId: text\("cited_revision_id"\)/,
+    /provision-sha256-v1/,
+    /partially_in_force/,
+  ]) {
+    assert.match(schema, marker);
+  }
+  for (const marker of [
+    /review_status text DEFAULT 'legacy_unverified'/,
+    /revision_id text/,
+    /checksum_version text/,
+    /checksum_sha256 text/,
+    /cited_revision_id text/,
+    /provision-sha256-v1/,
+    /partially_in_force/,
+  ]) {
+    assert.match(bootstrap, marker);
+  }
+  assert.doesNotMatch(readinessMigration, /\bINSERT\s+INTO\b/i);
+});
+
+test(
+  "entry review requires four eyes and material changes invalidate it",
+  () => withReadyDatabase((database) => {
+    database.exec(`
+      INSERT INTO legal_entries (
+        topic, title, legal_basis, penalty, remedy, case_study, status,
+        created_by
+      ) VALUES (
+        'Giao thông', 'Reviewed answer', 'Structured only', 'N/A', 'N/A',
+        'N/A', 'published', 'entry-editor'
+      )
+    `);
+
+    assert.throws(
+      () => database.exec(`
+        UPDATE legal_entries
+        SET review_status = 'four_eyes_verified',
+            reviewed_by = 'entry-editor',
+            reviewed_at = '2026-07-31T00:00:00Z'
+        WHERE title = 'Reviewed answer'
+      `),
+      /invalid legal entry review metadata/,
+    );
+
+    database.exec(`
+      UPDATE legal_entries
+      SET review_status = 'four_eyes_verified',
+          reviewed_by = 'entry-reviewer',
+          reviewed_at = '2026-07-31T00:00:00Z'
+      WHERE title = 'Reviewed answer';
+      UPDATE legal_entries
+      SET title = title
+      WHERE title = 'Reviewed answer';
+    `);
+    assert.equal(
+      database.prepare(`
+        SELECT review_status FROM legal_entries WHERE title = 'Reviewed answer'
+      `).get().review_status,
+      "four_eyes_verified",
+    );
+
+    database.exec(`
+      UPDATE legal_entries
+      SET title = 'Reviewed answer changed'
+      WHERE title = 'Reviewed answer'
+    `);
+    assert.deepEqual(
+      { ...database.prepare(`
+        SELECT review_status, reviewed_by, reviewed_at
+        FROM legal_entries WHERE title = 'Reviewed answer changed'
+      `).get() },
+      {
+        review_status: "legacy_unverified",
+        reviewed_by: null,
+        reviewed_at: null,
+      },
+    );
+    assert.throws(
+      () => database.exec(`
+        UPDATE legal_entries
+        SET created_by = 'other-editor'
+        WHERE title = 'Reviewed answer changed'
+      `),
+      /legal entry created_by is immutable/,
+    );
+  }),
+);
+
+test(
+  "published provision revision metadata is complete, unique and immutable",
+  () => withReadyDatabase((database) => {
+    database.exec(`
+      INSERT INTO legal_sources (
+        document_number, title, official_url, official_host, effective_from,
+        status, created_by, last_verified_at, verified_by
+      ) VALUES (
+        'READY-SOURCE', 'Ready source', 'https://vbpl.vn/ready-source',
+        'vbpl.vn', '2026-01-01', 'in_force', 'source-editor',
+        '2026-07-01T00:00:00Z', 'source-reviewer'
+      )
+    `);
+
+    assert.throws(
+      () => database.exec(`
+        INSERT INTO legal_provisions (
+          source_id, original_text, simplified_text, status, created_by,
+          reviewed_by, reviewed_at
+        ) VALUES (
+          (SELECT id FROM legal_sources WHERE document_number = 'READY-SOURCE'),
+          'Missing revision', 'Missing revision', 'published',
+          'provision-editor', 'provision-reviewer', '2026-07-01T00:00:00Z'
+        )
+      `),
+      /invalid provision revision or effectivity metadata/,
+    );
+    assert.throws(
+      () => database.exec(`
+        INSERT INTO legal_provisions (
+          source_id, original_text, simplified_text, status, created_by,
+          revision_id, checksum_version, checksum_sha256
+        ) VALUES (
+          (SELECT id FROM legal_sources WHERE document_number = 'READY-SOURCE'),
+          'Malformed revision', 'Malformed revision', 'draft',
+          'provision-editor', '-bad-revision', 'provision-sha256-v1',
+          'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        )
+      `),
+      /invalid provision revision or effectivity metadata/,
+    );
+
+    database.exec(`
+      INSERT INTO legal_provisions (
+        source_id, original_text, simplified_text, status, created_by,
+        reviewed_by, reviewed_at, revision_id, checksum_version,
+        checksum_sha256, effectivity_status, effective_from
+      ) VALUES (
+        (SELECT id FROM legal_sources WHERE document_number = 'READY-SOURCE'),
+        'Immutable provision', 'Immutable provision', 'published',
+        'provision-editor', 'provision-reviewer', '2026-07-01T00:00:00Z',
+        'ready-revision-1', 'provision-sha256-v1',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'in_force', '2026-01-01'
+      )
+    `);
+
+    assert.throws(
+      () => database.exec(`
+        INSERT INTO legal_provisions (
+          source_id, original_text, simplified_text, status, created_by,
+          reviewed_by, reviewed_at, revision_id, checksum_version,
+          checksum_sha256, effectivity_status, effective_from
+        ) VALUES (
+          (SELECT id FROM legal_sources WHERE document_number = 'READY-SOURCE'),
+          'Duplicate revision', 'Duplicate revision', 'published',
+          'other-editor', 'other-reviewer', '2026-07-01T00:00:00Z',
+          'ready-revision-1', 'provision-sha256-v1',
+          'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          'in_force', '2026-01-01'
+        )
+      `),
+      /UNIQUE constraint failed: legal_provisions\.revision_id/,
+    );
+    assert.throws(
+      () => database.exec(`
+        UPDATE legal_provisions
+        SET original_text = 'Mutated in place'
+        WHERE revision_id = 'ready-revision-1'
+      `),
+      /provision revision is immutable/,
+    );
+  }),
+);
+
+test(
+  "citation verification binds the exact revision and source changes invalidate the graph",
+  () => withReadyDatabase((database) => {
+    const checksum =
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    database.exec(`
+      INSERT INTO legal_entries (
+        topic, title, legal_basis, penalty, remedy, case_study, status,
+        review_status, created_by, reviewed_by, reviewed_at
+      ) VALUES (
+        'Giao thông', 'Ready answer', 'Structured only', 'N/A', 'N/A', 'N/A',
+        'published', 'four_eyes_verified', 'entry-editor', 'entry-reviewer',
+        '2026-07-31T00:00:00Z'
+      );
+      INSERT INTO legal_sources (
+        document_number, title, official_url, official_host, effective_from,
+        status, created_by, last_verified_at, verified_by
+      ) VALUES (
+        'BOUND-SOURCE', 'Bound source', 'https://vbpl.vn/bound-source',
+        'vbpl.vn', '2026-01-01', 'in_force', 'source-editor',
+        '2026-07-01T00:00:00Z', 'source-reviewer'
+      );
+      INSERT INTO legal_provisions (
+        source_id, original_text, simplified_text, status, created_by,
+        reviewed_by, reviewed_at, revision_id, checksum_version,
+        checksum_sha256, effectivity_status, effective_from
+      ) VALUES (
+        (SELECT id FROM legal_sources WHERE document_number = 'BOUND-SOURCE'),
+        'Bound provision', 'Bound provision', 'published', 'provision-editor',
+        'provision-reviewer', '2026-07-01T00:00:00Z', 'bound-revision-1',
+        'provision-sha256-v1', '${checksum}', 'in_force', '2026-01-01'
+      );
+    `);
+
+    assert.throws(
+      () => database.exec(`
+        INSERT INTO legal_entry_citations (
+          legal_entry_id, provision_id, review_status, created_by, reviewed_by,
+          reviewed_at, cited_revision_id, cited_checksum_version,
+          cited_checksum_sha256
+        ) VALUES (
+          (SELECT id FROM legal_entries WHERE title = 'Ready answer'),
+          (SELECT id FROM legal_provisions WHERE revision_id = 'bound-revision-1'),
+          'four_eyes_verified', 'citation-editor', 'citation-reviewer',
+          '2026-07-31T00:00:00Z', 'stale-revision',
+          'provision-sha256-v1', '${checksum}'
+        )
+      `),
+      /invalid citation review or revision binding/,
+    );
+
+    database.exec(`
+      INSERT INTO legal_entry_citations (
+        legal_entry_id, provision_id, review_status, created_by, reviewed_by,
+        reviewed_at, cited_revision_id, cited_checksum_version,
+        cited_checksum_sha256
+      ) VALUES (
+        (SELECT id FROM legal_entries WHERE title = 'Ready answer'),
+        (SELECT id FROM legal_provisions WHERE revision_id = 'bound-revision-1'),
+        'four_eyes_verified', 'citation-editor', 'citation-reviewer',
+        '2026-07-31T00:00:00Z', 'bound-revision-1',
+        'provision-sha256-v1', '${checksum}'
+      );
+      UPDATE legal_entries
+      SET review_status = 'legacy_unverified',
+          reviewed_by = NULL,
+          reviewed_at = NULL
+      WHERE title = 'Ready answer';
+      UPDATE legal_entries
+      SET title = 'Ready answer corrected'
+      WHERE title = 'Ready answer';
+      UPDATE legal_entries
+      SET review_status = 'four_eyes_verified',
+          reviewed_by = 'entry-reviewer-2',
+          reviewed_at = '2026-07-31T01:00:00Z'
+      WHERE title = 'Ready answer corrected';
+    `);
+    assert.equal(
+      database.prepare(`
+        SELECT citation.review_status
+        FROM legal_entry_citations AS citation
+        INNER JOIN legal_entries AS entry
+          ON entry.id = citation.legal_entry_id
+        WHERE entry.title = 'Ready answer corrected'
+      `).get().review_status,
+      "legacy_unverified",
+    );
+
+    database.exec(`
+      UPDATE legal_entry_citations
+      SET review_status = 'four_eyes_verified',
+          reviewed_by = 'citation-reviewer-2',
+          reviewed_at = '2026-07-31T01:00:00Z'
+      WHERE legal_entry_id = (
+        SELECT id FROM legal_entries WHERE title = 'Ready answer corrected'
+      );
+      UPDATE legal_sources
+      SET title = 'Bound source corrected'
+      WHERE document_number = 'BOUND-SOURCE';
+    `);
+
+    assert.deepEqual(
+      { ...database.prepare(`
+        SELECT provision.status AS provision_status,
+               provision.reviewed_by AS provision_reviewer,
+               citation.review_status AS citation_review_status,
+               citation.reviewed_by AS citation_reviewer
+        FROM legal_provisions AS provision
+        INNER JOIN legal_entry_citations AS citation
+          ON citation.provision_id = provision.id
+        WHERE provision.revision_id = 'bound-revision-1'
+      `).get() },
+      {
+        provision_status: "pending_review",
+        provision_reviewer: null,
+        citation_review_status: "legacy_unverified",
+        citation_reviewer: null,
+      },
+    );
   }),
 );

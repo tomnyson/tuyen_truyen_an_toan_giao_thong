@@ -370,11 +370,11 @@ type LegalAnswerResponse = {
 - CMS CRUD cho `legal_entries` và `showcases`, trạng thái `draft/published`.
 - Cookie session ký HMAC, hết hạn sau 8 giờ, kiểm tra origin cho mutation.
 - Public API chỉ lấy record `published`.
-- Regression test definitions cho render, auth và một số nhánh chat; full suite
-  chưa có execution evidence.
+- Render/auth/chat regression suite hiện chạy 15/15 pass.
 - Sprint 1B có schema/migration cho `legal_sources`, `legal_provisions`,
-  `legal_entry_citations`; constraint allowlist/authority, four-eyes, creator
-  immutability, source invalidation và 13 schema tests đã chạy pass, 0 skip.
+  `legal_entry_citations`; migration 0002 bổ sung reviewed answer-citation
+  bridge, provision revision/checksum/effectivity, canonical checksum verifier,
+  invalidation và 17 schema tests đã chạy pass, 0 skip.
 
 ### Còn thiếu hoặc chưa hoàn chỉnh
 
@@ -388,9 +388,10 @@ type LegalAnswerResponse = {
   assembly, semantic claim-span validation, rate limit/telemetry hoặc
   `/api/chat` integration. API key không làm chat dùng kiến thức mở.
 - Đã có candidate retriever foundation cô lập: join relational graph, kiểm
-  policy/effectivity/four-eyes và deterministic lexical top-k. Schema legacy
-  chưa đủ review/revision metadata nên hiện không record nào được nâng thành
-  validated RAG evidence; chưa có FTS5 hoặc chat integration.
+  policy/effectivity/four-eyes/checksum và deterministic lexical top-k. Một
+  reviewed migration fixture tạo được internal candidate; corpus legacy vẫn
+  unverified và không có record production nào được tự nâng thành validated RAG
+  evidence. Chưa có FTS5 hoặc chat integration.
 - Schema mới có four-eyes và metadata hiệu lực, nhưng CMS chưa có role/reviewer
   workflow, audit log hoặc versioning hoàn chỉnh.
 - Showcase public chỉ dùng tiêu đề của hai record đầu tiên.
@@ -423,27 +424,24 @@ phải final fix: schema source/provision đã có invariant publish và invalid
 nhưng retrieval chưa tích hợp mô hình này, chưa có mapping mới được duyệt và
 chưa có D1 production integration evidence.
 
-Regression definitions cho homepage, chat copyright, việc không gọi provider
-và admin từ chối publish Nghị định 131 trước khi truy cập DB đã được thêm vào
-`tests/rendered-html.test.mjs`, nhưng chưa có bằng chứng full suite đã thực thi.
-Bundled Node syntax checks và direct matcher probe với 4 biến thể bị chặn/2 biến
-thể hợp lệ đã pass. Test chưa seed D1 record bị chặn và chưa xác minh
-`/api/content`/managed retrieval end-to-end. Đội phát triển không tự suy ra điều
-khoản thay thế.
+Regression cho homepage, auth, chat copyright, no-provider và admin từ chối
+publish Nghị định 131 đã chạy 15/15 pass. Test vẫn chưa seed D1 record bị chặn
+hoặc xác minh `/api/content`/managed retrieval production end-to-end. Đội phát
+triển không tự suy ra điều khoản thay thế.
 
 ### Sprint 1B local foundation và production gate
 
-Migration expand-only `0001_citation_foundation` và
-`docs/MIGRATION_RUNBOOK.md` đã được tạo, không chứa seed hoặc mapping Nghị định
-341/2025/NĐ-CP. `tests/schema-foundation.test.mjs` đã chạy 13/13 pass, 0 skip,
-bao phủ schema graph, allowlist/URL authority, four-eyes, immutable creator,
-publish guard và source invalidation.
+Migration expand-only `0001_citation_foundation`,
+`0002_reviewed_rag_bridge` và `docs/MIGRATION_RUNBOOK.md` đã được tạo, không
+chứa seed hoặc mapping Nghị định 341/2025/NĐ-CP.
+`tests/schema-foundation.test.mjs` chạy 17/17 pass, bao phủ schema graph,
+allowlist/URL authority, four-eyes, immutable creator/revision, checksum
+metadata, exact citation binding và invalidation.
 
-Đây là local verification, không phải production execution. Full
-build/rendered suite chưa chạy do workspace không có `node_modules`/`dist`.
-Sites control plane chưa resolve được exact `project_id`, chưa chứng minh
-migration apply đúng một lần và trước application activation; do đó production
-deployment vẫn bị chặn.
+Đây là local verification, không phải production execution. Build, typecheck,
+lint và rendered suite đã pass. Sites control plane chưa resolve được exact
+`project_id`, chưa chứng minh migration apply đúng một lần và trước application
+activation; do đó production deployment vẫn bị chặn.
 
 ## 13. Rủi ro và biện pháp giảm thiểu
 

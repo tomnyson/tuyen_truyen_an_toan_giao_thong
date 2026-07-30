@@ -58,7 +58,7 @@ trợ phân tích, gợi ý hoặc diễn giải, và AI không tự tạo đi�
 | Retrieval | Chấm điểm keyword đơn giản trên tối đa 100 bài published | `lib/legal-chat.ts` |
 | CMS API | CRUD trực tiếp qua Drizzle; trạng thái `draft`/`published` | `app/admin/api/content/route.ts` |
 | Admin auth | Một credential từ env, cookie phiên ký HMAC, TTL 8 giờ | `lib/admin-auth.ts` |
-| Data layer | Drizzle ORM trên Cloudflare D1; citation foundation đã có schema nhưng chưa nối read/write API | `db/`, `drizzle/0001_citation_foundation.sql` |
+| Data layer | Drizzle ORM trên Cloudflare D1; citation/reviewed-RAG bridge đã có schema nhưng chưa nối read/write API | `db/`, `drizzle/0001_citation_foundation.sql`, `drizzle/0002_reviewed_rag_bridge.sql` |
 | Runtime | Next.js qua Vinext/Cloudflare Worker | `worker/index.ts` |
 | AI provider | Chưa có runtime consumer; `.env.example` mới chỉ ghi biến dự kiến | Chưa triển khai |
 | Ingestion/index | Chưa có connector, raw staging/quarantine, scheduler hoặc FTS5 table | Chưa triển khai |
@@ -728,23 +728,25 @@ legal evidence. Answer title/topic/tags chỉ là ranking signal. Defense in dep
 - answer, citation relation và provision phải có four-eyes metadata;
 - source phải `in_force`, verifier khác creator, official HTTPS URL/authority
   hợp lệ và còn hiệu lực tại injected `asOf`;
-- provision phải có active effectivity window, revision ID và checksum;
+- provision phải có `in_force` effectivity window, revision ID và checksum;
 - review/verification timestamp không được nằm trong tương lai;
 - freshness policy phải có version, PM và internal content reviewer khác nhau,
   ngày duyệt hợp lệ và exact-host rule;
 - không có policy/rule hoặc quá TTL đã duyệt thì loại candidate.
 
-Schema hiện tại không có review attribution trên `legal_entries` và
-`legal_entry_citations`; `legal_provisions` cũng chưa có revision, checksum hay
-effectivity window. D1 mapper vì vậy gắn:
+Trước migration 0002, schema không có review attribution trên `legal_entries`
+và `legal_entry_citations`; `legal_provisions` cũng chưa có revision, checksum
+hay effectivity window. Sau migration, row cũ giữ default:
 
 ```text
 answer/link review = legacy_unverified
-provision revision/effectivity = unverified
+provision revision/checksum = NULL
+provision effectivity = unknown
 ```
 
-Kết quả join hiện tại luôn bị loại trước ranking. Đây là fail-closed gate có chủ
-ý, không phải corpus đã sẵn sàng.
+Mapper đọc metadata thật từ cột 0002. Legacy graph vẫn bị loại trước ranking;
+chỉ fixture reviewed đầy đủ vượt gate. Đây không phải bằng chứng corpus
+production đã sẵn sàng.
 
 Freshness/ranking policy và clock được inject khi construct service, không nhận
 từ end-user request và không có production default trong code. Policy được
@@ -781,6 +783,65 @@ Không import candidate foundation trong `/api/chat`, không import OpenAI
 adapter, không có FTS/index migration và không thay public API contract. Không
 log raw question/candidate text; nếu bổ sung telemetry chỉ ghi IDs, score/reason,
 policy/config version, latency và result code.
+
+#### 7.3.2 US-025 slice 2 — reviewed graph bridge
+
+Slice 2 là migration expand-only trên ba bảng bridge hiện tại, chưa tạo
+`legal_answers` target model và không backfill dữ liệu pháp luật:
+
+- `legal_entries` có review status và actor/timestamp nullable;
+- `legal_entry_citations` có review status, actor/timestamp và binding tới đúng
+  provision revision/checksum;
+- `legal_provisions` có revision ID, checksum version, checksum SHA-256 và
+  provision-level effectivity status/window.
+
+Default của row cũ là `legacy_unverified`/`unknown`, actor và revision/checksum
+để `NULL`. Migration không suy người tạo/người duyệt từ timestamp, không tự tạo
+checksum/ngày hiệu lực và không nâng row legacy thành corpus RAG.
+
+Effectivity vocabulary canonical:
+
+```text
+unknown | in_force | partially_in_force | superseded | expired
+```
+
+Chỉ `in_force` được candidate retriever chấp nhận.
+`partially_in_force` cần active-span/page-anchor model riêng và vẫn bị loại
+trong slice này.
+
+Checksum contract:
+
+```text
+version: provision-sha256-v1
+encoding: UTF-8(JSON array có thứ tự cố định)
+text normalization: Unicode NFC + CRLF/CR → LF; không collapse whitespace
+payload: version, source document number, official URL, revision ID,
+         article/clause/point, original/simplified text,
+         effectivity status/from/to
+```
+
+Backend phải tự tính lại digest từ graph canonical trước candidate eligibility;
+không tin checksum do client/model cung cấp. Mọi canonical field của provision
+đã có revision ID là immutable; nội dung mới phải là provision row/revision mới.
+Source hoặc answer material update làm mất review eligibility của relation phụ
+thuộc. Citation verified phải bind revision ID, checksum version và checksum
+đang có trên provision.
+
+Review status chỉ chứng minh metadata bốn mắt ở data boundary. Cho tới khi có
+authenticated actor/RBAC/audit transaction của US-013/US-014, fixture/raw SQL
+không phải bằng chứng người duyệt production thật. Production activation cũng
+tiếp tục bị chặn cho tới khi US-022 chứng minh migration `0002` chạy trước code.
+
+Slice vẫn chỉ trả internal ranked candidates, chưa tạo
+`validatedEvidenceBundle`, chưa nối chat/OpenAI và chưa thêm FTS5.
+
+Implementation/evidence:
+
+- `drizzle/0002_reviewed_rag_bridge.sql`, `db/schema.ts`, `db/index.ts`;
+- `computeProvisionChecksum` tự tính lại `provision-sha256-v1` bằng Web Crypto;
+- migration test giữ legacy fail-closed, kiểm four-eyes, immutable revision,
+  stale-binding/source/answer invalidation;
+- D1 integration fixture reviewed đầy đủ tạo được internal ranked candidate.
 
 ### 7.4 Ingestion lane
 
@@ -1022,7 +1083,9 @@ Yêu cầu:
 - Kiểm thử migration trên bản sao D1 và kiểm thử rollback/restore.
 - Sprint 1B đã thêm foundation `legal_sources`, `legal_provisions` và
   `legal_entry_citations` bằng migration expand-only
-  `drizzle/0001_citation_foundation.sql`. `legal_entry_citations` tạm liên kết
+  `drizzle/0001_citation_foundation.sql`, rồi thêm reviewed relation,
+  provision revision/checksum/effectivity bằng
+  `drizzle/0002_reviewed_rag_bridge.sql`. `legal_entry_citations` tạm liên kết
   model answer hiện tại (`legal_entries`) với provision; khi `legal_answers`
   canonical được triển khai sẽ có migration quan hệ mới, không đổi nghĩa bảng
   cũ một cách ngầm định.
@@ -1032,10 +1095,11 @@ Yêu cầu:
 - Không có seed/backfill trong Sprint 1B. Không record nào được tự động coi là
   nguồn đã kiểm chứng và không mapping sang văn bản thay thế khi chưa có
   người duyệt nội dung nội bộ phê duyệt.
-- Migration 0001 là idempotent cho table/index/trigger creation và đã có entry
-  thứ tự trong `drizzle/meta/_journal.json`. Môi trường authoring không có
-  `drizzle-kit`, nên không tạo snapshot giả. Trước khi dùng workflow Drizzle Kit
-  phụ thuộc snapshot, phải regenerate/validate metadata bằng version đã pin.
+- Migration 0001 là idempotent cho table/index/trigger creation; migration 0002
+  dùng `ALTER TABLE ADD COLUMN` và phải được migration ledger apply đúng một
+  lần. Cả hai có thứ tự trong `drizzle/meta/_journal.json`. Không tạo snapshot
+  giả; trước workflow Drizzle Kit phụ thuộc snapshot phải regenerate/validate
+  metadata bằng version đã pin.
 - Thứ tự migration-before-code, verification và restore procedure nằm tại
   `docs/MIGRATION_RUNBOOK.md`.
 - Production không có `wrangler.toml/json` hoặc `migrations_dir` đủ để suy ra

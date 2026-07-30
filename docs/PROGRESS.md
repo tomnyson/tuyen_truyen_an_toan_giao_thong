@@ -21,12 +21,12 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Nhóm | Done | Partial | Todo | Blocked |
 |---|---:|---:|---:|---:|
 | Tra cứu và hiểu pháp luật | 2 | 3 | 0 | 0 |
-| Hỏi đáp có kiểm soát | 0 | 4 | 0 | 0 |
-| Quản trị nội dung | 2 | 2 | 1 | 0 |
+| Hỏi đáp có kiểm soát | 1 | 3 | 0 | 0 |
+| Quản trị nội dung | 3 | 1 | 1 | 0 |
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 0 | 3 | 2 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 2 | 2 | 0 |
-| **Tổng** | **4** | **17** | **5** | **0** |
+| **Tổng** | **6** | **15** | **5** | **0** |
 
 ## Theo dõi theo user story
 
@@ -37,26 +37,26 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-003 — Nguồn chính thức theo từng citation | P0 | Partial | Full-stack + PM | Có source list ở `lib/legal-content.ts`; thiếu mapping source/provision/answer | 2026-07-29 |
 | US-004 — Câu trả lời đầy đủ có cấu trúc | P0 | Partial | Full-stack | Data nền có các thành phần; API vẫn trả `{answer, mode}` dạng text | 2026-07-29 |
 | US-005 — Showcase public đầy đủ | P1 | Partial | Full-stack | `app/page.tsx` chỉ dùng title của hai item đầu; chưa render summary/source/topic | 2026-07-29 |
-| US-006 — Chat ưu tiên kho kiến thức | P0 | Partial | Full-stack | Code path có evidence; rendered test chưa chạy và chưa đủ bốn nhóm | 2026-07-30 |
-| US-007 — Fail closed ngoài phạm vi | P0 | Partial | Full-stack | Code path có evidence; regression definitions chưa có full-suite execution evidence | 2026-07-30 |
+| US-006 — Chat ưu tiên kho kiến thức | P0 | Partial | Full-stack | Rendered/chat suite 15/15 pass; vẫn chưa đủ bốn nhóm kiến thức nền theo AC | 2026-07-31 |
+| US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Chat no-match vẫn trả `unavailable`; `lib/openai-evidence.ts` không cho model output citation/sanction/URL/chữ số và validate evidence ID. D1 citation/sanction assembly chưa triển khai | 2026-07-30 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Partial | Full-stack + Code review | Branch `hình ảnh` → copyright đã gỡ khỏi `lib/legal-chat.ts`; chưa có intent/ranking riêng và test đủ hai intent | 2026-07-29 |
-| US-010 — Auth khu vực quản trị | P0 | Partial | Full-stack + Code review | Code path có evidence; auth regression definitions chưa có full-suite execution evidence | 2026-07-30 |
+| US-010 — Auth khu vực quản trị | P0 | Done | Full-stack + Code review | Anonymous redirect, invalid credential, signed session và admin access regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
 | US-011 — CRUD law/showcase | P0 | Done | Full-stack | Admin UI, API và D1 schema đã có; còn thiếu integration test nhưng không nằm trong criteria của story này | 2026-07-29 |
 | US-012 — Chỉ public record published | P0 | Done | Full-stack | `app/api/content/route.ts`; `lib/legal-chat.ts`; `db/schema.ts` | 2026-07-29 |
-| US-013 — Workflow review và RBAC | P0 | Partial | Full-stack + PM + Code review | Schema mới enforce four-eyes và immutable creator; 13 schema tests pass. CMS vẫn chưa có roles, reviewer API, attribution hay workflow | 2026-07-29 |
+| US-013 — Workflow review và RBAC | P0 | Partial | Full-stack + PM + Code review | Schema bridge enforce review metadata, creator/revision immutability và invalidation; 17 schema tests pass. CMS vẫn chưa có authenticated roles, reviewer API, audit transaction hay workflow | 2026-07-31 |
 | US-014 — Audit/version history | P1 | Todo | Full-stack + Code review | Chưa có revision/audit model; DELETE đang xóa cứng | 2026-07-29 |
-| US-015 — Source/provision data model | P0 | Partial | Full-stack + PM | Ba bảng, migration, allowlist/authority, four-eyes và runbook có evidence; 13/13 schema tests pass. API citation guard và seed/backfill execution còn mở | 2026-07-29 |
-| US-016 — Theo dõi hiệu lực nguồn | P0 | Partial | Full-stack + PM + Internal content reviewer | Source metadata, `last_verified_at`, publish guard và invalidation trigger có schema-test evidence. Retrieval chưa dùng structured validity; production migration chưa chạy | 2026-07-29 |
+| US-015 — Source/provision data model | P0 | Partial | Full-stack + PM | 0001–0002, allowlist/authority, four-eyes, immutable revision/checksum/effectivity metadata và runbook có evidence; 17/17 schema tests pass. API citation guard và seed/backfill execution còn mở | 2026-07-31 |
+| US-016 — Theo dõi hiệu lực nguồn | P0 | Partial | Full-stack + PM + Internal content reviewer | Source/provision effectivity, freshness gate và invalidation có schema/retriever evidence. Public/chat/index retrieval chưa tích hợp structured validity; production migration chưa chạy | 2026-07-31 |
 | US-017 — Deduplicate dữ liệu nền/CMS | P1 | Partial | Full-stack | Public page nối hai mảng trực tiếp; cần stable key và seed/override rule | 2026-07-29 |
 | US-018 — Password hash và env nhất quán | P0 | Partial | Full-stack + Code review | `.env.example` đã bỏ `admin/admin` và mô tả đúng runtime; code vẫn xác thực bằng `ADMIN_PASSWORD` plaintext, chưa hỗ trợ hash/rotation | 2026-07-29 |
 | US-019 — Rate limit login/chat | P0 | Todo | Full-stack + Code review | Chưa có implementation | 2026-07-29 |
 | US-020 — Logging/observability an toàn | P1 | Todo | Full-stack + PM + Code review | Chưa có implementation hoặc retention policy | 2026-07-29 |
-| US-021 — Backend/workflow E2E tests | P0 | Partial | Full-stack + Code review | Schema foundation 13/13 và AI adapter contract 15/15 pass. Full build/rendered suite không chạy do thiếu project `node_modules`/`dist`; chưa có public/retrieval D1 E2E | 2026-07-30 |
+| US-021 — Backend/workflow E2E tests | P0 | Partial | Full-stack + Code review | Schema 17/17, retriever 16/16, AI adapter 15/15 và rendered/auth/chat 15/15 pass; build/lint/typecheck pass. Chưa có editor→reviewer API workflow E2E hoặc production D1 smoke | 2026-07-31 |
 | US-022 — Runtime/deploy thống nhất | P0 | Partial | PM + Full-stack | Migration/runbook có local evidence, nhưng production **BLOCKED**: Sites `project_id` không resolve và migration control-plane behavior chưa xác minh; chưa smoke test | 2026-07-29 |
 | US-023 — Đánh giá/đăng ký nguồn ngoài | P0 | Todo | PM + Internal content reviewer | Landscape assessment là pre-story context; thiếu registry/provider docs, sample, terms và feasibility spike cụ thể | 2026-07-30 |
 | US-024 — Ingestion vào staging/draft | P0 | Todo | Full-stack + Code review + Internal content reviewer | `.env.example` có placeholder/flags; chưa có connector, raw store/quarantine, idempotency hoặc integration tests | 2026-07-30 |
-| US-025 — Index/retrieval RAG | P0 | Partial | Full-stack + PM + Code review + Internal content reviewer | Candidate foundation join D1 graph, fail-closed eligibility/overflow/conflict, immutable injected policy, deterministic top-k/threshold và 14/14 tests có evidence. Current legacy graph cố ý cho 0 eligible; chưa có reviewed mapping, provision revision/effectivity, FTS5/index, invalidation hay golden-set eval | 2026-07-31 |
+| US-025 — Index/retrieval RAG | P0 | Partial | Full-stack + PM + Code review + Internal content reviewer | Migration 0002 + candidate foundation có reviewed relation/revision/checksum/effectivity, SHA-256 recompute, fail-closed ranking; schema 17/17 và retriever 16/16 pass. Legacy corpus vẫn 0 eligible; chưa có RBAC/audit promotion, FTS5/index jobs, validated bundle hay golden-set eval | 2026-07-31 |
 | US-026 — Evidence-bound AI analysis | P0 | Partial | Full-stack + Code review | Evidence-only Responses adapter, strict schema, caller-metadata gate, no-digit/citation guard và contract tests có evidence; fixture smoke pass. Chưa nối retriever/chat, chưa verify canonical provenance/relations, DB citation assembly, semantic span gate, rate limit hay production telemetry | 2026-07-30 |
 
 ## Thứ tự triển khai đề xuất
@@ -95,21 +95,23 @@ backend.
 mới. Việc này chỉ thực hiện sau khi người duyệt nội dung nội bộ phê duyệt
 mapping theo quy trình four-eyes.
 
-### Sprint 1B — Citation schema foundation
+### Sprint 1B — Citation schema và reviewed graph bridge
 
 **Mục tiêu:** tạo nền tảng dữ liệu citation-first trên D1 mà không tự đưa nội
 dung pháp lý chưa duyệt vào production.
 
 - [x] Tạo migration cho `legal_sources`, `legal_provisions` và quan hệ
   answer-citation theo US-015.
+- [x] Thêm migration 0002 cho reviewed answer-citation relation, immutable
+  provision revision, checksum/effectivity và stale-review invalidation.
 - [x] Thêm validation `official_url`/authority theo DEC-004; source ngoài allowlist không
   được publish.
 - [x] Thêm expand-only migration và runbook preflight/verify/restore/rollback.
-- [x] Schema/migration/allowlist/four-eyes/invalidation tests chạy 13/13 pass,
-  0 skip.
+- [x] Schema/migration/allowlist/four-eyes/revision/invalidation tests chạy
+  17/17 pass, 0 skip.
 - [ ] Apply migration trên production D1: **BLOCKED** vì Sites `project_id`
   không resolve và control plane chưa chứng minh migration-before-activation.
-- [ ] Chạy full build/rendered suite: chưa chạy do thiếu `node_modules`/`dist`.
+- [x] Full build, typecheck, lint và rendered/auth/chat suite đã pass.
 
 **Out of scope:** seed, backfill hoặc mapping Nghị định 341/2025/NĐ-CP trong
 Sprint 1B.
@@ -231,6 +233,25 @@ này.
   environment build thành công.
 - Regression: `tests/openai-evidence.test.mjs` **15/15 pass** và
   `tests/schema-foundation.test.mjs` **13/13 pass**.
+
+### 2026-07-31 — US-025 reviewed graph bridge slice
+
+- `node --test tests/schema-foundation.test.mjs`: **17/17 pass**. Coverage mới:
+  0002 giữ legacy rows, review actor/creator immutability, provision revision
+  format/uniqueness/immutability, exact citation binding và invalidation khi
+  answer/source/provision thay đổi. Regression đóng đường bypass
+  `demote answer → edit → reapprove` mà không re-review citation.
+- `node --experimental-strip-types --test
+  tests/legal-evidence-retriever.test.mjs`: **16/16 pass**. Coverage mới:
+  canonical `provision-sha256-v1`, checksum mutation, canonical 0002 D1 mapping,
+  legacy no-candidate và fully reviewed fixture có internal candidate.
+- `tests/openai-evidence.test.mjs`: **15/15 pass**;
+  `tests/rendered-html.test.mjs`: **15/15 pass**.
+- `node_modules/.bin/tsc --noEmit`, ESLint và vinext build 5 environment:
+  **pass**.
+- Local fixture/raw SQL chỉ chứng minh constraint và mapper. Không chứng minh
+  actor/RBAC/audit production, corpus đã được duyệt hoặc migration 0002 đã chạy
+  trên production D1.
 
 ## Cách cập nhật tracker
 

@@ -1,6 +1,7 @@
 const MAX_QUERY_LENGTH = 600;
 const MAX_QUERY_TERMS = 32;
 const MAX_CANDIDATES = 500;
+export const PROVISION_CHECKSUM_VERSION = "provision-sha256-v1";
 const APPROVED_OFFICIAL_HOSTS = new Set([
   "vbpl.vn",
   "vbpl.moj.gov.vn",
@@ -26,7 +27,12 @@ const ignoredTerms = new Set([
 ]);
 
 export type ReviewStatus = "four_eyes_verified" | "legacy_unverified";
-export type ProvisionEffectivityStatus = "active" | "unverified";
+export type ProvisionEffectivityStatus =
+  | "unknown"
+  | "in_force"
+  | "partially_in_force"
+  | "superseded"
+  | "expired";
 
 export type CandidateGraphRow = {
   answerSignal: {
@@ -48,6 +54,9 @@ export type CandidateGraphRow = {
     createdBy: string | null;
     reviewedBy: string | null;
     reviewedAt: string | null;
+    citedRevisionId: string | null;
+    citedChecksumVersion: string | null;
+    citedChecksumSha256: string | null;
   };
   provision: {
     id: number;
@@ -62,6 +71,7 @@ export type CandidateGraphRow = {
     reviewedBy: string | null;
     reviewedAt: string | null;
     revisionId: string | null;
+    checksumVersion: string | null;
     checksum: string | null;
     effectivityStatus: ProvisionEffectivityStatus;
     effectiveFrom: string | null;
@@ -130,6 +140,7 @@ export type CandidateEligibilityReason =
   | "ANSWER_NOT_FOUR_EYES_REVIEWED"
   | "CITATION_RELATION_MISMATCH"
   | "CITATION_NOT_FOUR_EYES_REVIEWED"
+  | "CITATION_REVISION_MISMATCH"
   | "PROVISION_NOT_PUBLISHED"
   | "PROVISION_NOT_FOUR_EYES_REVIEWED"
   | "PROVISION_REVISION_MISSING"
@@ -162,6 +173,7 @@ export type RankedProvisionCandidate = {
     id: number;
     sourceId: number;
     revisionId: string;
+    checksumVersion: string;
     checksum: string;
     article: string | null;
     clause: string | null;
@@ -226,8 +238,19 @@ type D1CandidateRow = {
   answer_title: string;
   answer_tags: string;
   answer_updated_at: string;
+  answer_review_status: ReviewStatus;
+  answer_created_by: string | null;
+  answer_reviewed_by: string | null;
+  answer_reviewed_at: string | null;
   citation_entry_id: number;
   citation_provision_id: number;
+  citation_review_status: ReviewStatus;
+  citation_created_by: string | null;
+  citation_reviewed_by: string | null;
+  citation_reviewed_at: string | null;
+  citation_revision_id: string | null;
+  citation_checksum_version: string | null;
+  citation_checksum_sha256: string | null;
   provision_id: number;
   provision_source_id: number;
   provision_status: "draft" | "pending_review" | "published" | "archived";
@@ -239,6 +262,12 @@ type D1CandidateRow = {
   provision_created_by: string;
   provision_reviewed_by: string | null;
   provision_reviewed_at: string | null;
+  provision_revision_id: string | null;
+  provision_checksum_version: string | null;
+  provision_checksum_sha256: string | null;
+  provision_effectivity_status: ProvisionEffectivityStatus;
+  provision_effective_from: string | null;
+  provision_effective_to: string | null;
   provision_updated_at: string;
   source_id: number;
   source_status: "draft" | "in_force" | "expired" | "superseded";
@@ -285,8 +314,19 @@ SELECT
   entry.title AS answer_title,
   entry.tags AS answer_tags,
   entry.updated_at AS answer_updated_at,
+  entry.review_status AS answer_review_status,
+  entry.created_by AS answer_created_by,
+  entry.reviewed_by AS answer_reviewed_by,
+  entry.reviewed_at AS answer_reviewed_at,
   citation.legal_entry_id AS citation_entry_id,
   citation.provision_id AS citation_provision_id,
+  citation.review_status AS citation_review_status,
+  citation.created_by AS citation_created_by,
+  citation.reviewed_by AS citation_reviewed_by,
+  citation.reviewed_at AS citation_reviewed_at,
+  citation.cited_revision_id AS citation_revision_id,
+  citation.cited_checksum_version AS citation_checksum_version,
+  citation.cited_checksum_sha256 AS citation_checksum_sha256,
   provision.id AS provision_id,
   provision.source_id AS provision_source_id,
   provision.status AS provision_status,
@@ -298,6 +338,12 @@ SELECT
   provision.created_by AS provision_created_by,
   provision.reviewed_by AS provision_reviewed_by,
   provision.reviewed_at AS provision_reviewed_at,
+  provision.revision_id AS provision_revision_id,
+  provision.checksum_version AS provision_checksum_version,
+  provision.checksum_sha256 AS provision_checksum_sha256,
+  provision.effectivity_status AS provision_effectivity_status,
+  provision.effective_from AS provision_effective_from,
+  provision.effective_to AS provision_effective_to,
   provision.updated_at AS provision_updated_at,
   source.id AS source_id,
   source.status AS source_status,
@@ -584,6 +630,47 @@ export function normalizeRetrievalText(value: string): string {
     .trim();
 }
 
+function normalizeChecksumText(value: string): string {
+  return value.normalize("NFC").replace(/\r\n?/g, "\n");
+}
+
+export async function computeProvisionChecksum(
+  candidate: Pick<CandidateGraphRow, "provision" | "source">,
+): Promise<string> {
+  if (
+    !candidate.provision.revisionId ||
+    candidate.provision.checksumVersion !== PROVISION_CHECKSUM_VERSION
+  ) {
+    throw new Error("provision checksum metadata is incomplete");
+  }
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw new Error("Web Crypto is unavailable");
+
+  const optionalText = (value: string | null) =>
+    value === null ? null : normalizeChecksumText(value);
+  const payload = JSON.stringify([
+    PROVISION_CHECKSUM_VERSION,
+    normalizeChecksumText(candidate.source.documentNumber),
+    normalizeChecksumText(candidate.source.officialUrl),
+    normalizeChecksumText(candidate.provision.revisionId),
+    optionalText(candidate.provision.article),
+    optionalText(candidate.provision.clause),
+    optionalText(candidate.provision.point),
+    normalizeChecksumText(candidate.provision.originalText),
+    normalizeChecksumText(candidate.provision.simplifiedText),
+    candidate.provision.effectivityStatus,
+    normalizeChecksumText(candidate.provision.effectiveFrom ?? ""),
+    optionalText(candidate.provision.effectiveTo),
+  ]);
+  const digest = await subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(payload),
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export function tokenizeRetrievalQuery(question: string): string[] {
   const terms = normalizeRetrievalText(question)
     .split(" ")
@@ -724,13 +811,23 @@ export function getCandidateEligibilityReason(
     !/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(
       candidate.provision.revisionId,
     ) ||
+    candidate.provision.checksumVersion !== PROVISION_CHECKSUM_VERSION ||
     !isNonEmptyString(candidate.provision.checksum) ||
-    !/^[a-fA-F0-9]{64}$/.test(candidate.provision.checksum)
+    !/^[a-f0-9]{64}$/.test(candidate.provision.checksum)
   ) {
     return "PROVISION_REVISION_MISSING";
   }
   if (
-    candidate.provision.effectivityStatus !== "active" ||
+    candidate.citationLink.citedRevisionId !==
+      candidate.provision.revisionId ||
+    candidate.citationLink.citedChecksumVersion !==
+      candidate.provision.checksumVersion ||
+    candidate.citationLink.citedChecksumSha256 !== candidate.provision.checksum
+  ) {
+    return "CITATION_REVISION_MISMATCH";
+  }
+  if (
+    candidate.provision.effectivityStatus !== "in_force" ||
     !candidate.provision.effectiveFrom
   ) {
     return "PROVISION_EFFECTIVITY_UNVERIFIED";
@@ -909,6 +1006,7 @@ function createCanonicalFingerprint(candidate: CandidateGraphRow): string {
     candidate.provision.reviewedBy,
     candidate.provision.reviewedAt,
     candidate.provision.revisionId,
+    candidate.provision.checksumVersion,
     candidate.provision.checksum,
     candidate.provision.effectivityStatus,
     candidate.provision.effectiveFrom,
@@ -962,6 +1060,7 @@ function toRankedCandidate(
       id: candidate.provision.id,
       sourceId: candidate.provision.sourceId,
       revisionId: candidate.provision.revisionId!,
+      checksumVersion: candidate.provision.checksumVersion!,
       checksum: candidate.provision.checksum!,
       article: candidate.provision.article,
       clause: candidate.provision.clause,
@@ -987,11 +1086,11 @@ function toRankedCandidate(
   };
 }
 
-export function rankProvisionCandidates(
+export async function rankProvisionCandidates(
   question: string,
   graphRows: CandidateGraphRow[],
   context: EvaluationContext,
-): CandidateRetrievalResult {
+): Promise<CandidateRetrievalResult> {
   const preflightFailure = getPreflightFailure(question, context);
   if (preflightFailure) {
     return unavailable(preflightFailure, graphRows.length, 0);
@@ -1002,7 +1101,7 @@ export function rankProvisionCandidates(
   if (graphRows.length > rankingPolicy.candidateLimit) {
     return unavailable("CANDIDATE_SCAN_OVERFLOW", graphRows.length, 0);
   }
-  const eligible = graphRows.filter(
+  const metadataEligible = graphRows.filter(
     (candidate) =>
       getCandidateEligibilityReason(
         candidate,
@@ -1010,6 +1109,22 @@ export function rankProvisionCandidates(
         context.asOf,
       ) === null,
   );
+  if (metadataEligible.length === 0) {
+    return unavailable("NO_ELIGIBLE_CANDIDATES", graphRows.length, 0);
+  }
+  const eligible: CandidateGraphRow[] = [];
+  try {
+    for (const candidate of metadataEligible) {
+      if (
+        (await computeProvisionChecksum(candidate)) ===
+        candidate.provision.checksum
+      ) {
+        eligible.push(candidate);
+      }
+    }
+  } catch {
+    return unavailable("DEPENDENCY_ERROR", graphRows.length, 0);
+  }
   if (eligible.length === 0) {
     return unavailable("NO_ELIGIBLE_CANDIDATES", graphRows.length, 0);
   }
@@ -1081,11 +1196,10 @@ function mapD1Row(row: D1CandidateRow): CandidateGraphRow {
     answerSignal: {
       id: row.answer_id,
       status: row.answer_status,
-      // Current legal_entries has no review attribution.
-      reviewStatus: "legacy_unverified",
-      createdBy: null,
-      reviewedBy: null,
-      reviewedAt: null,
+      reviewStatus: row.answer_review_status,
+      createdBy: row.answer_created_by,
+      reviewedBy: row.answer_reviewed_by,
+      reviewedAt: row.answer_reviewed_at,
       topic: row.answer_topic,
       title: row.answer_title,
       tags: row.answer_tags,
@@ -1094,11 +1208,13 @@ function mapD1Row(row: D1CandidateRow): CandidateGraphRow {
     citationLink: {
       legalEntryId: row.citation_entry_id,
       provisionId: row.citation_provision_id,
-      // Current legal_entry_citations has no review attribution/revision.
-      reviewStatus: "legacy_unverified",
-      createdBy: null,
-      reviewedBy: null,
-      reviewedAt: null,
+      reviewStatus: row.citation_review_status,
+      createdBy: row.citation_created_by,
+      reviewedBy: row.citation_reviewed_by,
+      reviewedAt: row.citation_reviewed_at,
+      citedRevisionId: row.citation_revision_id,
+      citedChecksumVersion: row.citation_checksum_version,
+      citedChecksumSha256: row.citation_checksum_sha256,
     },
     provision: {
       id: row.provision_id,
@@ -1112,12 +1228,12 @@ function mapD1Row(row: D1CandidateRow): CandidateGraphRow {
       createdBy: row.provision_created_by,
       reviewedBy: row.provision_reviewed_by,
       reviewedAt: row.provision_reviewed_at,
-      // Current legal_provisions has no revision/checksum/effectivity fields.
-      revisionId: null,
-      checksum: null,
-      effectivityStatus: "unverified",
-      effectiveFrom: null,
-      effectiveTo: null,
+      revisionId: row.provision_revision_id,
+      checksumVersion: row.provision_checksum_version,
+      checksum: row.provision_checksum_sha256,
+      effectivityStatus: row.provision_effectivity_status,
+      effectiveFrom: row.provision_effective_from,
+      effectiveTo: row.provision_effective_to,
       updatedAt: row.provision_updated_at,
     },
     source: {

@@ -2,7 +2,42 @@
 
 Ngày review: 2026-07-29  
 Vai trò: Code reviewer  
-Trạng thái: Review source tĩnh; review bổ sung US-026 có test evidence
+Trạng thái: Review source tĩnh; review bổ sung US-025/US-026 có test evidence
+
+## Review bổ sung — US-025 reviewed graph bridge (2026-07-31)
+
+Phạm vi bốn mắt: migration 0002, Drizzle/bootstrap parity, immutable revision,
+review invalidation, checksum contract và D1 retriever mapping.
+
+Slice giữ đúng ranh giới expand-only:
+
+- row legacy giữ `legacy_unverified`/`unknown`, không fake actor/checksum/date;
+- citation verified bind exact provision revision/checksum;
+- effectivity dùng vocabulary canonical và chỉ `in_force` eligible;
+- `provision-sha256-v1` được backend recompute bằng Web Crypto trước ranking;
+- provision revision đã assign là immutable; source/answer/provision change làm
+  relation phụ thuộc mất review eligibility;
+- output vẫn là internal candidate, không nối chat/OpenAI/FTS.
+
+Review vòng đầu phát hiện một blocker stale-review: demote answer, sửa material
+field rồi re-approve có thể giữ citation review cũ. Trigger đã đổi để mọi actual
+answer material change luôn invalidate citation, kể cả answer đang
+`legacy_unverified`; regression bao phủ đúng chuỗi bypass này.
+
+Hai Medium cuối cũng đã đóng:
+
+- checksum contract có hard-coded known-answer SHA-256, không chỉ tự so helper
+  với chính helper;
+- migration runbook yêu cầu 0001+0002 đúng journal order/exactly once và cấm sửa
+  mọi migration đã apply.
+
+Final four-eyes verdict: không còn blocker/High/Medium trong phạm vi slice.
+Evidence: schema **17/17**, retriever **16/16**, AI regression **15/15**,
+rendered/auth/chat **15/15**, TypeScript/ESLint/vinext build đều pass.
+
+Các gate còn mở không bị hạ mức: authenticated actor/RBAC/audit transaction,
+production migration-before-code, source revision/partially-in-force spans,
+FTS/index jobs, validated evidence bundle và golden-set evaluation.
 
 ## Review bổ sung — US-025 ranked candidate foundation (2026-07-31)
 

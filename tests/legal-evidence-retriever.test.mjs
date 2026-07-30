@@ -3,10 +3,12 @@ import { readFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
+  computeProvisionChecksum,
   createProvisionCandidateRetriever,
   getCandidateEligibilityReason,
   loadD1CandidateGraph,
   normalizeRetrievalText,
+  PROVISION_CHECKSUM_VERSION,
   rankProvisionCandidates,
   tokenizeRetrievalQuery,
 } from "../lib/legal-evidence-retriever.ts";
@@ -64,6 +66,9 @@ const validCandidate = {
     createdBy: "citation-editor",
     reviewedBy: "citation-reviewer",
     reviewedAt: "2026-07-10T00:00:00Z",
+    citedRevisionId: "provision-11-revision-a",
+    citedChecksumVersion: PROVISION_CHECKSUM_VERSION,
+    citedChecksumSha256: null,
   },
   provision: {
     id: 11,
@@ -80,9 +85,9 @@ const validCandidate = {
     reviewedBy: "provision-reviewer",
     reviewedAt: "2026-07-10T00:00:00Z",
     revisionId: "provision-11-revision-a",
-    checksum:
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    effectivityStatus: "active",
+    checksumVersion: PROVISION_CHECKSUM_VERSION,
+    checksum: null,
+    effectivityStatus: "in_force",
     effectiveFrom: "2026-01-01",
     effectiveTo: null,
     updatedAt: "2026-07-10T00:00:00Z",
@@ -102,6 +107,10 @@ const validCandidate = {
     updatedAt: "2026-07-15T12:00:00Z",
   },
 };
+validCandidate.provision.checksum =
+  await computeProvisionChecksum(validCandidate);
+validCandidate.citationLink.citedChecksumSha256 =
+  validCandidate.provision.checksum;
 
 function context(overrides = {}) {
   return {
@@ -128,7 +137,7 @@ test("normalizes Vietnamese and tokenizes with exact deduplicated terms", () => 
   );
 });
 
-test("missing or malformed server policies fail closed", () => {
+test("missing or malformed server policies fail closed", async () => {
   const wrongWeightKeys = {
     ...rankingPolicy.weights,
     unexpected: 1,
@@ -185,7 +194,7 @@ test("missing or malformed server policies fail closed", () => {
   ];
 
   for (const item of cases) {
-    const result = rankProvisionCandidates(
+    const result = await rankProvisionCandidates(
       "đội mũ bảo hiểm",
       [validCandidate],
       item.context,
@@ -235,6 +244,10 @@ test("eligibility rejects unreviewed graph, invalid relations and inactive recor
       (item) => (item.citationLink.reviewStatus = "legacy_unverified"),
     ],
     [
+      "CITATION_REVISION_MISMATCH",
+      (item) => (item.citationLink.citedRevisionId = "stale-revision"),
+    ],
+    [
       "PROVISION_NOT_PUBLISHED",
       (item) => (item.provision.status = "pending_review"),
     ],
@@ -252,7 +265,7 @@ test("eligibility rejects unreviewed graph, invalid relations and inactive recor
     ],
     [
       "PROVISION_EFFECTIVITY_UNVERIFIED",
-      (item) => (item.provision.effectivityStatus = "unverified"),
+      (item) => (item.provision.effectivityStatus = "unknown"),
     ],
     [
       "PROVISION_NOT_EFFECTIVE",
@@ -315,8 +328,32 @@ test("date and TTL boundaries are inclusive and future review is rejected", () =
   );
 });
 
-test("returns ranked provision candidates with versioned score reasons", () => {
-  const result = rankProvisionCandidates(
+test("provision checksum canonicalizes NFC and line endings and detects mutation", async () => {
+  assert.equal(
+    await computeProvisionChecksum(validCandidate),
+    "1ecef30d4bd908425b1d3d82f9f0b36191268b669354180d1adb46898e7e51bf",
+  );
+
+  const composed = cloneCandidate();
+  composed.provision.originalText = "Đội mũ\nđúng cách.";
+  const decomposed = cloneCandidate();
+  decomposed.provision.originalText = "Đội mu\u0303\r\nđúng cách.";
+
+  assert.equal(
+    await computeProvisionChecksum(composed),
+    await computeProvisionChecksum(decomposed),
+  );
+
+  const mutated = cloneCandidate();
+  mutated.provision.simplifiedText += " Nội dung mới.";
+  assert.notEqual(
+    await computeProvisionChecksum(validCandidate),
+    await computeProvisionChecksum(mutated),
+  );
+});
+
+test("returns ranked provision candidates with versioned score reasons", async () => {
+  const result = await rankProvisionCandidates(
     "đội mũ bảo hiểm",
     [validCandidate],
     context(),
@@ -343,7 +380,7 @@ test("returns ranked provision candidates with versioned score reasons", () => {
   assert.equal("legalBasis" in candidate, false);
 });
 
-test("ranking is diacritic-insensitive, deterministic and deduplicates a provision", () => {
+test("ranking is diacritic-insensitive, deterministic and deduplicates a provision", async () => {
   const lowerId = cloneCandidate();
   lowerId.answerSignal.id = 10;
   lowerId.citationLink.legalEntryId = 10;
@@ -354,13 +391,18 @@ test("ranking is diacritic-insensitive, deterministic and deduplicates a provisi
   secondProvision.provision.id = 12;
   secondProvision.citationLink.provisionId = 12;
   secondProvision.provision.revisionId = "provision-12-revision-a";
+  secondProvision.citationLink.citedRevisionId = "provision-12-revision-a";
+  secondProvision.provision.checksum =
+    await computeProvisionChecksum(secondProvision);
+  secondProvision.citationLink.citedChecksumSha256 =
+    secondProvision.provision.checksum;
 
-  const first = rankProvisionCandidates(
+  const first = await rankProvisionCandidates(
     "doi mu bao hiem",
     [validCandidate, secondProvision, lowerId],
     context({ rankingPolicy: { ...rankingPolicy, topK: 2 } }),
   );
-  const shuffled = rankProvisionCandidates(
+  const shuffled = await rankProvisionCandidates(
     "đội mũ bảo hiểm",
     [lowerId, validCandidate, secondProvision],
     context({ rankingPolicy: { ...rankingPolicy, topK: 2 } }),
@@ -382,7 +424,7 @@ test("fails closed when the candidate scan is truncated before ranking", async (
     ...rankingPolicy,
     candidateLimit: 1,
   };
-  const pureResult = rankProvisionCandidates(
+  const pureResult = await rankProvisionCandidates(
     "đội mũ bảo hiểm",
     [validCandidate, cloneCandidate()],
     context({ rankingPolicy: limitedRankingPolicy }),
@@ -417,13 +459,15 @@ test("fails closed when the candidate scan is truncated before ranking", async (
   assert.equal(result.code, "CANDIDATE_SCAN_OVERFLOW");
 });
 
-test("fails closed when one canonical revision has conflicting content", () => {
+test("fails closed when one canonical revision has conflicting content", async () => {
   const conflicting = cloneCandidate();
-  conflicting.provision.checksum =
-    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
   conflicting.provision.originalText = "Nội dung mâu thuẫn trong cùng revision.";
+  conflicting.provision.checksum =
+    await computeProvisionChecksum(conflicting);
+  conflicting.citationLink.citedChecksumSha256 =
+    conflicting.provision.checksum;
 
-  const result = rankProvisionCandidates(
+  const result = await rankProvisionCandidates(
     "đội mũ bảo hiểm",
     [validCandidate, conflicting],
     context(),
@@ -432,14 +476,18 @@ test("fails closed when one canonical revision has conflicting content", () => {
   assert.equal(result.code, "CANDIDATE_CONFLICT");
 });
 
-test("substring traps and below-threshold queries return unavailable", () => {
+test("substring traps and below-threshold queries return unavailable", async () => {
   const substringCandidate = cloneCandidate();
   substringCandidate.answerSignal.title = "Mũi đường và bảo tàng";
   substringCandidate.answerSignal.tags = "[]";
   substringCandidate.provision.originalText = "Nội dung khác.";
   substringCandidate.provision.simplifiedText = "Nội dung khác.";
+  substringCandidate.provision.checksum =
+    await computeProvisionChecksum(substringCandidate);
+  substringCandidate.citationLink.citedChecksumSha256 =
+    substringCandidate.provision.checksum;
 
-  const result = rankProvisionCandidates(
+  const result = await rankProvisionCandidates(
     "mũ bảo hiểm",
     [substringCandidate],
     context(),
@@ -448,9 +496,9 @@ test("substring traps and below-threshold queries return unavailable", () => {
   assert.equal(result.code, "BELOW_THRESHOLD");
 });
 
-test("empty and oversized questions fail before ranking", () => {
+test("empty and oversized questions fail before ranking", async () => {
   for (const question of ["", "không với em", "x".repeat(601)]) {
-    const result = rankProvisionCandidates(
+    const result = await rankProvisionCandidates(
       question,
       [validCandidate],
       context(),
@@ -491,6 +539,12 @@ test("the current D1 graph loads through canonical joins but remains legacy-unve
     INSERT INTO legal_entry_citations (legal_entry_id, provision_id, display_order)
     VALUES (21, 11, 0);
   `);
+  sqlite.exec(
+    await readFile(
+      new URL("../drizzle/0002_reviewed_rag_bridge.sql", import.meta.url),
+      "utf8",
+    ),
+  );
 
   const d1 = {
     prepare(query) {
@@ -516,7 +570,7 @@ test("the current D1 graph loads through canonical joins but remains legacy-unve
   assert.equal("penalty" in graph.rows[0].answerSignal, false);
   assert.equal("remedy" in graph.rows[0].answerSignal, false);
 
-  const result = rankProvisionCandidates(
+  const result = await rankProvisionCandidates(
     "đội mũ bảo hiểm",
     graph.rows,
     context(),
@@ -526,6 +580,114 @@ test("the current D1 graph loads through canonical joins but remains legacy-unve
     code: "NO_ELIGIBLE_CANDIDATES",
     diagnostics: { graphRowCount: 1, eligibleCandidateCount: 0 },
   });
+});
+
+test("a fully reviewed 0002 D1 graph becomes a ranked internal candidate", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  for (const migration of [
+    "../drizzle/0000_groovy_cerise.sql",
+    "../drizzle/0001_citation_foundation.sql",
+    "../drizzle/0002_reviewed_rag_bridge.sql",
+  ]) {
+    sqlite.exec(await readFile(new URL(migration, import.meta.url), "utf8"));
+  }
+
+  sqlite.prepare(`
+    INSERT INTO legal_entries (
+      id, topic, icon, title, legal_basis, penalty, remedy, case_study, tags,
+      status, review_status, created_by, reviewed_by, reviewed_at, updated_at
+    ) VALUES (
+      21, ?, 'x', ?, 'legacy text is not selected', 'legacy', 'legacy',
+      'legacy', ?, 'published', 'four_eyes_verified', 'answer-editor',
+      'answer-reviewer', '2026-07-10T00:00:00Z', '2026-07-10T00:00:00Z'
+    )
+  `).run(
+    validCandidate.answerSignal.topic,
+    validCandidate.answerSignal.title,
+    validCandidate.answerSignal.tags,
+  );
+  sqlite.prepare(`
+    INSERT INTO legal_sources (
+      id, document_number, title, official_url, official_host, effective_from,
+      status, created_by, last_verified_at, verified_by, updated_at
+    ) VALUES (
+      7, ?, ?, ?, ?, ?, 'in_force', 'source-editor',
+      '2026-07-15T12:00:00Z', 'source-reviewer', '2026-07-15T12:00:00Z'
+    )
+  `).run(
+    validCandidate.source.documentNumber,
+    validCandidate.source.title,
+    validCandidate.source.officialUrl,
+    validCandidate.source.officialHost,
+    validCandidate.source.effectiveFrom,
+  );
+  sqlite.prepare(`
+    INSERT INTO legal_provisions (
+      id, source_id, article, clause, point, original_text, simplified_text,
+      status, created_by, reviewed_by, reviewed_at, revision_id,
+      checksum_version, checksum_sha256, effectivity_status, effective_from,
+      effective_to, updated_at
+    ) VALUES (
+      11, 7, ?, ?, ?, ?, ?, 'published', 'provision-editor',
+      'provision-reviewer', '2026-07-10T00:00:00Z', ?, ?, ?, 'in_force',
+      ?, ?, '2026-07-10T00:00:00Z'
+    )
+  `).run(
+    validCandidate.provision.article,
+    validCandidate.provision.clause,
+    validCandidate.provision.point,
+    validCandidate.provision.originalText,
+    validCandidate.provision.simplifiedText,
+    validCandidate.provision.revisionId,
+    validCandidate.provision.checksumVersion,
+    validCandidate.provision.checksum,
+    validCandidate.provision.effectiveFrom,
+    validCandidate.provision.effectiveTo,
+  );
+  sqlite.prepare(`
+    INSERT INTO legal_entry_citations (
+      legal_entry_id, provision_id, display_order, review_status, created_by,
+      reviewed_by, reviewed_at, cited_revision_id, cited_checksum_version,
+      cited_checksum_sha256
+    ) VALUES (
+      21, 11, 0, 'four_eyes_verified', 'citation-editor',
+      'citation-reviewer', '2026-07-10T00:00:00Z', ?, ?, ?
+    )
+  `).run(
+    validCandidate.provision.revisionId,
+    validCandidate.provision.checksumVersion,
+    validCandidate.provision.checksum,
+  );
+
+  const d1 = {
+    prepare(query) {
+      return {
+        bind(...values) {
+          return {
+            async all() {
+              return { results: sqlite.prepare(query).all(...values) };
+            },
+          };
+        },
+      };
+    },
+  };
+  const retriever = createProvisionCandidateRetriever({
+    database: d1,
+    freshnessPolicy,
+    rankingPolicy,
+    clock: () => asOf,
+  });
+  const result = await retriever.retrieve("đội mũ bảo hiểm");
+  assert.equal(result.status, "candidates");
+  if (result.status !== "candidates") return;
+  assert.equal(result.candidateSet.candidates.length, 1);
+  assert.equal(
+    result.candidateSet.candidates[0].provision.checksumVersion,
+    PROVISION_CHECKSUM_VERSION,
+  );
+  assert.equal(result.candidateSet.candidates[0].rankingSignal.answerId, 21);
+  assert.equal("legalBasis" in result.candidateSet.candidates[0], false);
 });
 
 test("the injected retriever fails closed on dependency error and does not query for invalid config", async () => {

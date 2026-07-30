@@ -893,3 +893,53 @@ Phạm vi ngày 2026-07-29: diff runtime/test Sprint 1A và Technical Spec cập
   có `node_modules` và chưa có `dist/server/index.js`.
 - Không có blocker/high/medium còn lại trong patch schema local sau lượt review
   cuối; blocker duy nhất là external deployment/control-plane nêu trên.
+
+## 12. Editorial trust primitives 0003 — final review
+
+### Kết luận
+
+- **PASS local sidecar:** migration 0003 expand-only tạo principal/role,
+  subject/revision, review request/decision và audit; không seed/backfill hoặc
+  promote graph.
+- **PASS four-eyes/state:** creator-only submit, independent active reviewer,
+  exact current revision và optimistic transitions được enforce bằng database.
+- **PASS immutable history:** role grant, revision, decision và audit không thể
+  bị xóa; revoke một chiều; audit bind đúng operation/request/decision.
+- **PASS rollout boundary:** `db/index.ts` không tự apply 0003. Migration chỉ
+  được chạy qua ordered ledger trước activation.
+- **PASS verification:** editorial suite 13/13, full suite 76/76,
+  TypeScript/ESLint/Vinext build và `git diff --check`.
+- **BLOCKED production:** Sites project/migration-before-activation vẫn chưa
+  được control plane xác minh.
+
+### Findings đã đóng qua quy trình bốn mắt
+
+1. Subject có thể được insert/update thẳng thành `published` hoặc thay revision
+   sau duyệt; đã thêm insert/state/current-revision guards và regressions cho
+   pending/published swap.
+2. Principal/role trust root có thể self-grant, un-revoke, rebind hoặc xóa lịch
+   sử; đã thêm one-time admin bootstrap, admin-gated grant, database-time
+   one-way revoke, last-admin protection và immutable delete/identity.
+3. Pending request có thể thành stale và kẹt; current revision nay chỉ đổi khi
+   draft, không có open request và phải tăng optimistic version.
+4. Audit có thể giả role/cross-bind subject/revision/request; audit insert nay
+   yêu cầu live role và phải khớp exact source request/decision/action.
+5. Runtime bootstrap từng tự chạy raw 0003 sau activation; đường này đã bị gỡ,
+   runbook bắt buộc migration-ledger gate.
+6. Revision provenance và payload bounds còn lỏng; nay revision bắt buộc active
+   creator có role, version liên tục/draft-only, và snapshot/reason/audit
+   JSON/hash có size/shape guard.
+
+### Residual ngoài phạm vi
+
+- Chưa chọn identity provider/local hashed registry, chưa có revocable
+  authenticated session hoặc role provisioning API.
+- Chưa khóa direct publish/hard-delete của legacy CMS bằng workflow mới.
+- Chưa có promotion transaction source → provision → entry → citation và chưa
+  nối retriever/chat.
+- Database chỉ kiểm format snapshot checksum; runtime tương lai phải
+  canonicalize và recompute SHA-256.
+- Migration 0003 chưa chạy trên production D1.
+
+Final reviewer verdict: **không còn blocker/high/medium trong phạm vi delivery
+slice 3**.

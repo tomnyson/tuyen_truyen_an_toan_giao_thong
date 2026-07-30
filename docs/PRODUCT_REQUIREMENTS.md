@@ -375,6 +375,10 @@ type LegalAnswerResponse = {
   `legal_entry_citations`; migration 0002 bổ sung reviewed answer-citation
   bridge, provision revision/checksum/effectivity, canonical checksum verifier,
   invalidation và 17 schema tests đã chạy pass, 0 skip.
+- Migration 0003 bổ sung sidecar identity-neutral cho principal/role,
+  subject/revision, review request/decision và audit bất biến. Editorial suite
+  13/13 và full suite 76/76 đã chạy pass; final review không còn
+  blocker/high/medium trong phạm vi sidecar.
 
 ### Còn thiếu hoặc chưa hoàn chỉnh
 
@@ -392,8 +396,9 @@ type LegalAnswerResponse = {
   reviewed migration fixture tạo được internal candidate; corpus legacy vẫn
   unverified và không có record production nào được tự nâng thành validated RAG
   evidence. Chưa có FTS5 hoặc chat integration.
-- Schema mới có four-eyes và metadata hiệu lực, nhưng CMS chưa có role/reviewer
-  workflow, audit log hoặc versioning hoàn chỉnh.
+- Sidecar đã có database four-eyes, revision và audit cho workflow cô lập, nhưng
+  CMS chưa có authenticated actor/session, reviewer API, history UI, archive
+  hoặc graph-promotion transaction.
 - Showcase public chỉ dùng tiêu đề của hai record đầu tiên.
 - Chưa có rate limit, pagination, CI evidence hoặc test D1 end-to-end.
 - Runtime vẫn đọc `ADMIN_PASSWORD` plaintext. `.env.example` hiện đã bỏ
@@ -429,14 +434,17 @@ publish Nghị định 131 đã chạy 15/15 pass. Test vẫn chưa seed D1 reco
 hoặc xác minh `/api/content`/managed retrieval production end-to-end. Đội phát
 triển không tự suy ra điều khoản thay thế.
 
-### Sprint 1B local foundation và production gate
+### Sprint 1B/1D local foundation và production gate
 
 Migration expand-only `0001_citation_foundation`,
-`0002_reviewed_rag_bridge` và `docs/MIGRATION_RUNBOOK.md` đã được tạo, không
-chứa seed hoặc mapping Nghị định 341/2025/NĐ-CP.
+`0002_reviewed_rag_bridge`, `0003_editorial_trust_primitives` và
+`docs/MIGRATION_RUNBOOK.md` đã được tạo, không chứa seed hoặc mapping Nghị định
+341/2025/NĐ-CP.
 `tests/schema-foundation.test.mjs` chạy 17/17 pass, bao phủ schema graph,
 allowlist/URL authority, four-eyes, immutable creator/revision, checksum
 metadata, exact citation binding và invalidation.
+`tests/editorial-workflow-schema.test.mjs` chạy 13/13 pass, bao phủ role trust,
+state/revision guards, independent reviewer, atomic audit và immutable history.
 
 Đây là local verification, không phải production execution. Build, typecheck,
 lint và rendered suite đã pass. Sites control plane chưa resolve được exact

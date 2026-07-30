@@ -35,7 +35,7 @@ guessed database name or a database identifier copied from another environment.
 That path is prohibited until the repository has an explicit, reviewed Wrangler
 configuration and a verified environment-to-database mapping.
 
-## 2. Scope of migrations 0001–0002
+## 2. Scope of migrations 0001–0003
 
 `0001_citation_foundation` is expand-only. It creates:
 
@@ -60,6 +60,23 @@ any row into the RAG corpus.
 Migration 0002 is intentionally not raw-SQL idempotent: SQLite cannot safely
 repeat `ADD COLUMN` without an external migration ledger. The control plane must
 apply the journal entry exactly once. Do not rerun the SQL file manually.
+
+`0003_editorial_trust_primitives` is an expand-only, identity-neutral sidecar.
+It creates principal/role, subject/revision, review request/decision and audit
+tables with database-enforced state, four-eyes and immutable-history guards.
+It contains no principal, credential, session, role, legal-content or corpus
+seed; it does not backfill or promote the reviewed graph.
+
+Migration 0003 is intentionally excluded from `db/index.ts` runtime bootstrap.
+It must be applied only by the ordered migration ledger. Applying the migration
+does not activate editorial workflow: the current application has no
+authenticated sidecar API, identity provisioning boundary or graph-promotion
+transaction.
+
+The database validates revision checksum shape/version but cannot recompute
+SHA-256 from canonical JSON. A future authenticated runtime must canonicalize
+the snapshot, recompute `editorial-sha256-v1` before insert and reject a digest
+mismatch.
 
 ## 3. Preflight
 
@@ -90,11 +107,13 @@ apply the journal entry exactly once. Do not rerun the SQL file manually.
    dist/.openai/drizzle/0000_groovy_cerise.sql
    dist/.openai/drizzle/0001_citation_foundation.sql
    dist/.openai/drizzle/0002_reviewed_rag_bridge.sql
+   dist/.openai/drizzle/0003_editorial_trust_primitives.sql
    dist/.openai/drizzle/meta/_journal.json
    ```
 
-6. Confirm journal order is `0000`, `0001`, `0002`, and that migrations 0001
-   and 0002 contain no `INSERT INTO` legal-content seed.
+6. Confirm journal order is `0000`, `0001`, `0002`, `0003`; confirm migration
+   0003 contains no principal/role/content seed and `db/index.ts` does not
+   import or auto-apply it.
 7. Through the Sites/D1 control plane, create or record a pre-migration backup,
    Time Travel bookmark/timestamp or equivalent restore point. Assign an owner
    and verify the restore procedure before continuing.
@@ -106,7 +125,8 @@ not activate the application version until the control plane reports:
 
 - the artifact is associated with the intended Sites project;
 - D1 binding `DB` resolves to the intended environment database;
-- ordered migrations through `0002_reviewed_rag_bridge` completed exactly once;
+- ordered migrations through `0003_editorial_trust_primitives` completed
+  exactly once;
 - no migration is failed, pending or partially applied.
 
 If the Sites workflow cannot expose migration status before activation, stop.
@@ -121,7 +141,7 @@ Use the read-only query facility attached to the exact Sites/D1 environment:
 ```sql
 SELECT name, type
 FROM sqlite_master
-WHERE name LIKE 'legal_%'
+WHERE name LIKE 'legal_%' OR name LIKE 'editorial_%'
 ORDER BY type, name;
 
 PRAGMA foreign_key_check;
@@ -159,8 +179,10 @@ Expected:
 - all foundation and reviewed-bridge triggers exist;
 - `PRAGMA foreign_key_check` returns no rows;
 - `PRAGMA integrity_check` returns `ok`;
-- the control plane records migrations 0001 and 0002 exactly once, in journal
-  order.
+- the control plane records migrations 0001, 0002 and 0003 exactly once, in
+  journal order;
+- all seven `editorial_*` tables and 0003 integrity triggers exist, while every
+  editorial table remains empty immediately after migration.
 
 Constraint probes belong in a non-production D1 clone. They must prove:
 
@@ -182,23 +204,41 @@ Constraint probes belong in a non-production D1 clone. They must prove:
 - answer/source/provision changes invalidate dependent citation review;
 - a valid source, provision and citation graph succeeds.
 
+For migration 0003, the non-production clone must additionally prove:
+
+- only the first self-admin grant can bootstrap an empty grant table; later
+  grants and one-way revocation require an active admin;
+- a disabled principal cannot be re-enabled and a bound external subject cannot
+  be rebound;
+- revision numbers are contiguous, revisions are creator-owned and draft-only;
+- subject insert requires an active `editor|admin` creator and starts exactly at
+  `draft`, null current revision and optimistic version `0`;
+- current revision changes are draft-only, require an optimistic-version
+  increment and fail while pending or published;
+- submit/approve/reject atomically update subject/request state and append a
+  source-bound audit event;
+- forged role, cross-subject audit, self-review, stale revision, duplicate
+  operation and one-sided hash attempts fail;
+- revision, decision, audit and role-grant history cannot be updated/deleted.
+
 ## 6. Activate and smoke test
 
 Only after migration and database verification:
 
 1. activate/deploy the saved Sites version built from the exact verified source;
 2. confirm the Worker starts and existing public/admin routes still work;
-3. confirm current routes do not write to the new tables;
+3. confirm current routes do not write to the new tables, and do not provision
+   principals or activate editorial workflow;
 4. confirm chat remains fail-closed outside reviewed retrieval;
 5. monitor Worker and D1 errors before ending the maintenance window.
 
 ## 7. Rollback and restore
 
-Because migrations 0001 and 0002 are expand-only, the preferred application
+Because migrations 0001 through 0003 are expand-only, the preferred application
 rollback is:
 
 1. roll back the Sites application version;
-2. leave the unused new tables in place;
+2. leave the unused citation and editorial sidecar tables in place;
 3. investigate without dropping tables or editing migration history.
 
 There is intentionally no automatic down migration. SQLite cannot safely drop
@@ -215,14 +255,16 @@ If migration execution corrupts or blocks D1:
 5. document the incident before attempting a corrected, newly versioned
    migration.
 
-Never modify migration 0001, migration 0002 or any migration after it has been
-applied to a shared environment. Corrections require a new migration.
+Never modify migration 0001, migration 0002, migration 0003 or any migration
+after it has been applied to a shared environment. Corrections require a new
+migration.
 
 ## 8. Drizzle metadata limitation
 
-`drizzle/meta/_journal.json` records migrations 0001 and 0002, and the Sites
-artifact contains the journal and both SQL files. Sprint 1B did not fabricate a
-`0001_snapshot.json` or `0002_snapshot.json`. Before relying on a Drizzle Kit
-workflow that requires snapshots, regenerate/validate metadata with the pinned
-`drizzle-kit` version and review the resulting diff. The reviewed SQL migrations
-remain the production source of truth.
+`drizzle/meta/_journal.json` records migrations 0001, 0002 and 0003, and the
+Sites artifact contains the journal and all three SQL files. The repository did
+not fabricate `0001_snapshot.json`, `0002_snapshot.json` or
+`0003_snapshot.json`. Before relying on a Drizzle Kit workflow that requires
+snapshots, regenerate/validate metadata with the pinned `drizzle-kit` version
+and review the resulting diff. The reviewed SQL migrations remain the
+production source of truth.

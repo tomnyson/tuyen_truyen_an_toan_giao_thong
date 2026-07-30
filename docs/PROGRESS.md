@@ -22,11 +22,11 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 |---|---:|---:|---:|---:|
 | Tra cứu và hiểu pháp luật | 2 | 3 | 0 | 0 |
 | Hỏi đáp có kiểm soát | 1 | 3 | 0 | 0 |
-| Quản trị nội dung | 3 | 1 | 1 | 0 |
+| Quản trị nội dung | 3 | 2 | 0 | 0 |
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 0 | 3 | 2 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 2 | 2 | 0 |
-| **Tổng** | **6** | **15** | **5** | **0** |
+| **Tổng** | **6** | **16** | **4** | **0** |
 
 ## Theo dõi theo user story
 
@@ -44,19 +44,19 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-010 — Auth khu vực quản trị | P0 | Done | Full-stack + Code review | Anonymous redirect, invalid credential, signed session và admin access regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
 | US-011 — CRUD law/showcase | P0 | Done | Full-stack | Admin UI, API và D1 schema đã có; còn thiếu integration test nhưng không nằm trong criteria của story này | 2026-07-29 |
 | US-012 — Chỉ public record published | P0 | Done | Full-stack | `app/api/content/route.ts`; `lib/legal-chat.ts`; `db/schema.ts` | 2026-07-29 |
-| US-013 — Workflow review và RBAC | P0 | Partial | Full-stack + PM + Code review | Schema bridge enforce review metadata, creator/revision immutability và invalidation; 17 schema tests pass. CMS vẫn chưa có authenticated roles, reviewer API, audit transaction hay workflow | 2026-07-31 |
-| US-014 — Audit/version history | P1 | Todo | Full-stack + Code review | Chưa có revision/audit model; DELETE đang xóa cứng | 2026-07-29 |
+| US-013 — Workflow review và RBAC | P0 | Partial | Full-stack + PM + Code review | 0003 sidecar enforce active role, creator-only submit, independent reviewer, exact revision và state transitions; focused 13/13 pass. CMS vẫn chưa có authenticated actor/API hay graph activation transaction | 2026-07-31 |
+| US-014 — Audit/version history | P1 | Partial | Full-stack + Code review | 0003 có immutable revision/decision/audit, operation uniqueness và exact workflow binding; focused 13/13 pass. Chưa có CMS history, archive hoặc audit mọi mutation | 2026-07-31 |
 | US-015 — Source/provision data model | P0 | Partial | Full-stack + PM | 0001–0002, allowlist/authority, four-eyes, immutable revision/checksum/effectivity metadata và runbook có evidence; 17/17 schema tests pass. API citation guard và seed/backfill execution còn mở | 2026-07-31 |
 | US-016 — Theo dõi hiệu lực nguồn | P0 | Partial | Full-stack + PM + Internal content reviewer | Source/provision effectivity, freshness gate và invalidation có schema/retriever evidence. Public/chat/index retrieval chưa tích hợp structured validity; production migration chưa chạy | 2026-07-31 |
 | US-017 — Deduplicate dữ liệu nền/CMS | P1 | Partial | Full-stack | Public page nối hai mảng trực tiếp; cần stable key và seed/override rule | 2026-07-29 |
 | US-018 — Password hash và env nhất quán | P0 | Partial | Full-stack + Code review | `.env.example` đã bỏ `admin/admin` và mô tả đúng runtime; code vẫn xác thực bằng `ADMIN_PASSWORD` plaintext, chưa hỗ trợ hash/rotation | 2026-07-29 |
 | US-019 — Rate limit login/chat | P0 | Todo | Full-stack + Code review | Chưa có implementation | 2026-07-29 |
 | US-020 — Logging/observability an toàn | P1 | Todo | Full-stack + PM + Code review | Chưa có implementation hoặc retention policy | 2026-07-29 |
-| US-021 — Backend/workflow E2E tests | P0 | Partial | Full-stack + Code review | Schema 17/17, retriever 16/16, AI adapter 15/15 và rendered/auth/chat 15/15 pass; build/lint/typecheck pass. Chưa có editor→reviewer API workflow E2E hoặc production D1 smoke | 2026-07-31 |
+| US-021 — Backend/workflow E2E tests | P0 | Partial | Full-stack + Code review | Full suite 76/76 pass, gồm editorial workflow 13/13, schema 17/17, retriever 16/16, AI adapter 15/15 và rendered/auth/chat 15/15. Chưa có authenticated editor→reviewer API E2E, CI hoặc production D1 smoke | 2026-07-31 |
 | US-022 — Runtime/deploy thống nhất | P0 | Partial | PM + Full-stack | Migration/runbook có local evidence, nhưng production **BLOCKED**: Sites `project_id` không resolve và migration control-plane behavior chưa xác minh; chưa smoke test | 2026-07-29 |
 | US-023 — Đánh giá/đăng ký nguồn ngoài | P0 | Todo | PM + Internal content reviewer | Landscape assessment là pre-story context; thiếu registry/provider docs, sample, terms và feasibility spike cụ thể | 2026-07-30 |
 | US-024 — Ingestion vào staging/draft | P0 | Todo | Full-stack + Code review + Internal content reviewer | `.env.example` có placeholder/flags; chưa có connector, raw store/quarantine, idempotency hoặc integration tests | 2026-07-30 |
-| US-025 — Index/retrieval RAG | P0 | Partial | Full-stack + PM + Code review + Internal content reviewer | Migration 0002 + candidate foundation có reviewed relation/revision/checksum/effectivity, SHA-256 recompute, fail-closed ranking; schema 17/17 và retriever 16/16 pass. Legacy corpus vẫn 0 eligible; chưa có RBAC/audit promotion, FTS5/index jobs, validated bundle hay golden-set eval | 2026-07-31 |
+| US-025 — Index/retrieval RAG | P0 | Partial | Full-stack + PM + Code review + Internal content reviewer | Migration 0002 + candidate foundation và 0003 trust primitives đã có nhưng approval chưa nối graph. Legacy corpus vẫn 0 eligible; chưa có authenticated promotion, FTS5/index jobs, validated bundle hay golden-set eval | 2026-07-31 |
 | US-026 — Evidence-bound AI analysis | P0 | Partial | Full-stack + Code review | Evidence-only Responses adapter, strict schema, caller-metadata gate, no-digit/citation guard và contract tests có evidence; fixture smoke pass. Chưa nối retriever/chat, chưa verify canonical provenance/relations, DB citation assembly, semantic span gate, rate limit hay production telemetry | 2026-07-30 |
 
 ## Thứ tự triển khai đề xuất
@@ -115,6 +115,19 @@ dung pháp lý chưa duyệt vào production.
 
 **Out of scope:** seed, backfill hoặc mapping Nghị định 341/2025/NĐ-CP trong
 Sprint 1B.
+
+### Sprint 1D — Editorial trust primitives
+
+**Mục tiêu:** tạo sidecar identity-neutral cho role, revision, review decision
+và audit trước khi chọn/nối identity provider.
+
+- [x] US-013: principal/role grant và database four-eyes constraints.
+- [x] US-014: immutable revision/decision/audit + operation uniqueness.
+- [x] US-021: migration từ 0000→0003, legacy fail-closed và negative tests.
+- [x] Code review không còn blocker/high/medium trong phạm vi slice.
+
+**Out of scope:** credential/session implementation, CMS/API/UI, graph
+promotion, archive, production migration và retriever/chat integration.
 
 ### Milestone 0 — Quyết định và điều kiện đầu vào
 
@@ -252,6 +265,29 @@ này.
 - Local fixture/raw SQL chỉ chứng minh constraint và mapper. Không chứng minh
   actor/RBAC/audit production, corpus đã được duyệt hoặc migration 0002 đã chạy
   trên production D1.
+
+### 2026-07-31 — US-013/US-014 editorial trust-primitives slice
+
+- `drizzle/0003_editorial_trust_primitives.sql` tạo bảy bảng sidecar
+  principal/role/subject/revision/request/decision/audit; không seed credential,
+  principal, role, legal content và không backfill/promote graph 0002.
+- `tests/editorial-workflow-schema.test.mjs`: **13/13 pass**. Coverage gồm
+  migration 0000→0003 giữ nguyên legacy, bootstrap admin duy nhất, admin-gated
+  grant và one-way revoke, subject/revision creator guards, optimistic state
+  transition, creator-only submit, self-review/stale revision, approve/reject
+  atomic audit, duplicate operation, published revision swap, forged/cross-bound
+  audit, one-sided hash và immutable history.
+- Full local suite `node --test tests/*.test.mjs`: **76/76 pass**.
+- TypeScript `--noEmit`, ESLint, `git diff --check` và Vinext build đủ 5
+  environment: **pass**.
+- Review bốn mắt phát hiện direct lifecycle/revision swap, mutable role trust
+  root, forged audit và unsafe runtime auto-migration trong vòng đầu. Sau
+  hardening/repro lại, final review: **không còn blocker/high/medium** trong
+  phạm vi slice.
+- `db/index.ts` không tự apply 0003. Production vẫn **BLOCKED** cho tới khi
+  Sites control plane chứng minh migration ledger apply 0000→0003 trước
+  activation. Sidecar chưa phải authenticated RBAC runtime và chưa làm graph
+  đủ điều kiện RAG.
 
 ## Cách cập nhật tracker
 

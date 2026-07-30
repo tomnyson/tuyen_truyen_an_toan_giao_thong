@@ -479,6 +479,65 @@ Các bảng trên dùng expand-only migration. Trước activation phải test
 backup/restore D1, R2 access/retention, unique/idempotency và rebuild FTS từ
 canonical tables.
 
+### 5.9 Editorial workflow sidecar — delivery slice 3
+
+Migration `0003` là expand-only và độc lập nhà cung cấp danh tính. Nó không
+backfill actor, không tạo credential, không sửa status của graph 0002 và không
+tự coi dữ liệu legacy là đã duyệt.
+
+Các trust primitive tối thiểu:
+
+- `editorial_principals`: stable actor ID, external subject nullable, display
+  name và trạng thái `active|disabled`;
+- `editorial_role_grants`: role `editor|reviewer|admin`, người/thời điểm cấp và
+  thu hồi; role grant chỉ có hiệu lực khi principal active và chưa bị revoke;
+- `editorial_subjects`: stable subject ID, entity type/key, creator, lifecycle,
+  current revision và optimistic version;
+- `editorial_revisions`: canonical snapshot JSON + SHA-256, version và creator;
+- `editorial_review_requests`: bind subject, exact revision và submitter;
+- `editorial_review_decisions`: append-only approve/reject, reviewer và lý do;
+- `editorial_audit_events`: operation ID idempotent, actor/role snapshot,
+  subject/revision/request, action, before/after state/hash và metadata tối
+  thiểu.
+
+Database invariant:
+
+- revision, decision và audit event là append-only; trigger từ chối
+  `UPDATE`/`DELETE`;
+- một revision chỉ có tối đa một quyết định và một subject chỉ có tối đa một
+  request đang mở;
+- request phải trỏ current revision của subject;
+- decision chỉ hợp lệ khi principal đang active, có grant
+  `reviewer|admin`, khác creator/revision creator/submitter và request còn mở;
+- reject bắt buộc lý do; approve/reject dùng database time;
+- operation ID unique để retry không tạo audit trùng;
+- principal/role ID từ body client không phải bằng chứng xác thực. Runtime
+  service tương lai phải resolve actor từ opaque/revocable session và kiểm role
+  hiện hành ở database.
+
+Slice 3 chỉ chứng minh schema trust primitives và constraint bằng SQLite/D1
+fixture. Subject mới bắt buộc creator active có role `editor|admin`, trạng thái
+`draft`, chưa có current revision và optimistic version bằng 0. Revision chỉ do
+creator active tạo liên tục khi subject còn draft. Current revision, lifecycle
+và version chỉ thay đổi theo transition có request/decision tương ứng; direct
+pending/published revision swap bị từ chối.
+
+Grant đầu tiên chỉ được bootstrap một self-admin khi grant table rỗng. Các grant
+sau do active admin cấp; revoke dùng database time, một chiều và không được xóa
+lịch sử. Principal đã disabled không thể re-enable; identity đã bind không thể
+rebind. Audit chỉ được tạo khi actor có live role và action/binding khớp chính
+xác request/decision hiện có; revision, decision và audit là immutable.
+
+Evidence: `drizzle/0003_editorial_trust_primitives.sql`, `db/schema.ts`,
+`tests/editorial-workflow-schema.test.mjs` 13/13 pass, full suite 76/76 pass,
+TypeScript/ESLint/build pass và final review không còn blocker/high/medium.
+
+Slice này chưa tạo authenticated workflow runtime, chưa promote
+source/provision/entry/citation, chưa khóa legacy CMS direct publish/delete và
+chưa nối retriever. SHA-256 snapshot mới được kiểm shape ở database; runtime
+tương lai phải canonicalize và tự recompute digest. Các phần đó là activation
+gate riêng.
+
 ## 6. API contract đích
 
 ### 6.1 `POST /api/v1/legal-answers`
@@ -1030,6 +1089,20 @@ Yêu cầu:
 - Hard delete chỉ dành cho dữ liệu draft chưa từng publish và phải có audit.
 - Public API chỉ đọc revision published mới nhất.
 
+### 8.1 Activation sequence sau sidecar foundation
+
+1. Chọn identity source: local registry chỉ dùng password hash có salt hoặc
+   Cloudflare Access/OIDC; không thêm plaintext password theo role.
+2. Session resolve stable principal ID và load role grant hiện hành; actor,
+   reviewer, timestamp và trạng thái publish không nhận từ request body.
+3. Đóng legacy direct-publish/hard-delete bypass trước khi mở review API.
+4. Mỗi command dùng idempotency key + optimistic subject version và một
+   transaction D1 cho decision, graph promotion và audit.
+5. Promotion theo thứ tự source → provision → entry → citation; citation bind
+   exact revision/checksum cuối cùng.
+6. Chỉ sau integration test và retriever gate mới cho approval sidecar tham gia
+   corpus readiness.
+
 ## 9. Security và privacy
 
 ### 9.1 Hiện có (As-is)
@@ -1089,6 +1162,10 @@ Yêu cầu:
   model answer hiện tại (`legal_entries`) với provision; khi `legal_answers`
   canonical được triển khai sẽ có migration quan hệ mới, không đổi nghĩa bảng
   cũ một cách ngầm định.
+- Delivery slice 3 thêm sidecar identity-neutral bằng
+  `drizzle/0003_editorial_trust_primitives.sql`. Migration không seed principal,
+  role hoặc content, không backfill/promotion graph và chưa được runtime
+  `db/index.ts` tự apply. Nó chỉ được kích hoạt sau migration-ledger gate.
 - Migration versioned là source of truth cho production. `db/index.ts` vẫn có
   DDL idempotent tương ứng chỉ để giữ local/Sites bootstrap hiện tại; đường
   bootstrap này phải được loại bỏ khi migration pipeline đã được xác minh.

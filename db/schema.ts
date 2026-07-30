@@ -281,3 +281,328 @@ export const legalEntryCitations = sqliteTable(
     ),
   ],
 );
+
+export const editorialPrincipals = sqliteTable(
+  "editorial_principals",
+  {
+    id: text("id").primaryKey(),
+    externalSubject: text("external_subject"),
+    displayName: text("display_name").notNull(),
+    status: text("status", { enum: ["active", "disabled"] })
+      .notNull()
+      .default("active"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("editorial_principals_external_subject_unique")
+      .on(table.externalSubject)
+      .where(sql`${table.externalSubject} is not null`),
+    check(
+      "editorial_principals_id_check",
+      sql`length(trim(${table.id})) between 1 and 128`,
+    ),
+    check(
+      "editorial_principals_display_name_check",
+      sql`length(trim(${table.displayName})) between 1 and 200`,
+    ),
+    check(
+      "editorial_principals_status_check",
+      sql`${table.status} in ('active', 'disabled')`,
+    ),
+  ],
+);
+
+export const editorialRoleGrants = sqliteTable(
+  "editorial_role_grants",
+  {
+    id: text("id").primaryKey(),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => editorialPrincipals.id, { onDelete: "restrict" }),
+    role: text("role", { enum: ["editor", "reviewer", "admin"] }).notNull(),
+    grantedByPrincipalId: text("granted_by_principal_id")
+      .notNull()
+      .references(() => editorialPrincipals.id, { onDelete: "restrict" }),
+    grantedAt: text("granted_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    revokedByPrincipalId: text("revoked_by_principal_id").references(
+      () => editorialPrincipals.id,
+      { onDelete: "restrict" },
+    ),
+    revokedAt: text("revoked_at"),
+  },
+  (table) => [
+    uniqueIndex("editorial_role_grants_active_unique")
+      .on(table.principalId, table.role)
+      .where(sql`${table.revokedAt} is null`),
+    index("editorial_role_grants_principal_idx").on(table.principalId),
+    check(
+      "editorial_role_grants_role_check",
+      sql`${table.role} in ('editor', 'reviewer', 'admin')`,
+    ),
+    check(
+      "editorial_role_grants_revocation_check",
+      sql`(${table.revokedAt} is null and ${table.revokedByPrincipalId} is null)
+        or ${table.revokedByPrincipalId} is not null`,
+    ),
+  ],
+);
+
+export const editorialSubjects = sqliteTable(
+  "editorial_subjects",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").notNull(),
+    entityKey: text("entity_key").notNull(),
+    createdByPrincipalId: text("created_by_principal_id")
+      .notNull()
+      .references(() => editorialPrincipals.id, { onDelete: "restrict" }),
+    lifecycleStatus: text("lifecycle_status", {
+      enum: ["draft", "pending_review", "published", "archived"],
+    }).notNull().default("draft"),
+    currentRevisionId: text("current_revision_id"),
+    optimisticVersion: integer("optimistic_version").notNull().default(0),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("editorial_subjects_entity_unique").on(
+      table.entityType,
+      table.entityKey,
+    ),
+    index("editorial_subjects_current_revision_idx").on(table.currentRevisionId),
+    check(
+      "editorial_subjects_identity_check",
+      sql`length(trim(${table.id})) between 1 and 128
+        and length(trim(${table.entityType})) between 1 and 64
+        and length(trim(${table.entityKey})) between 1 and 256`,
+    ),
+    check(
+      "editorial_subjects_lifecycle_check",
+      sql`${table.lifecycleStatus} in ('draft', 'pending_review', 'published', 'archived')`,
+    ),
+    check(
+      "editorial_subjects_optimistic_version_check",
+      sql`${table.optimisticVersion} >= 0`,
+    ),
+  ],
+);
+
+export const editorialRevisions = sqliteTable(
+  "editorial_revisions",
+  {
+    id: text("id").primaryKey(),
+    subjectId: text("subject_id")
+      .notNull()
+      .references(() => editorialSubjects.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    canonicalSnapshotJson: text("canonical_snapshot_json").notNull(),
+    checksumVersion: text("checksum_version")
+      .notNull()
+      .default("editorial-sha256-v1"),
+    snapshotSha256: text("snapshot_sha256").notNull(),
+    createdByPrincipalId: text("created_by_principal_id")
+      .notNull()
+      .references(() => editorialPrincipals.id, { onDelete: "restrict" }),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("editorial_revisions_subject_version_unique").on(
+      table.subjectId,
+      table.version,
+    ),
+    index("editorial_revisions_subject_idx").on(table.subjectId),
+    check("editorial_revisions_version_check", sql`${table.version} > 0`),
+    check(
+      "editorial_revisions_snapshot_check",
+      sql`json_valid(${table.canonicalSnapshotJson})
+        and json_type(${table.canonicalSnapshotJson}) = 'object'
+        and length(${table.canonicalSnapshotJson}) between 2 and 262144
+        and ${table.checksumVersion} = 'editorial-sha256-v1'
+        and length(${table.snapshotSha256}) = 64
+        and ${table.snapshotSha256} = lower(${table.snapshotSha256})
+        and ${table.snapshotSha256} not glob '*[^0-9a-f]*'`,
+    ),
+  ],
+);
+
+export const editorialReviewRequests = sqliteTable(
+  "editorial_review_requests",
+  {
+    id: text("id").primaryKey(),
+    operationId: text("operation_id").notNull(),
+    subjectId: text("subject_id")
+      .notNull()
+      .references(() => editorialSubjects.id, { onDelete: "restrict" }),
+    revisionId: text("revision_id")
+      .notNull()
+      .references(() => editorialRevisions.id, { onDelete: "restrict" }),
+    submittedByPrincipalId: text("submitted_by_principal_id")
+      .notNull()
+      .references(() => editorialPrincipals.id, { onDelete: "restrict" }),
+    status: text("status", {
+      enum: ["open", "approved", "rejected", "cancelled"],
+    }).notNull().default("open"),
+    submittedAt: text("submitted_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    decidedAt: text("decided_at"),
+  },
+  (table) => [
+    uniqueIndex("editorial_review_requests_operation_unique").on(
+      table.operationId,
+    ),
+    uniqueIndex("editorial_review_requests_subject_revision_unique").on(
+      table.subjectId,
+      table.revisionId,
+    ),
+    uniqueIndex("editorial_review_requests_open_subject_unique")
+      .on(table.subjectId)
+      .where(sql`${table.status} = 'open'`),
+    index("editorial_review_requests_revision_idx").on(table.revisionId),
+    check(
+      "editorial_review_requests_status_check",
+      sql`${table.status} in ('open', 'approved', 'rejected', 'cancelled')`,
+    ),
+    check(
+      "editorial_review_requests_operation_check",
+      sql`length(trim(${table.operationId})) between 1 and 128`,
+    ),
+    check(
+      "editorial_review_requests_decision_time_check",
+      sql`(${table.status} = 'open' and ${table.decidedAt} is null)
+        or (${table.status} in ('approved', 'rejected') and ${table.decidedAt} is not null)
+        or ${table.status} = 'cancelled'`,
+    ),
+  ],
+);
+
+export const editorialReviewDecisions = sqliteTable(
+  "editorial_review_decisions",
+  {
+    id: text("id").primaryKey(),
+    operationId: text("operation_id").notNull(),
+    reviewRequestId: text("review_request_id")
+      .notNull()
+      .references(() => editorialReviewRequests.id, { onDelete: "restrict" }),
+    revisionId: text("revision_id")
+      .notNull()
+      .references(() => editorialRevisions.id, { onDelete: "restrict" }),
+    reviewerPrincipalId: text("reviewer_principal_id")
+      .notNull()
+      .references(() => editorialPrincipals.id, { onDelete: "restrict" }),
+    decision: text("decision", { enum: ["approve", "reject"] }).notNull(),
+    reason: text("reason"),
+    decidedAt: text("decided_at"),
+  },
+  (table) => [
+    uniqueIndex("editorial_review_decisions_operation_unique").on(
+      table.operationId,
+    ),
+    uniqueIndex("editorial_review_decisions_request_unique").on(
+      table.reviewRequestId,
+    ),
+    uniqueIndex("editorial_review_decisions_revision_unique").on(
+      table.revisionId,
+    ),
+    check(
+      "editorial_review_decisions_value_check",
+      sql`${table.decision} in ('approve', 'reject')`,
+    ),
+    check(
+      "editorial_review_decisions_operation_check",
+      sql`length(trim(${table.operationId})) between 1 and 128`,
+    ),
+    check(
+      "editorial_review_decisions_reject_reason_check",
+      sql`(${table.reason} is null or length(trim(${table.reason})) between 1 and 2000)
+        and (
+          ${table.decision} != 'reject'
+          or (${table.reason} is not null and length(trim(${table.reason})) > 0)
+        )`,
+    ),
+  ],
+);
+
+export const editorialAuditEvents = sqliteTable(
+  "editorial_audit_events",
+  {
+    id: text("id").primaryKey(),
+    operationId: text("operation_id").notNull(),
+    actorPrincipalId: text("actor_principal_id")
+      .notNull()
+      .references(() => editorialPrincipals.id, { onDelete: "restrict" }),
+    actorRole: text("actor_role", {
+      enum: ["editor", "reviewer", "admin"],
+    }).notNull(),
+    subjectId: text("subject_id").references(() => editorialSubjects.id, {
+      onDelete: "restrict",
+    }),
+    revisionId: text("revision_id").references(() => editorialRevisions.id, {
+      onDelete: "restrict",
+    }),
+    reviewRequestId: text("review_request_id").references(
+      () => editorialReviewRequests.id,
+      { onDelete: "restrict" },
+    ),
+    action: text("action").notNull(),
+    beforeStateJson: text("before_state_json"),
+    afterStateJson: text("after_state_json"),
+    beforeHash: text("before_hash"),
+    afterHash: text("after_hash"),
+    metadataJson: text("metadata_json"),
+    occurredAt: text("occurred_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("editorial_audit_events_operation_unique").on(table.operationId),
+    index("editorial_audit_events_subject_idx").on(table.subjectId),
+    check(
+      "editorial_audit_events_identity_check",
+      sql`length(trim(${table.id})) between 1 and 160
+        and length(trim(${table.operationId})) between 1 and 128
+        and ${table.action} in (
+          'review_submitted', 'review_approved', 'review_rejected'
+        )`,
+    ),
+    check(
+      "editorial_audit_events_role_check",
+      sql`${table.actorRole} in ('editor', 'reviewer', 'admin')`,
+    ),
+    check(
+      "editorial_audit_events_json_check",
+      sql`(
+          ${table.beforeStateJson} is null
+          or (
+            length(${table.beforeStateJson}) <= 65536
+            and json_valid(${table.beforeStateJson})
+          )
+        )
+        and (
+          ${table.afterStateJson} is null
+          or (
+            length(${table.afterStateJson}) <= 65536
+            and json_valid(${table.afterStateJson})
+          )
+        )
+        and (
+          ${table.metadataJson} is null
+          or (
+            length(${table.metadataJson}) <= 65536
+            and json_valid(${table.metadataJson})
+          )
+        )`,
+    ),
+    check(
+      "editorial_audit_events_hash_pair_check",
+      sql`(${table.beforeHash} is null and ${table.afterHash} is null)
+        or (
+          ${table.beforeHash} is not null
+          and ${table.afterHash} is not null
+          and length(${table.beforeHash}) = 64
+          and ${table.beforeHash} = lower(${table.beforeHash})
+          and ${table.beforeHash} not glob '*[^0-9a-f]*'
+          and length(${table.afterHash}) = 64
+          and ${table.afterHash} = lower(${table.afterHash})
+          and ${table.afterHash} not glob '*[^0-9a-f]*'
+        )`,
+    ),
+  ],
+);

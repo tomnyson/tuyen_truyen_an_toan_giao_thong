@@ -151,7 +151,11 @@ test("Sites build packages migration inputs but does not prove execution", () =>
     sitesPlugin,
     /cp\(drizzleSource,\s*resolve\(outputDirectory,\s*"drizzle"\)/s,
   );
-  assert.equal(journal.entries.at(-1)?.tag, "0002_reviewed_rag_bridge");
+  assert.equal(journal.entries[2]?.tag, "0002_reviewed_rag_bridge");
+  assert.equal(
+    journal.entries.at(-1)?.tag,
+    "0003_editorial_trust_primitives",
+  );
   assert.match(migration, /CREATE TABLE IF NOT EXISTS `legal_sources`/);
   assert.match(readinessMigration, /ALTER TABLE `legal_entries`/);
 });
@@ -186,6 +190,12 @@ test("migration journal records citation foundation after baseline", () => {
         idx: 2,
         version: "6",
         tag: "0002_reviewed_rag_bridge",
+        breakpoints: true,
+      },
+      {
+        idx: 3,
+        version: "6",
+        tag: "0003_editorial_trust_primitives",
         breakpoints: true,
       },
     ],

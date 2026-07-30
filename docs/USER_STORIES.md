@@ -252,7 +252,13 @@ sai, session hợp lệ và admin access.
   diễn giải; không yêu cầu external legal reviewer.
 - [ ] Reviewer có thể duyệt, từ chối và ghi lý do.
 - [ ] Nội dung lưu `created_by`, `reviewed_by`, `reviewed_at`.
-- [ ] Có test quyền và state transition.
+- [x] Có test quyền và state transition ở tầng trust-primitives; authenticated
+  API E2E vẫn được theo dõi riêng tại US-021.
+- [x] Có foundation identity-neutral lưu principal ổn định, role grant và trạng
+  thái active/disabled; không coi chuỗi actor tự khai trong request là danh tính
+  đã xác thực.
+- [x] Review request chỉ được quyết định bởi principal active có role
+  `reviewer`/`admin`, khác creator và submitter, trên đúng revision hiện hành.
 
 **Decision (2026-07-29):** DEC-003 chốt quy trình bốn mắt
 `editor != reviewer` là bắt buộc. Reviewer là người duyệt nội dung nội bộ, không
@@ -265,6 +271,14 @@ nhất thiết là luật sư.
 four-eyes và immutable creator. Runtime CMS vẫn chưa có role/reviewer API,
 attribution hoặc state-transition workflow nên story còn `Partial`.
 
+**Delivery slice 3 (2026-07-31):** sidecar
+principal/role/revision/review/audit và constraint bốn mắt độc lập nhà cung cấp
+danh tính đã được triển khai. `tests/editorial-workflow-schema.test.mjs` chạy
+13/13 pass; final code review không còn blocker/high/medium trong phạm vi slice.
+Chưa nối login, CMS API, public/chat hoặc tự promote graph 0002. Runtime RBAC
+chỉ được check sau khi session resolve được stable actor từ local hashed
+registry hoặc identity provider đã chốt.
+
 ### [ ] US-014 — Xem lịch sử và phiên bản nội dung
 
 - **Priority:** P1
@@ -274,12 +288,20 @@ attribution hoặc state-transition workflow nên story còn `Partial`.
 
 **Acceptance criteria**
 
-- [ ] Có version table hoặc immutable revision log.
+- [x] Có version table hoặc immutable revision log.
 - [ ] Mỗi thay đổi lưu actor, timestamp, before/after và lý do.
 - [ ] CMS hiển thị lịch sử theo record.
 - [ ] Nội dung đã xuất bản được archive thay vì mất dấu bằng hard delete.
+- [x] Revision, review decision và audit event của sidecar không thể
+  `UPDATE`/`DELETE`; operation ID chống ghi trùng và audit tham chiếu đúng
+  subject/revision/request.
+- [x] Có test database chứng minh self-review, stale revision, duplicate
+  decision và sửa/xóa lịch sử đều bị từ chối.
 
-**Evidence:** Chưa có.
+**Evidence:** `drizzle/0003_editorial_trust_primitives.sql`, `db/schema.ts`,
+`tests/editorial-workflow-schema.test.mjs` (**13/13 pass**) và
+`docs/MIGRATION_RUNBOOK.md`. Story còn `Partial` vì chưa có history UI, archive
+runtime và audit cho mọi thay đổi CMS.
 
 ## Epic D — Mô hình dữ liệu và nguồn pháp luật
 
@@ -463,12 +485,16 @@ reviewer, nhưng four-eyes của DEC-003 vẫn bắt buộc.
 - [ ] Có contract test response/citation.
 - [ ] Có test rate limit, RBAC và workflow review.
 - [ ] Test chạy trong CI và có bằng chứng trạng thái.
+- [x] Có suite migration/workflow riêng cho role grant, four-eyes,
+  revision/request/decision/audit và legacy fail-closed; suite này không thay
+  thế API E2E hay rate-limit test.
 
 **Evidence hiện có:** `tests/rendered-html.test.mjs` có regression definitions
 cho render, auth, fail-closed copyright, không gọi ungrounded provider và admin
 từ chối publish Nghị định 131 trước DB access; suite đã chạy 15/15 pass.
-Schema 17/17 và retriever D1 fixture 16/16 pass, nhưng chưa có CRUD/API
-editor→reviewer workflow E2E, production D1 smoke hoặc CI execution.
+Schema 17/17, editorial workflow 13/13 và retriever D1 fixture 16/16 pass,
+nhưng chưa có CRUD/API editor→reviewer workflow E2E, production D1 smoke hoặc
+CI execution.
 
 ### [ ] US-022 — Thống nhất nền tảng deploy và cấu hình môi trường
 
@@ -635,6 +661,11 @@ candidate.
 FTS5/alias/index, source revision và partially-in-force spans,
 invalidation/re-index jobs, authenticated RBAC/audit review transaction,
 validated evidence bundle, production policies và golden-set eval vẫn mở.
+
+**Delivery slice 3 (2026-07-31):** sidecar editorial workflow đã tạo
+trust primitives cho actor/role/revision/review/audit. Không nâng candidate
+thành evidence bundle và không làm row legacy đủ điều kiện; graph chỉ được nối
+approval sau khi có authenticated session boundary và promotion transaction.
 
 ### [ ] US-026 — AI phân tích và gợi ý dựa trên evidence
 

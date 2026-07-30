@@ -1,6 +1,6 @@
 # User Stories — Luật Học Đường
 
-> Cập nhật gần nhất: 2026-07-29  
+> Cập nhật gần nhất: 2026-07-30
 > Quy ước: checkbox ở tiêu đề chỉ được đánh dấu `[x]` khi tất cả acceptance
 > criteria của story đã có bằng chứng. Story chưa hoàn tất có thể có một số
 > acceptance criteria con đã được đánh dấu.
@@ -92,7 +92,7 @@
 
 ## Epic B — Hỏi đáp có kiểm soát
 
-### [x] US-006 — Hỏi chatbot trong phạm vi kiến thức hiện có
+### [ ] US-006 — Hỏi chatbot trong phạm vi kiến thức hiện có
 
 - **Priority:** P0
 - **Persona:** Học sinh
@@ -104,12 +104,13 @@
 - [x] Có giao diện nhập, gửi và hiển thị hội thoại.
 - [x] Backend giới hạn 8 message gần nhất và 600 ký tự/message.
 - [x] Backend ưu tiên nội dung quản trị `published`, sau đó nội dung nền.
-- [x] Có test cho bốn nhóm câu hỏi kiến thức nền hiện tại.
+- [ ] Có test đã chạy pass cho bốn nhóm câu hỏi kiến thức nền hiện tại.
 
-**Evidence:** `app/page.tsx`, `app/api/chat/route.ts`, `lib/legal-chat.ts`,
-`tests/rendered-html.test.mjs`
+**Evidence hiện có:** `app/page.tsx`, `app/api/chat/route.ts`,
+`lib/legal-chat.ts`; `tests/rendered-html.test.mjs` có test definitions nhưng
+chưa có bằng chứng full suite đã chạy và chưa đủ bốn nhóm.
 
-### [x] US-007 — Fail closed khi không đủ kiến thức
+### [ ] US-007 — Fail closed khi không đủ kiến thức
 
 - **Priority:** P0
 - **Persona:** Học sinh
@@ -121,9 +122,11 @@
 - [x] Không có dữ liệu và không có AI thì trả mode `unavailable`.
 - [x] Lỗi xử lý/provider cũng rơi về câu trả lời an toàn.
 - [x] Câu hỏi rỗng hoặc message sai định dạng bị từ chối.
-- [x] Có regression test cho nhánh ngoài phạm vi và input không hợp lệ.
+- [ ] Có regression test đã chạy pass cho nhánh ngoài phạm vi và input không
+  hợp lệ.
 
-**Evidence:** `app/api/chat/route.ts`, `tests/rendered-html.test.mjs`
+**Evidence hiện có:** `app/api/chat/route.ts`; regression definitions ở
+`tests/rendered-html.test.mjs` chưa có bằng chứng full suite đã chạy.
 
 ### [ ] US-008 — Không cho AI tạo căn cứ ngoài dữ liệu
 
@@ -175,7 +178,7 @@ copyright.
 
 ## Epic C — Quản trị nội dung
 
-### [x] US-010 — Đăng nhập và bảo vệ khu vực quản trị
+### [ ] US-010 — Đăng nhập và bảo vệ khu vực quản trị
 
 - **Priority:** P0
 - **Persona:** Quản trị hệ thống
@@ -188,11 +191,12 @@ copyright.
 - [x] Credential hợp lệ tạo session ký HMAC, hết hạn sau 8 giờ.
 - [x] Cookie có `HttpOnly`, `SameSite=Strict` và `Secure` trên HTTPS.
 - [x] Mutation kiểm tra origin cùng site.
-- [x] Có test login sai, login đúng và truy cập admin.
+- [ ] Có test đã chạy pass cho login sai, login đúng và truy cập admin.
 
-**Evidence:** `lib/admin-auth.ts`, `app/admin/page.tsx`,
+**Evidence hiện có:** `lib/admin-auth.ts`, `app/admin/page.tsx`,
 `app/admin/api/login/route.ts`, `app/admin/api/logout/route.ts`,
-`tests/rendered-html.test.mjs`
+`tests/rendered-html.test.mjs`; test definitions chưa có bằng chứng full suite
+đã chạy.
 
 ### [x] US-011 — CRUD điều luật và tình huống
 
@@ -296,6 +300,11 @@ attribution hoặc state-transition workflow nên story còn `Partial`.
 - [x] Có quan hệ giữa legal entry và một hoặc nhiều provision.
 - [x] Có migration và seed/backfill plan cho dữ liệu hard-code hiện tại; Sprint
   1B không seed hoặc mapping nội dung.
+- [ ] Có bảng `legal_sanctions` liên kết provision, lưu measure/amount/currency,
+  chủ thể/độ tuổi/điều kiện áp dụng và creator/reviewer có cấu trúc.
+- [ ] Sanction publish enforce `created_by` bất biến,
+  `reviewed_by != created_by`, amount range/currency và provision hợp lệ; có
+  migration/constraint tests.
 - [ ] API không nhận citation tự do không ánh xạ được.
 
 **Evidence:** `db/schema.ts`, `db/index.ts` và
@@ -332,6 +341,12 @@ chưa triển khai.
   khi source không còn hợp lệ.
 - [x] Publish provision yêu cầu source `in_force`, có hiệu lực, được kiểm chứng
   bởi người khác creator.
+- [ ] Provision revision lưu hiệu lực riêng, relation bị thay thế và source
+  revision/checksum; không suy hiệu lực provision chỉ từ document.
+- [ ] Provision `partially_in_force` không được index trực tiếp; editor tách
+  active span có page/section anchor thành revision `in_force` và qua bốn mắt.
+- [ ] Freshness policy được version hóa/phê duyệt theo loại nguồn; record chưa
+  có policy hoặc quá hạn bị loại khỏi publish/index/retrieval.
 - [ ] Hệ thống chặn publish/retrieval khi nguồn hết hiệu lực hoặc quá hạn kiểm
   chứng.
 - [ ] Footer cập nhật theo dữ liệu thay vì chuỗi hard-code.
@@ -484,3 +499,167 @@ primary; không giả định target Vercel hiện tại có feature parity.
 **BLOCKED**: Sites control plane không resolve được exact `project_id`, chưa xác
 minh migration apply đúng một lần/trước activation và chưa có production smoke
 test.
+
+## Epic F — RAG và nhập dữ liệu ngoài
+
+### [ ] US-023 — Đánh giá và đăng ký nguồn dữ liệu ngoài
+
+- **Priority:** P0
+- **Persona:** PM, quản trị nội dung, người duyệt nội bộ
+- **Mô tả:** Là đội sản phẩm, chúng tôi muốn biết rõ provenance, quyền sử dụng
+  và contract của từng nguồn trước khi xây connector hoặc dùng dữ liệu làm căn
+  cứ.
+
+**Acceptance criteria**
+
+- [ ] Source registry ghi owner, endpoint/export, format, auth, quota, update
+  cadence, trường dữ liệu, availability, terms/license và attribution.
+- [ ] Mỗi nguồn có cả `trust_class`
+  (`official|discovery_only|rejected`) và `readiness`
+  (`green|yellow|red|unverified`); chỉ PM + internal content reviewer khác
+  người đăng ký nguồn được nâng readiness lên `green`.
+- [ ] Có sample payload/file và feasibility spike mapping vào
+  `legal_sources`/`legal_provisions`.
+- [ ] Có quyết định go/no-go cùng rủi ro, chi phí và cơ chế xử lý thay thế/xóa.
+- [ ] Secret/test credential không được commit hoặc ghi log.
+
+**Decision (2026-07-30):** DEC-006 chốt dữ liệu ngoài không tự động trở thành
+citation hoặc được publish. Đánh giá sơ bộ các nguồn Chính phủ hiện biết nằm tại
+`docs/THIRD_PARTY_DATA_ASSESSMENT.md`; chưa có provider/API cụ thể đủ đầu vào để
+go production.
+
+**Evidence:** Chưa có registry, provider-specific implementation hoặc spike;
+landscape assessment hiện tại chỉ là pre-story context nên story vẫn `Todo`.
+
+### [ ] US-024 — Nhập dữ liệu vào staging/draft có kiểm soát
+
+- **Priority:** P0
+- **Persona:** Content Ops, biên tập viên, người duyệt nội bộ
+- **Mô tả:** Là đội nội dung, chúng tôi muốn nhập tài liệu ngoài một cách
+  idempotent, an toàn và truy vết được mà không vô tình công khai dữ liệu chưa
+  duyệt.
+
+**Acceptance criteria**
+
+- [ ] Connector/manual import lưu provider, upstream ID/URL, `fetched_at`,
+  checksum/version và raw snapshot reference.
+- [ ] Raw snapshot immutable lưu R2; editor/reviewer chỉ đọc qua protected
+  review API/service binding có RBAC, exact-object authorization, TTL ngắn nếu
+  dùng capability URL và audit access.
+- [ ] Fetcher validate HTTPS allowlist, redirect, private IP, MIME, size và
+  timeout; có rate limit theo nguồn.
+- [ ] URL guard từ chối userinfo/port ngoài policy/IP literal, resolve và pin
+  public IP, re-check từng redirect; parser giới hạn compressed/decompressed
+  bytes, page count, CPU/memory/time.
+- [ ] Import idempotent/deduplicate; parser giữ original text và tạo candidate
+  source/provision.
+- [ ] Parser versioned giữ page/section anchor, kiểm tra completeness, xử lý
+  PDF không có text/OCR và cho reviewer xem diff candidate với raw snapshot.
+- [ ] AI extraction backoffice dùng output schema, chỉ tạo field draft và không
+  được tự xác nhận effectivity/citation.
+- [ ] Record lỗi/malicious vào quarantine, retry có giới hạn và có báo cáo.
+- [ ] Mọi candidate chỉ ở `draft`/`pending_review`; không có đường auto-publish.
+- [ ] Four-eyes bắt buộc trước khi candidate trở thành corpus RAG.
+- [ ] Integration fixtures bao phủ duplicate, malformed input, DNS rebinding,
+  malicious redirect, malware/polyglot/decompression-bomb PDF và document
+  prompt injection.
+
+**Evidence:** `.env.example` đã có placeholder/feature flags nhưng runtime chưa
+có ingestion consumer; chưa có connector/raw store/quarantine/test nên story
+vẫn `Todo`.
+
+**Proposal (2026-07-30):** PROP-001 đề xuất giữ public/admin/query backend trong
+Worker hiện tại; scheduled/batch ingestion triển khai ở Worker riêng với source
+credential, R2 raw store và Queue/DLQ khi chạy batch production. Chờ owner duyệt.
+
+### [ ] US-025 — Lập chỉ mục và truy xuất RAG từ kho đã duyệt
+
+- **Priority:** P0
+- **Persona:** Học sinh, người duyệt nội dung
+- **Mô tả:** Là người dùng, tôi muốn hệ thống tìm đúng evidence đã duyệt trước
+  khi trả lời để mọi kết luận đều truy ngược được về nguồn chính thức.
+
+**Acceptance criteria**
+
+- [ ] Chỉ index revision `published`, source còn hiệu lực và đạt freshness
+  policy đã phê duyệt; source chưa có policy hoặc quá hạn bị loại.
+- [ ] Chunk/index giữ source ID, provision ID, revision, checksum và effectivity
+  metadata.
+- [ ] Baseline dùng structured filter, alias và D1 FTS5; chỉ thêm vector khi
+  golden set chứng minh recall cần cải thiện.
+- [ ] Source/revision thay đổi hoặc hết hiệu lực kích hoạt invalidate/re-index.
+- [ ] Retriever dùng top-k + threshold để tạo evidence bundle có reason/score.
+- [ ] Không match hoặc evidence invalid trả `unavailable`.
+- [ ] PM + internal content reviewer duyệt evaluation gate; initial proposal là
+  100% citation/numeric exact-match, 0 critical unsupported claim, Recall@5 ≥
+  90%, top-answer precision ≥ 95%, refusal ≥ 95% và latency P95 theo PRD.
+- [ ] Eval đạt gate đã duyệt và test loại draft/stale/expired record; mọi
+  recalibration sau dữ liệu thật có decision record và rerun cùng golden-set
+  version.
+
+**Decision (2026-07-30):** DEC-005 chốt RAG-first không đồng nghĩa bắt buộc
+vector database.
+
+**Evidence:** Chưa có index/retriever mới; story `Todo`.
+
+### [ ] US-026 — AI phân tích và gợi ý dựa trên evidence
+
+- **Priority:** P0
+- **Persona:** Học sinh
+- **Mô tả:** Là người dùng, tôi muốn AI diễn giải và đưa ví dụ/gợi ý hành động
+  trong đúng phạm vi evidence đã duyệt.
+
+**Acceptance criteria**
+
+- [x] Có adapter OpenAI Responses API tách khỏi route handler, sanitize câu hỏi
+  trước provider call và từ chối bundle rỗng hoặc thiếu eligibility metadata
+  `published/in_force/fresh/four-eyes` do caller cung cấp.
+- [ ] Retriever/DB boundary chứng minh source-provision relationship,
+  provenance, canonical IDs/spans và freshness policy trước khi tạo
+  `validatedEvidenceBundle`; adapter không tự chứng minh các dữ kiện này.
+- [x] Adapter runtime không bật web search/tool hoặc gửi conversation/system
+  instruction từ client; request chỉ gồm instruction cố định của server, câu hỏi
+  đã sanitize và evidence trong bundle.
+- [x] `AI_REPHRASE_ENABLED` mặc định `false`. Adapter return trước outbound
+  request khi flag tắt, API key thiếu, model ngoài allowlist hoặc bundle không
+  hợp lệ; model rỗng dùng default đã pin trong code.
+- [x] Responses API dùng strict structured-output schema cho internal composer
+  result gồm conclusion, explanation, example drafts, action drafts và
+  warnings; từng đoạn chỉ tham chiếu evidence IDs đã cấp.
+- [x] Adapter không tự dựng public response, citation hoặc sanction; output chỉ
+  là internal composer result để lớp server-side validator xử lý.
+- [ ] Server validate ID và gắn citation/mức xử lý từ database; model không tự
+  tạo dữ liệu pháp lý.
+- [ ] Mỗi factual claim phải map tới evidence span/predicate được phép; số tiền,
+  độ tuổi, ngày và điều/khoản phải exact-match record đã duyệt. Claim, ngoại lệ
+  hoặc điều kiện không được evidence hỗ trợ phải bị loại hoặc fail closed.
+- [ ] Missing key, timeout, malformed output hoặc unknown citation fail closed:
+  curated response nếu đủ dữ liệu, nếu không `unavailable`.
+- [ ] `OPENAI_API_KEY` server-only; model, feature flag, timeout, quota/rate
+  limit và cost telemetry được tài liệu hóa.
+- [ ] Có defense cho prompt injection từ câu hỏi và source document.
+- [ ] Có adapter tests cho success, flag-off, missing config, empty/invalid
+  bundle, timeout, non-2xx, refusal, malformed structured output và unknown
+  evidence ID; có validator tests cho hallucination,
+  unsupported-claim/numeric-mismatch.
+- [ ] `/api/chat` hoặc API v1 chỉ được gọi adapter sau khi structured retrieval
+  trả validated citation bundle. Trước gate đó route hiện tại phải tiếp tục
+  fail closed và test chứng minh credential/flag không gây outbound provider
+  call khi không có bundle.
+
+**Decision (2026-07-30):** API key không phải fallback kiến thức mở. Thay đổi
+điều này cần một quyết định mới sửa DEC-002/DEC-006 và không được khuyến nghị.
+
+**Delivery slice hiện tại:** chỉ xây adapter Responses API evidence-only và unit
+tests, feature flag mặc định tắt. Không nối adapter vào `/api/chat`, không xây
+retrieval/citation bundle và không thay public response contract trong lát cắt
+này.
+
+**Evidence:** `lib/openai-evidence.ts`, `tests/openai-evidence.test.mjs`,
+`scripts/smoke-openai-evidence.mjs`, `.env.example` và
+`cloudflare-env.d.ts`. PM audit chạy 13/13 test trước vòng hardening; suite cuối
+cùng của Full-stack chạy 15/15 pass. Live smoke bằng fixture kỹ thuật pass với
+`gpt-5.6-sol`. Story
+`Partial`: chưa có retriever production, DB citation/sanction assembly,
+semantic claim/span validation, rate limit/telemetry vận hành hoặc `/api/chat`
+integration.

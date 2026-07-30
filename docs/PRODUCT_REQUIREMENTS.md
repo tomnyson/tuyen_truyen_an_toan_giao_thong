@@ -1,7 +1,7 @@
 # Product Requirements Document — Luật Học Đường
 
 > Trạng thái: Working draft  
-> Cập nhật gần nhất: 2026-07-29  
+> Cập nhật gần nhất: 2026-07-30
 > Nguồn sự thật về tiến độ: `docs/USER_STORIES.md` và `docs/PROGRESS.md`
 
 ## 1. Bối cảnh
@@ -25,8 +25,9 @@ toàn tiếp theo, mà không biến sản phẩm thành dịch vụ tư vấn p
 
 ### 2.2 Nguyên tắc bắt buộc
 
-1. Dữ liệu đã được kiểm duyệt là nguồn sự thật; AI chỉ hỗ trợ tìm kiếm và diễn
-   giải.
+1. Sản phẩm vận hành theo mô hình RAG-first: dữ liệu đã được kiểm duyệt là
+   nguồn sự thật; hệ thống phải retrieve evidence trước khi AI hỗ trợ phân tích,
+   gợi ý hoặc diễn giải.
 2. Mỗi câu trả lời đủ điều kiện xuất bản phải có kết luận, giải thích, căn cứ,
    ví dụ và hành động được khuyến nghị.
 3. Không tạo số điều, khoản, điểm, mức phạt hoặc URL nguồn bằng suy đoán của AI.
@@ -50,7 +51,9 @@ toàn tiếp theo, mà không biến sản phẩm thành dịch vụ tư vấn p
 
 ## 4. Chỉ số thành công đề xuất
 
-Các ngưỡng dưới đây cần được xác nhận sau khi có dữ liệu sử dụng thật:
+Các ngưỡng dưới đây là initial proposed targets, phải được PM + internal content
+reviewer duyệt trước production và được xác nhận/recalibrate bằng decision record
+sau khi có dữ liệu sử dụng thật:
 
 - 100% câu trả lời ở chế độ kiến thức có ít nhất một dẫn chứng đã kiểm duyệt.
 - 100% dẫn chứng hiển thị được văn bản, điều/khoản/điểm nếu có, URL nguồn chính
@@ -116,6 +119,8 @@ Các ngưỡng dưới đây cần được xác nhận sau khi có dữ liệu 
 - Workflow `draft → pending_review → published → archived`.
 - Chỉ nội dung `published` còn hiệu lực mới xuất hiện công khai.
 - API trả lời có cấu trúc và gắn dẫn chứng từ database.
+- Pipeline nhập dữ liệu ngoài chỉ tạo candidate ở staging/draft, giữ provenance
+  và bắt buộc qua quy trình bốn mắt trước khi vào corpus RAG.
 - Lưu người tạo, người duyệt, thời điểm duyệt, phiên bản và lịch sử thay đổi.
 - Rate limit tối thiểu cho login và chat.
 - Test end-to-end cho publish và trả lời có dẫn chứng.
@@ -125,8 +130,10 @@ Các ngưỡng dưới đây cần được xác nhận sau khi có dữ liệu 
 - Tư vấn pháp lý cá nhân hoặc đánh giá kết quả xử phạt cho vụ việc cụ thể.
 - Tài khoản và hồ sơ cá nhân dành cho học sinh.
 - Thu thập họ tên, trường, địa chỉ, số điện thoại hoặc dữ liệu nhạy cảm.
-- AI tự crawl, tự diễn giải và tự xuất bản văn bản pháp luật.
-- Vector database khi tập dữ liệu còn nhỏ và tìm kiếm có cấu trúc đáp ứng được.
+- AI tự crawl và tự xuất bản văn bản pháp luật; AI chỉ được hỗ trợ discovery,
+  trích xuất và gợi ý bản nháp có kiểm soát.
+- Vector database khi tập dữ liệu còn nhỏ và structured search/FTS đáp ứng được;
+  RAG MVP không đồng nghĩa bắt buộc có vector database.
 - Đa tác tử trong runtime sản phẩm.
 - Hỗ trợ toàn bộ lĩnh vực pháp luật ngay trong phiên bản đầu.
 - Thay thế luật sư, cơ quan nhà nước hoặc văn bản pháp luật chính thức.
@@ -216,6 +223,16 @@ type LegalAnswerResponse = {
     recommendedActions: string[];
     warnings: string[];
   };
+  sanctions: Array<{
+    sanctionId: number;
+    provisionId: number;
+    measureType: "fine" | "warning" | "remedy" | "other";
+    summary: string;
+    amountMin?: number;
+    amountMax?: number;
+    currency?: string;
+    applicabilityConditions: string[];
+  }>;
   citations: Array<{
     sourceId: number;
     provisionId: number;
@@ -259,6 +276,29 @@ type LegalAnswerResponse = {
 - Ghi mode trả lời, ID record truy xuất, citation ID, latency và lỗi provider.
 - Không log nguyên văn dữ liệu cá nhân không cần thiết.
 - Có correlation ID để truy vết request.
+
+### FR-09 — Nhập dữ liệu ngoài có kiểm soát
+
+- Ưu tiên API/export chính thức; nếu chưa có API, connector HTML/PDF chỉ được
+  fetch từ host allowlist và phải tuân thủ điều khoản/attribution.
+- Lưu provenance, canonical URL, external ID, thời điểm fetch, checksum,
+  version và raw snapshot reference.
+- Import phải idempotent, có quarantine/retry và không auto-publish.
+- AI chỉ trích xuất, phân loại hoặc gợi ý candidate; editor và reviewer khác
+  nhau phải duyệt trước khi record vào corpus.
+
+### FR-10 — Retrieval-Augmented Generation
+
+- Retrieval chỉ dùng source/provision/answer đã `published`, còn hiệu lực và
+  đạt freshness policy.
+- MVP dùng structured filter, alias và D1 FTS5; embedding/vector chỉ thêm sau
+  đánh giá định lượng.
+- AI composer chỉ nhận sanitized question và evidence bundle.
+- Model chỉ tham chiếu evidence IDs; server gắn citation và mức xử lý từ
+  database.
+- Mỗi factual claim phải map tới evidence span/predicate; numeric/date/article
+  fields phải exact-match canonical record.
+- Không đủ evidence, provider lỗi hoặc output invalid phải fail closed.
 
 ## 10. Non-functional requirements
 
@@ -330,7 +370,8 @@ type LegalAnswerResponse = {
 - CMS CRUD cho `legal_entries` và `showcases`, trạng thái `draft/published`.
 - Cookie session ký HMAC, hết hạn sau 8 giờ, kiểm tra origin cho mutation.
 - Public API chỉ lấy record `published`.
-- Regression test cho render, auth và một số nhánh chat.
+- Regression test definitions cho render, auth và một số nhánh chat; full suite
+  chưa có execution evidence.
 - Sprint 1B có schema/migration cho `legal_sources`, `legal_provisions`,
   `legal_entry_citations`; constraint allowlist/authority, four-eyes, creator
   immutability, source invalidation và 13 schema tests đã chạy pass, 0 skip.
@@ -340,6 +381,12 @@ type LegalAnswerResponse = {
 - Citation đã có schema foundation nhưng public/admin API chưa đọc/ghi mô hình
   này; người dùng chưa thấy URL chính thức theo từng câu trả lời.
 - Chat response chưa có cấu trúc và không bảo đảm mọi câu trả lời có ví dụ.
+- Chưa có ingestion connector, raw staging/quarantine, FTS5 index hoặc vòng đời
+  re-index.
+- Đã có AI composer adapter cô lập với strict evidence/four-eyes/freshness
+  gate và contract tests, nhưng chưa có retriever production, DB citation
+  assembly, semantic claim-span validation, rate limit/telemetry hoặc
+  `/api/chat` integration. API key không làm chat dùng kiến thức mở.
 - Schema mới có four-eyes và metadata hiệu lực, nhưng CMS chưa có role/reviewer
   workflow, audit log hoặc versioning hoàn chỉnh.
 - Showcase public chỉ dùng tiêu đề của hai record đầu tiên.
@@ -426,16 +473,31 @@ deployment vẫn bị chặn.
 | 2026-07-29 | DEC-002 | Câu hỏi ngoài kho đã duyệt phải trả `unavailable`; AI chỉ được diễn giải evidence đã truy xuất. | Không dùng AI kiến thức mở; backend không được gửi câu hỏi ngoài retrieval sang provider để tạo câu trả lời pháp lý. |
 | 2026-07-29 | DEC-003 | Bắt buộc quy trình bốn mắt `editor != reviewer`. | Backend phải tách vai trò và chặn người tạo tự duyệt/xuất bản nội dung của mình. |
 | 2026-07-29 | DEC-004 | Chỉ publish nguồn Chính phủ thuộc allowlist mặc định: `vbpl.vn`, `vbpl.moj.gov.vn`, `chinhphu.vn` và subdomain chính thức. | Nguồn ngoài allowlist bị từ chối; reviewer là người duyệt nội dung nội bộ, không bắt buộc là external legal reviewer. |
+| 2026-07-30 | DEC-005 | Sản phẩm là RAG-first; MVP retrieve corpus đã reviewed/published/effective trước khi dùng model compose và không bắt buộc vector database. | Structured search/alias/FTS5 là baseline; không có evidence hợp lệ thì trả `unavailable`. |
+| 2026-07-30 | DEC-006 | Dữ liệu ngoài chỉ được ingest vào staging/draft có provenance và qua bốn mắt; AI không auto-publish hoặc làm nguồn xác minh. | API key chỉ dùng cho discovery/extraction draft hoặc evidence-bound composer; end-user query không live-search và không dùng kiến thức mở làm fallback. |
 
 ## 16. Open questions cần chủ dự án xác nhận
 
 1. Có lưu câu hỏi ẩn danh để đo coverage không; nếu có, lưu bao lâu và áp dụng
    quy tắc redaction nào?
+2. PM và internal content reviewer sẽ duyệt freshness policy nào cho từng loại
+   nguồn; trước khi có policy, source bị loại khỏi RAG.
+3. MVP cần mô hình applicability theo độ tuổi/chủ thể chi tiết đến mức nào trước
+   khi hiển thị sanction?
+4. Provider T3 cụ thể là đơn vị nào; API/export docs, sample, auth, quota,
+   terms/license và update/delete semantics ở đâu?
+5. Retention cho immutable raw snapshots theo terms của từng nguồn là bao lâu?
+6. Ngân sách, model allowlist và quota AI production do ai sở hữu?
+7. Có duyệt **PROP-001**: giữ public/admin/query trong Next/Vinext Worker và
+   tách scheduled/batch ingestion thành Worker riêng có R2/Queue/source
+   credentials không?
 
 ## 17. Tài liệu liên quan
 
 - `docs/USER_STORIES.md`: backlog và acceptance criteria có checkbox.
 - `docs/PROGRESS.md`: trạng thái, owner và bằng chứng.
+- `docs/THIRD_PARTY_DATA_ASSESSMENT.md`: đánh giá nguồn ngoài, ingestion và env
+  cho RAG.
 - `README.md`: hướng dẫn chạy repository hiện tại.
 - `lib/legal-content.ts`: dữ liệu pháp luật nền hiện tại.
 - `lib/legal-chat.ts`: rule và retrieval prototype hiện tại.

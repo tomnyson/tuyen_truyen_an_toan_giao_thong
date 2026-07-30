@@ -18,6 +18,12 @@ declare module "cloudflare:workers" {
     ADMIN_USERNAME?: string;
     ADMIN_PASSWORD?: string;
     ADMIN_SESSION_SECRET?: string;
+    OPENAI_API_KEY?: string;
+    OPENAI_MODEL?: string;
+    AI_REPHRASE_ENABLED?: string;
+    AI_WEB_SEARCH_ENABLED?: string;
+    AI_PROVIDER_TIMEOUT_MS?: string;
+    AI_PROVIDER_MAX_REQUESTS_PER_MINUTE?: string;
     [key: string]: unknown;
   };
 }

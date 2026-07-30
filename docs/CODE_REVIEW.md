@@ -2,7 +2,43 @@
 
 Ngày review: 2026-07-29  
 Vai trò: Code reviewer  
-Trạng thái: Review source tĩnh, chưa sửa implementation
+Trạng thái: Review source tĩnh; review bổ sung US-026 có test evidence
+
+## Review bổ sung — US-026 evidence composer (2026-07-30)
+
+Phạm vi bốn mắt: `lib/openai-evidence.ts`, provider boundary và test matrix.
+
+Các yêu cầu bắt buộc từ review đã được áp dụng:
+
+- adapter strict opt-in và chưa nối `/api/chat`;
+- evidence phải `published + in_force + freshness valid + four-eyes`;
+- fixed Responses API endpoint, `store: false`, không tools/web search;
+- strict schema dùng dynamic evidence-ID enum, local validation và không có
+  citation/URL/sanction fields;
+- model prose bị cấm chữ số; dữ liệu pháp lý định lượng phải do server dựng từ
+  canonical record;
+- xử lý refusal/incomplete/multiple output/timeout/HTTP/network fail closed;
+- không trả/log provider body, question, evidence hoặc secret;
+- contract/failure tests cuối chạy 15/15 pass và live smoke chỉ dùng fixture kỹ
+  thuật.
+
+Review vẫn để các gate sau ở trạng thái mở: D1 evidence retriever, citation và
+sanction assembly, semantic claim-span validation, rate limit/circuit breaker,
+production telemetry và golden-set evaluation. Vì vậy US-026 là `Partial`,
+không phải `Done`, và public chat vẫn phải giữ fail-closed hiện tại.
+
+Final review phát hiện và yêu cầu sửa trước handoff:
+
+- bỏ `minItems: 1` khỏi explanation/example/action drafts để không ép model tạo
+  nội dung khi evidence không đủ;
+- thu hẹp checkbox eligibility về metadata do caller cung cấp; canonical
+  provenance/relationship vẫn là gate chưa hoàn thành của retriever/DB;
+- mô tả injection test đúng là request-envelope contract, không phải semantic
+  resistance proof;
+- parser chỉ nhận message `role=assistant` và `status=completed`.
+
+Sau khi sửa và rerun 15/15 test, code reviewer xác nhận cả 2 High + 2 Medium đã
+đóng; không còn finding blocker/high/medium trong phạm vi adapter foundation.
 
 ## 1. Phạm vi review
 

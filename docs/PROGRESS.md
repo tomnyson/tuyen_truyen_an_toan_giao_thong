@@ -1,6 +1,6 @@
 # Progress Tracker — Luật Học Đường
 
-> Cập nhật gần nhất: 2026-07-30
+> Cập nhật gần nhất: 2026-07-31
 > Trạng thái được xác định từ bằng chứng trong repository, không phải phần trăm
 > ước lượng. Checkbox chi tiết nằm trong `docs/USER_STORIES.md`.
 
@@ -25,8 +25,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Quản trị nội dung | 2 | 2 | 1 | 0 |
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 0 | 3 | 2 | 0 |
-| RAG và nhập dữ liệu ngoài | 0 | 1 | 3 | 0 |
-| **Tổng** | **4** | **16** | **6** | **0** |
+| RAG và nhập dữ liệu ngoài | 0 | 2 | 2 | 0 |
+| **Tổng** | **4** | **17** | **5** | **0** |
 
 ## Theo dõi theo user story
 
@@ -56,7 +56,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-022 — Runtime/deploy thống nhất | P0 | Partial | PM + Full-stack | Migration/runbook có local evidence, nhưng production **BLOCKED**: Sites `project_id` không resolve và migration control-plane behavior chưa xác minh; chưa smoke test | 2026-07-29 |
 | US-023 — Đánh giá/đăng ký nguồn ngoài | P0 | Todo | PM + Internal content reviewer | Landscape assessment là pre-story context; thiếu registry/provider docs, sample, terms và feasibility spike cụ thể | 2026-07-30 |
 | US-024 — Ingestion vào staging/draft | P0 | Todo | Full-stack + Code review + Internal content reviewer | `.env.example` có placeholder/flags; chưa có connector, raw store/quarantine, idempotency hoặc integration tests | 2026-07-30 |
-| US-025 — Index/retrieval RAG | P0 | Todo | Full-stack + PM + Code review + Internal content reviewer | Chưa có FTS5 index, evidence bundle, threshold hoặc golden-set eval | 2026-07-30 |
+| US-025 — Index/retrieval RAG | P0 | Partial | Full-stack + PM + Code review + Internal content reviewer | Candidate foundation join D1 graph, fail-closed eligibility/overflow/conflict, immutable injected policy, deterministic top-k/threshold và 14/14 tests có evidence. Current legacy graph cố ý cho 0 eligible; chưa có reviewed mapping, provision revision/effectivity, FTS5/index, invalidation hay golden-set eval | 2026-07-31 |
 | US-026 — Evidence-bound AI analysis | P0 | Partial | Full-stack + Code review | Evidence-only Responses adapter, strict schema, caller-metadata gate, no-digit/citation guard và contract tests có evidence; fixture smoke pass. Chưa nối retriever/chat, chưa verify canonical provenance/relations, DB citation assembly, semantic span gate, rate limit hay production telemetry | 2026-07-30 |
 
 ## Thứ tự triển khai đề xuất
@@ -169,6 +169,9 @@ này.
 - [ ] US-009: sửa taxonomy/ranking cho ảnh riêng tư và bản quyền.
 - [ ] US-005: hoàn thiện showcase public.
 - [ ] US-025: FTS5/structured retrieval, evidence bundle và golden-set eval.
+- [x] **Partial / US-025:** ranked provision-candidate foundation đã có và fail
+  closed với graph legacy; chưa phải validated evidence bundle hoặc runtime
+  retrieval.
 - [ ] US-026: evidence-bound AI composer và failure-path guards.
 - [x] **Partial / US-026:** adapter foundation đã triển khai cô lập, feature
   flag off mặc định, chỉ nhận validated non-empty evidence bundle và chưa nối
@@ -203,8 +206,31 @@ này.
   scripts/smoke-openai-evidence.mjs`: **pass** với một fixture kỹ thuật không có
   dữ liệu người dùng; model `gpt-5.6-sol`, usage 539 input + 225 output = 764
   tokens. Không ghi API key hoặc provider payload vào tài liệu/log bàn giao.
-- Full build/rendered suite chưa chạy vì project `node_modules`/`dist` vẫn chưa
-  có trong workspace; đây không được tính là bằng chứng pass.
+- Tại vòng US-026 ngày 2026-07-30, full build/rendered suite chưa chạy vì
+  workspace chưa sẵn dependency; giới hạn này được đóng bằng build pass ở vòng
+  US-025 ngày 2026-07-31 bên dưới.
+
+### 2026-07-31 — US-025 candidate foundation slice
+
+- `node --experimental-strip-types --test
+  tests/legal-evidence-retriever.test.mjs`: **14/14 pass**.
+- Coverage gồm Vietnamese normalization/exact-token matching, missing/malformed
+  policies, four-eyes/relation/revision/effectivity/freshness/URL gates, date và
+  TTL boundaries, deterministic ranking/ties, provision dedupe trước top-k,
+  threshold/no-match, scan-overflow và canonical-conflict fail-closed, immutable
+  policy snapshot, output-metadata validation, D1 canonical join fixture,
+  dependency failure và static isolation khỏi chat/OpenAI/FTS.
+- SQLite/D1 fixture chứng minh graph hiện tại load được nhưng bị
+  `NO_ELIGIBLE_CANDIDATES` vì answer/citation là `legacy_unverified` và
+  provision thiếu revision/effectivity. Không dùng fixture policy làm production
+  policy.
+- `node_modules/.bin/tsc --noEmit`: **pass**.
+- `node_modules/.bin/eslint . --ignore-pattern dist --ignore-pattern .next`:
+  **pass**.
+- `node_modules/.bin/vinext build`: **pass**; toàn bộ 5 client/server/RSC/SSR
+  environment build thành công.
+- Regression: `tests/openai-evidence.test.mjs` **15/15 pass** và
+  `tests/schema-foundation.test.mjs` **13/13 pass**.
 
 ## Cách cập nhật tracker
 

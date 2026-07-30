@@ -4,6 +4,35 @@ Ngày review: 2026-07-29
 Vai trò: Code reviewer  
 Trạng thái: Review source tĩnh; review bổ sung US-026 có test evidence
 
+## Review bổ sung — US-025 ranked candidate foundation (2026-07-31)
+
+Phạm vi bốn mắt: `lib/legal-evidence-retriever.ts`, D1 query boundary,
+fail-closed eligibility/ranking và test matrix.
+
+Review xác nhận slice được đặt đúng ranh giới: output là
+`RankedProvisionCandidate`, không phải `validatedEvidenceBundle`; chưa nối
+`/api/chat` hoặc OpenAI. Current D1 graph bị gắn `legacy_unverified`/`unverified`
+vì schema chưa có reviewed answer-citation relation và provision
+revision/checksum/effectivity.
+
+Hai High và ba Medium từ vòng đầu đã được xử lý:
+
+- D1 đọc thêm một row và trả `CANDIDATE_SCAN_OVERFLOW`, không rank một prefix
+  theo ID rồi kết luận sai là không match;
+- cùng provision/source/revision nhưng canonical fingerprint khác nhau trả
+  `CANDIDATE_CONFLICT`, không silently deduplicate;
+- freshness/ranking policy được clone và deep-freeze tại construction boundary;
+- ranking weights bắt buộc đúng đủ exact key set;
+- article/clause/point cùng answer/provision/source `updatedAt` được validate
+  trước khi đưa vào candidate output.
+
+Bằng chứng verification: retriever **14/14 pass**, OpenAI adapter regression
+**15/15 pass**, schema foundation regression **13/13 pass** và TypeScript
+`--noEmit`, ESLint, vinext build đều pass. Final four-eyes review xác nhận không
+còn finding blocker/High/Medium trong phạm vi slice. US-025 vẫn `Partial`:
+review schema/mapping, production policy, FTS/index/invalidation và golden-set
+evaluation chưa hoàn tất.
+
 ## Review bổ sung — US-026 evidence composer (2026-07-30)
 
 Phạm vi bốn mắt: `lib/openai-evidence.ts`, provider boundary và test matrix.

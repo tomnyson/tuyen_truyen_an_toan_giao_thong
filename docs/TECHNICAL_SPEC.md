@@ -1,6 +1,7 @@
 # Technical Specification — Luật Học Đường
 
 > Trạng thái: Sprint 1B foundation; RAG/ingestion specification.
+> Cập nhật gần nhất: 2026-07-31
 
 ## 1. Mục tiêu kỹ thuật
 
@@ -705,6 +706,81 @@ MVP dùng D1 với alias, normalized text và FTS/keyword. Chỉ bổ sung embed
 - có quy trình re-index/version embedding;
 - vẫn bảo đảm citation gắn từ record đã kiểm duyệt;
 - chi phí và độ trễ được đo.
+
+#### 7.3.1 US-025 slice 1 — ranked provision candidates
+
+`lib/legal-evidence-retriever.ts` triển khai candidate foundation cô lập, chưa
+phải production retriever và chưa tạo `validatedEvidenceBundle`.
+
+Repository query chỉ đọc relational graph:
+
+```text
+legal_entries(status=published)
+  → legal_entry_citations
+  → legal_provisions(status=published)
+  → legal_sources(status=in_force)
+```
+
+Query không đọc `legal_basis`, `penalty`, `remedy` hoặc `case_study` legacy làm
+legal evidence. Answer title/topic/tags chỉ là ranking signal. Defense in depth
+ở application layer kiểm lại:
+
+- answer, citation relation và provision phải có four-eyes metadata;
+- source phải `in_force`, verifier khác creator, official HTTPS URL/authority
+  hợp lệ và còn hiệu lực tại injected `asOf`;
+- provision phải có active effectivity window, revision ID và checksum;
+- review/verification timestamp không được nằm trong tương lai;
+- freshness policy phải có version, PM và internal content reviewer khác nhau,
+  ngày duyệt hợp lệ và exact-host rule;
+- không có policy/rule hoặc quá TTL đã duyệt thì loại candidate.
+
+Schema hiện tại không có review attribution trên `legal_entries` và
+`legal_entry_citations`; `legal_provisions` cũng chưa có revision, checksum hay
+effectivity window. D1 mapper vì vậy gắn:
+
+```text
+answer/link review = legacy_unverified
+provision revision/effectivity = unverified
+```
+
+Kết quả join hiện tại luôn bị loại trước ranking. Đây là fail-closed gate có chủ
+ý, không phải corpus đã sẵn sàng.
+
+Freshness/ranking policy và clock được inject khi construct service, không nhận
+từ end-user request và không có production default trong code. Policy được
+`structuredClone` rồi deep-freeze tại construction boundary để caller không thể
+thay nội dung mà vẫn giữ nguyên version trong một service instance. Các số trong
+test chỉ là fixture, không phải TTL/threshold đã được duyệt.
+
+Lexical ranker:
+
+- normalize Unicode và tiếng Việt có/không dấu;
+- exact-token match, không substring;
+- deduplicate query term và giới hạn query/term/candidate count;
+- integer field weights, minimum score/matched terms và top-k đều bounded;
+- eligibility chạy trước scoring;
+- sort ổn định theo score, matched-term count, answer ID rồi provision ID;
+- D1 đọc `candidateLimit + 1`; nếu còn row ngoài giới hạn thì fail closed thay vì
+  rank một prefix theo ID;
+- group theo provision/source/revision; duplicate chỉ được gộp khi toàn bộ
+  canonical provision/source fingerprint giống nhau, nếu không fail closed;
+- chọn ranking signal tốt nhất cho mỗi canonical revision trước top-k;
+- output chỉ là `RankedProvisionCandidate` có candidate ID, score/reasons,
+  config/policy version và `asOf`.
+
+Internal unavailable codes:
+
+```text
+INVALID_QUERY | MISSING_FRESHNESS_POLICY | INVALID_FRESHNESS_POLICY
+MISSING_RANKING_POLICY | INVALID_RANKING_POLICY
+CANDIDATE_SCAN_OVERFLOW | CANDIDATE_CONFLICT
+NO_ELIGIBLE_CANDIDATES | BELOW_THRESHOLD | DEPENDENCY_ERROR
+```
+
+Không import candidate foundation trong `/api/chat`, không import OpenAI
+adapter, không có FTS/index migration và không thay public API contract. Không
+log raw question/candidate text; nếu bổ sung telemetry chỉ ghi IDs, score/reason,
+policy/config version, latency và result code.
 
 ### 7.4 Ingestion lane
 

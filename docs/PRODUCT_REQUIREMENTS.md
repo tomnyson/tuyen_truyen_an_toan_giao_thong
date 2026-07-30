@@ -1,7 +1,7 @@
 # Product Requirements Document — Luật Học Đường
 
 > Trạng thái: Working draft  
-> Cập nhật gần nhất: 2026-07-30
+> Cập nhật gần nhất: 2026-07-31
 > Nguồn sự thật về tiến độ: `docs/USER_STORIES.md` và `docs/PROGRESS.md`
 
 ## 1. Bối cảnh
@@ -387,6 +387,10 @@ type LegalAnswerResponse = {
   gate và contract tests, nhưng chưa có retriever production, DB citation
   assembly, semantic claim-span validation, rate limit/telemetry hoặc
   `/api/chat` integration. API key không làm chat dùng kiến thức mở.
+- Đã có candidate retriever foundation cô lập: join relational graph, kiểm
+  policy/effectivity/four-eyes và deterministic lexical top-k. Schema legacy
+  chưa đủ review/revision metadata nên hiện không record nào được nâng thành
+  validated RAG evidence; chưa có FTS5 hoặc chat integration.
 - Schema mới có four-eyes và metadata hiệu lực, nhưng CMS chưa có role/reviewer
   workflow, audit log hoặc versioning hoàn chỉnh.
 - Showcase public chỉ dùng tiêu đề của hai record đầu tiên.

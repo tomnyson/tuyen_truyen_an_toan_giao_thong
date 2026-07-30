@@ -1,6 +1,6 @@
 # User Stories — Luật Học Đường
 
-> Cập nhật gần nhất: 2026-07-30
+> Cập nhật gần nhất: 2026-07-31
 > Quy ước: checkbox ở tiêu đề chỉ được đánh dấu `[x]` khi tất cả acceptance
 > criteria của story đã có bằng chứng. Story chưa hoàn tất có thể có một số
 > acceptance criteria con đã được đánh dấu.
@@ -588,8 +588,14 @@ credential, R2 raw store và Queue/DLQ khi chạy batch production. Chờ owner 
 - [ ] Baseline dùng structured filter, alias và D1 FTS5; chỉ thêm vector khi
   golden set chứng minh recall cần cải thiện.
 - [ ] Source/revision thay đổi hoặc hết hiệu lực kích hoạt invalidate/re-index.
-- [ ] Retriever dùng top-k + threshold để tạo evidence bundle có reason/score.
-- [ ] Không match hoặc evidence invalid trả `unavailable`.
+- [x] Candidate foundation dùng ranking policy/clock/freshness policy được inject
+  server-side, áp dụng top-k + threshold và trả candidate ID, score, reason,
+  ranking-config version, freshness-policy version cùng thời điểm đánh giá.
+- [ ] Sau khi schema có reviewed answer-citation relation và provision
+  revision/checksum/effectivity, retriever mới được nâng candidate set thành
+  validated evidence bundle.
+- [x] Không match, policy/config không hợp lệ, graph không đủ điều kiện hoặc D1
+  lỗi trả kết quả nội bộ `unavailable`; không fallback sang legacy text.
 - [ ] PM + internal content reviewer duyệt evaluation gate; initial proposal là
   100% citation/numeric exact-match, 0 critical unsupported claim, Recall@5 ≥
   90%, top-answer precision ≥ 95%, refusal ≥ 95% và latency P95 theo PRD.
@@ -600,7 +606,20 @@ credential, R2 raw store và Queue/DLQ khi chạy batch production. Chờ owner 
 **Decision (2026-07-30):** DEC-005 chốt RAG-first không đồng nghĩa bắt buộc
 vector database.
 
-**Evidence:** Chưa có index/retriever mới; story `Todo`.
+**Delivery slice 1 (2026-07-31):** chỉ xây canonical relational join và
+deterministic lexical candidate ranking. Không có FTS5/index migration, không
+nối `/api/chat`, không gọi AI và không thay public response. `legal_entries` và
+`legal_entry_citations` hiện thiếu review attribution; `legal_provisions` thiếu
+revision/checksum/effectivity, nên row D1 hiện tại bị đánh dấu
+`legacy_unverified`/`unverified` và không thể trở thành RAG evidence.
+
+**Evidence:** `lib/legal-evidence-retriever.ts` và
+`tests/legal-evidence-retriever.test.mjs`; focused suite chạy 14/14 pass, gồm
+fail-closed khi candidate scan bị cắt, canonical revision xung đột, policy bị
+caller mutate và metadata không hợp lệ. Story
+`Partial`: FTS5, alias/index, revision/checksum schema, reviewed citation
+mapping, invalidation/re-index, approved production policies và golden-set eval
+vẫn mở.
 
 ### [ ] US-026 — AI phân tích và gợi ý dựa trên evidence
 

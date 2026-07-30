@@ -72,30 +72,6 @@ export const laws: LawItem[] = [
       "Một ảnh chụp riêng tư bị chuyển tiếp trong nhóm lớp. Dù không phải người chụp, người tiếp tục phát tán vẫn có thể phải chịu trách nhiệm.",
     tags: ["quyenriengtu", "zalo", "baolucmang"],
   },
-  {
-    id: 5,
-    topic: "Sở hữu trí tuệ",
-    icon: "©",
-    title: "Sao chép tác phẩm trái phép, đạo văn",
-    legal: "Khoản 1 Điều 18 Nghị định 131/2013/NĐ-CP",
-    penalty: "15 – 35 triệu đồng",
-    remedy: "Buộc dỡ bỏ bản sao vi phạm hoặc tiêu hủy tang vật theo quy định.",
-    caseStudy:
-      "Bài dự thi khoa học sao chép phần lớn nội dung từ một nghiên cứu trên mạng. Nhóm bị hủy kết quả và phải thực hiện lại quy trình trích dẫn.",
-    tags: ["daovan", "banquyen", "bailuan"],
-  },
-  {
-    id: 6,
-    topic: "Sở hữu trí tuệ",
-    icon: "⌘",
-    title: "Cố ý vô hiệu biện pháp bảo vệ phần mềm",
-    legal: "Điều 35 Nghị định 131/2013/NĐ-CP",
-    penalty: "Có thể bị phạt tiền tùy hành vi và chủ thể",
-    remedy: "Gỡ bỏ bản sao vi phạm; chấm dứt công cụ hoặc biện pháp xâm phạm.",
-    caseStudy:
-      "Một máy tính phòng thực hành cài phần mềm crack rồi nhiễm mã độc. Ngoài rủi ro bản quyền, toàn bộ dữ liệu học tập có thể bị khóa hoặc đánh cắp.",
-    tags: ["phanmem", "crack", "malware"],
-  },
 ];
 
 export const sources = [
@@ -107,11 +83,15 @@ export const sources = [
     label: "Luật Xử lý vi phạm hành chính",
     href: "https://vbpl.moj.gov.vn/FileData/TW/Lists/vbpq/Attachments/147301/tvHienThiToanVan_31.VBHN.VPQH.1.pdf",
   },
-  {
-    label: "Nghị định 131/2013/NĐ-CP",
-    href: "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/32506/VanBanGoc_131_2013_N%C4%90-CP.pdf",
-  },
 ];
+
+export function hasBlockedLegalBasis(value: string) {
+  const compact = normalizeVietnamese(value).replace(/[^a-z0-9]+/g, "");
+  return (
+    /(?:nghidinh|nd)(?:so)?1312013(?:ndcp)?/.test(compact) ||
+    compact.includes("1312013ndcp")
+  );
+}
 
 export function normalizeVietnamese(value: string) {
   return value

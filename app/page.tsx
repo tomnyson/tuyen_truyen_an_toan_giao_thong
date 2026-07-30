@@ -47,7 +47,7 @@ function parseTags(value: string) {
 
 const initialChatMessage: ChatMessage = {
   role: "assistant",
-  content: "Chào bạn! Mình là trợ lý AI Luật Học Đường. Bạn có thể hỏi về giao thông, mạng xã hội hoặc bản quyền nhé.",
+  content: "Chào bạn! Mình là trợ lý tra cứu Luật Học Đường. Bạn có thể hỏi về giao thông hoặc an toàn trên mạng nhé.",
 };
 
 export default function Home() {
@@ -181,7 +181,7 @@ export default function Home() {
           </div>
           <div className="quick-links">
             <span>Gợi ý:</span>
-            {['mũ bảo hiểm', 'đạo văn', 'tin sai sự thật'].map((suggestion) => (
+            {['mũ bảo hiểm', 'ảnh riêng tư', 'tin sai sự thật'].map((suggestion) => (
               <button key={suggestion} onClick={() => { setQuery(suggestion); scrollToResults(); }}>
                 {suggestion}
               </button>
@@ -268,7 +268,7 @@ export default function Home() {
           <div className="empty-state">
             <span>⌕</span>
             <h3>Chưa tìm thấy tình huống này</h3>
-            <p>Thử một từ khóa ngắn hơn như “mũ bảo hiểm”, “Facebook” hoặc “đạo văn”.</p>
+            <p>Thử một từ khóa ngắn hơn như “mũ bảo hiểm”, “Facebook” hoặc “ảnh riêng tư”.</p>
             <button onClick={() => { setQuery(""); setTopic("Tất cả"); }}>Xem tất cả</button>
           </div>
         )}
@@ -287,12 +287,6 @@ export default function Home() {
             <div className="message-bubbles" aria-hidden="true"><i></i><i></i><i></i></div>
             <h3>{managedShowcases[0]?.title ?? "Chia sẻ lại tin sai: “Em chỉ đăng lại” có miễn trách nhiệm?"}</h3>
             <div className="tag-row"><span>#facebook</span><span>#tinsai</span></div>
-          </article>
-          <article className="case-card mint">
-            <div className="case-meta"><span>BẢN QUYỀN</span><span>4 PHÚT ĐỌC</span></div>
-            <div className="paper-stack" aria-hidden="true"><i>A+</i><i>≠</i></div>
-            <h3>{managedShowcases[1]?.title ?? "Sao chép bài luận: một điểm cao có đáng để đánh đổi?"}</h3>
-            <div className="tag-row"><span>#daovan</span><span>#bailuan</span></div>
           </article>
         </div>
       </section>
@@ -342,7 +336,7 @@ export default function Home() {
       {chatOpen && (
         <div className="chat-panel" role="dialog" aria-modal="true" aria-labelledby="chat-title">
           <div className="chat-head">
-            <div><span>AI • ĐANG HOẠT ĐỘNG</span><h2 id="chat-title">Trợ lý Luật Học Đường</h2></div>
+            <div><span>TRA CỨU • AN TOÀN</span><h2 id="chat-title">Trợ lý Luật Học Đường</h2></div>
             <button onClick={() => setChatOpen(false)} aria-label="Đóng trợ lý">×</button>
           </div>
           <div className="chat-body" aria-live="polite">
@@ -356,7 +350,7 @@ export default function Home() {
             </div>
             {chatMessages.length === 1 && (
               <div className="chat-suggestions">
-                {["Em 15 tuổi đi xe 50cc được không?", "Đăng lại tin sai có bị phạt không?", "Dùng ảnh trên mạng trong bài thuyết trình?"].map((question) => (
+                {["Em 15 tuổi đi xe 50cc được không?", "Đăng lại tin sai có bị phạt không?"].map((question) => (
                   <button key={question} onClick={() => void submitChatQuestion(undefined, question)}>{question}</button>
                 ))}
               </div>
@@ -374,7 +368,7 @@ export default function Home() {
               <button type="submit" disabled={isChatLoading || !chatInput.trim()} aria-label="Gửi câu hỏi">↑</button>
             </form>
           </div>
-          <p>AI có thể nhầm lẫn. Nội dung chỉ để học tập, không thay thế tư vấn pháp lý.</p>
+          <p>Nội dung chỉ để học tập, không thay thế tư vấn pháp lý.</p>
         </div>
       )}
     </main>

@@ -1,9 +1,13 @@
 import { desc, eq } from "drizzle-orm";
 import { getInitializedDb } from "@/db";
 import { legalEntries } from "@/db/schema";
-import { laws, normalizeVietnamese } from "./legal-content";
+import {
+  hasBlockedLegalBasis,
+  laws,
+  normalizeVietnamese,
+} from "./legal-content";
 
-const [helmetLaw, , falseInformationLaw, , copyrightLaw] = laws;
+const [helmetLaw, , falseInformationLaw] = laws;
 
 export const legalContext = `
 Bạn là Trợ lý AI của Cổng Luật Học Đường Việt Nam. Đối tượng là học sinh.
@@ -16,8 +20,8 @@ Nguyên tắc bắt buộc:
 
 Dữ liệu tham khảo của cổng:
 ${laws.map((law, index) => `${index + 1}. ${law.title}: ${law.legal}; ${law.penalty}.`).join("\n")}
-7. Người từ đủ 14 đến dưới 16 tuổi: không áp dụng phạt tiền. Người từ đủ 16 đến dưới 18 tuổi: mức tiền phạt không quá một nửa mức áp dụng cho người thành niên; việc xử lý còn tùy hành vi và tình tiết.
-8. Tình huống trên website là minh họa giáo dục, không phải hồ sơ xử phạt thực tế.
+${laws.length + 1}. Người từ đủ 14 đến dưới 16 tuổi: không áp dụng phạt tiền. Người từ đủ 16 đến dưới 18 tuổi: mức tiền phạt không quá một nửa mức áp dụng cho người thành niên; việc xử lý còn tùy hành vi và tình tiết.
+${laws.length + 2}. Tình huống trên website là minh họa giáo dục, không phải hồ sơ xử phạt thực tế.
 `;
 
 export function findCuratedAnswer(question: string): string | null {
@@ -36,13 +40,6 @@ export function findCuratedAnswer(question: string): string | null {
       .replace("5 – 10", "5–10")
       .replace(" đối với cá nhân*", "");
     return `Việc đăng hoặc chia sẻ lại thông tin sai sự thật vẫn có thể gây trách nhiệm, kể cả khi bạn không phải người viết đầu tiên. Cá nhân có thể bị phạt ${penalty} và buộc gỡ nội dung theo ${falseInformationLaw.legal}. Hãy dừng chia sẻ, kiểm tra nguồn và đính chính nếu đã đăng.`;
-  }
-  if (
-    normalized.includes("dao van") ||
-    normalized.includes("ban quyen") ||
-    normalized.includes("hinh anh")
-  ) {
-    return `Dùng nội dung hoặc hình ảnh của người khác cần kiểm tra giấy phép, ghi nguồn và chỉ sử dụng trong phạm vi được phép. ${copyrightLaw.title} có thể bị xử phạt và buộc dỡ bỏ bản sao. Với bài học, hãy trích dẫn tác giả, đường dẫn và hỏi giáo viên nếu chưa rõ quyền sử dụng.`;
   }
   if (
     normalized.includes("50cc") ||
@@ -69,6 +66,7 @@ export async function findManagedAnswer(question: string): Promise<string | null
       .orderBy(desc(legalEntries.updatedAt))
       .limit(100);
     const ranked = entries
+      .filter((entry) => !hasBlockedLegalBasis(entry.legalBasis))
       .map((entry) => {
         const searchable = normalizeVietnamese(
           `${entry.title} ${entry.topic} ${entry.tags} ${entry.legalBasis}`,

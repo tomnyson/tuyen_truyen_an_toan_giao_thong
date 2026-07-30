@@ -2,6 +2,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import { getInitializedDb } from "@/db";
 import { legalEntries, showcases } from "@/db/schema";
 import { hasTrustedOrigin, isAdminRequest } from "@/lib/admin-auth";
+import { hasBlockedLegalBasis } from "@/lib/legal-content";
 
 type Entity = "law" | "showcase";
 const topics = new Set(["Giao thông", "Mạng xã hội", "Sở hữu trí tuệ"]);
@@ -75,17 +76,24 @@ export async function POST(request: Request) {
   if (denied) return denied;
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const entity = body?.entity as Entity | undefined;
-  const db = await getInitializedDb();
 
   if (entity === "law") {
     const values = body && normalizeLaw(body);
     if (!values) return Response.json({ error: "Vui lòng nhập đầy đủ và đúng định dạng." }, { status: 400 });
+    if (values.status === "published" && hasBlockedLegalBasis(values.legalBasis)) {
+      return Response.json(
+        { error: "Không thể xuất bản nội dung dùng căn cứ đã hết hiệu lực." },
+        { status: 400 },
+      );
+    }
+    const db = await getInitializedDb();
     const [item] = await db.insert(legalEntries).values(values).returning();
     return Response.json({ item }, { status: 201 });
   }
   if (entity === "showcase") {
     const values = body && normalizeShowcase(body);
     if (!values) return Response.json({ error: "Vui lòng nhập đầy đủ và đúng định dạng." }, { status: 400 });
+    const db = await getInitializedDb();
     const [item] = await db.insert(showcases).values(values).returning();
     return Response.json({ item }, { status: 201 });
   }
@@ -99,17 +107,24 @@ export async function PATCH(request: Request) {
   const entity = body?.entity as Entity | undefined;
   const id = parseId(body?.id);
   if (!body || !id) return Response.json({ error: "ID không hợp lệ." }, { status: 400 });
-  const db = await getInitializedDb();
 
   if (entity === "law") {
     const values = normalizeLaw(body);
     if (!values) return Response.json({ error: "Vui lòng nhập đầy đủ và đúng định dạng." }, { status: 400 });
+    if (values.status === "published" && hasBlockedLegalBasis(values.legalBasis)) {
+      return Response.json(
+        { error: "Không thể xuất bản nội dung dùng căn cứ đã hết hiệu lực." },
+        { status: 400 },
+      );
+    }
+    const db = await getInitializedDb();
     const [item] = await db.update(legalEntries).set({ ...values, updatedAt: sql`CURRENT_TIMESTAMP` }).where(eq(legalEntries.id, id)).returning();
     return item ? Response.json({ item }) : Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
   }
   if (entity === "showcase") {
     const values = normalizeShowcase(body);
     if (!values) return Response.json({ error: "Vui lòng nhập đầy đủ và đúng định dạng." }, { status: 400 });
+    const db = await getInitializedDb();
     const [item] = await db.update(showcases).set({ ...values, updatedAt: sql`CURRENT_TIMESTAMP` }).where(eq(showcases.id, id)).returning();
     return item ? Response.json({ item }) : Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
   }

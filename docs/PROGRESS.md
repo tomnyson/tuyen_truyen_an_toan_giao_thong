@@ -21,12 +21,12 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Nhóm | Done | Partial | Todo | Blocked |
 |---|---:|---:|---:|---:|
 | Tra cứu và hiểu pháp luật | 3 | 2 | 0 | 0 |
-| Hỏi đáp có kiểm soát | 2 | 3 | 0 | 0 |
+| Hỏi đáp có kiểm soát | 3 | 4 | 0 | 0 |
 | Quản trị nội dung | 3 | 2 | 0 | 0 |
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
-| **Tổng** | **9** | **18** | **0** | **0** |
+| **Tổng** | **10** | **18** | **0** | **0** |
 
 ## Theo dõi theo user story
 
@@ -39,6 +39,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-005 — Showcase public đầy đủ | P1 | Done | Full-stack + Code review | Public projector + 503/no-store dependency contract; exact client DTO; UI render toàn bộ API order theo stable ID, đủ field/source, loading/empty/degraded và accessible detail dialog/focus recovery; focused 15/15, current full 198/198 pass | 2026-07-31 |
 | US-006 — Chat ưu tiên kho kiến thức | P0 | Partial | Full-stack | Rendered/chat suite 15/15 pass; vẫn chưa đủ bốn nhóm kiến thức nền theo AC | 2026-07-31 |
 | US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
+| US-029 — Topic gate ba chủ đề MVP | P0 | Done | Full-stack + PM + Code review | Topic/trust-tier gate trước retrieval/search/persist; copyright legacy subtype guard; exact off-topic + short no-match; official-only persistence; reference reduced/no-persist + server-origin fallback discriminant. Focused 152/152, type/lint/build/diff-check pass; full 296/299 chỉ còn 3 migration-ledger failure cũ; PM và code review PASS | 2026-07-31 |
 | US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Official-first/reference-second, warning/source UI, no-persist reference và direct-claim guard đã verified: focused 28/28, type/lint/build và live browser pass. Full suite 243/246; 3 failure cũ do migration 0006 và ledger expectations. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
 | US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; new revision requires issuedAt while legacy snapshot stays retrievable; focused 5/5, combined 26/26, current full 236/239 (3 migration-ledger failures cũ), type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
@@ -79,6 +80,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-31 | DEC-010 | RAG no-match có thể gọi direct web search có kiểm soát; chỉ final official citation qua exact URL guard được trả, Thư Viện Pháp Luật discovery-only, output gắn nhãn. Phần không persist được DEC-011 thay hẹp bằng draft-only persistence. | US-027 |
 | 2026-07-31 | DEC-011 | Web result qua official guard được persist thành immutable draft không chứa raw question; chỉ authenticated four-eyes approval mới đưa vào reviewed retrieval/RAG. | US-028, US-013, US-014, US-025 |
 | 2026-07-31 | DEC-012 | Official web search luôn chạy trước; official no-result được phép chạy reference search trên exact allowlist `thuvienphapluat.vn`. Reference phải ghi rõ không chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist/RAG. | US-027 |
+| 2026-07-31 | DEC-013 | Topic gate deterministic chạy trước retrieval/search/persist; chỉ ba topic MVP được đi tiếp. Off-topic/no-match trả ngắn, reference reduced form/no-persist, chỉ official hợp lệ mới lưu draft. | US-029, US-027, US-028 |
 
 ### 2026-07-31 — US-004 chat presentation specification
 
@@ -751,6 +753,26 @@ này.
   Sites control plane chứng minh migration ledger apply 0000→0003 trước
   activation. Sidecar chưa phải authenticated RBAC runtime và chưa làm graph
   đủ điều kiện RAG.
+
+### 2026-07-31 — US-029 topic scope và trust-tier gate
+
+- `chat-topic-scope-v1` giới hạn `/api/chat` vào ba nhóm: giao thông, an
+  toàn/ứng xử trên mạng và bản quyền học đường; câu ngoài phạm vi dừng trước
+  retrieval, provider, budget và persistence.
+- Copyright legacy không dùng toàn bộ topic `Sở hữu trí tuệ`: managed path bị
+  bỏ qua; reviewed candidate phải có subtype tag bản quyền/quyền tác giả trước
+  `LIMIT` và được kiểm tra lại sau parse.
+- Official result chỉ được lưu khi answer tự đúng topic, `sourceKind=official`,
+  URL official exact và presentation hợp lệ. Reference dùng reduced form,
+  luôn cảnh báo, không lưu; safe fallback dùng `answerOrigin` do adapter tự gắn,
+  không suy nguồn gốc bằng so sánh text.
+- Focused suite sáu file đạt **152/152 pass**; `tsc --noEmit`, ESLint, Vinext
+  build và `git diff --check` pass.
+- Full suite đạt **296/299**. Ba failure không thuộc US-029: test
+  editorial/schema cũ kỳ vọng migration ledger dừng ở `0005`, trong khi repo đã
+  có `0006_petite_lady_deathstrike`.
+- PM review và code review độc lập đều **PASS** sau khi code reviewer phát hiện
+  và full-stack sửa đường provenance của reference safe fallback.
 
 ## Cách cập nhật tracker
 

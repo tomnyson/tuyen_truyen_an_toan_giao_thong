@@ -255,6 +255,26 @@ export function flattenChatAnswerSections(sections: ChatAnswerSection[]) {
     .trim();
 }
 
+const referenceSectionKinds = new Set<ChatAnswerSectionKind>([
+  "summary",
+  "details",
+  "next_steps",
+  "limitations",
+]);
+
+export function projectReferenceWebSearchAnswer(
+  value: unknown,
+): PublicChatAnswer | null {
+  const presentation = projectPublicWebSearchAnswer(value);
+  if (!presentation) return null;
+  const sections = presentation.sections.filter((section) =>
+    referenceSectionKinds.has(section.kind),
+  );
+  if (sections.length === 0) return null;
+  const answer = flattenChatAnswerSections(sections);
+  return answer ? { answer, sections } : null;
+}
+
 export function parseChatAnswerSections(
   value: unknown,
 ): ChatAnswerSection[] | null {

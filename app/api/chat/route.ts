@@ -7,8 +7,15 @@ import {
 import {
   CHAT_ANSWER_SECTION_KINDS,
   projectPublicWebSearchAnswer,
+  projectReferenceWebSearchAnswer,
   reviewedCitationsToLegalBasisSection,
 } from "@/lib/chat-answer-presentation";
+import {
+  classifyChatTopicScope,
+  IN_SCOPE_NO_MATCH_ANSWER,
+  matchesChatTopic,
+  OUT_OF_SCOPE_ANSWER,
+} from "@/lib/chat-topic-scope";
 import { findCuratedAnswer, findManagedAnswer } from "@/lib/legal-chat";
 import {
   readOpenAiWebSearchConfig,
@@ -72,9 +79,9 @@ function sanitizeMessages(value: unknown): ChatMessage[] {
     }));
 }
 
-function unavailableResponse() {
+function unavailableResponse(answer = unavailableAnswer) {
   return NextResponse.json({
-    answer: unavailableAnswer,
+    answer,
     mode: "unavailable",
   });
 }
@@ -96,6 +103,7 @@ type ChatHandlerDependencies = {
   managedAnswer: typeof findManagedAnswer;
   curatedAnswer: typeof findCuratedAnswer;
   imageIntent: typeof classifyImageIntent;
+  topicScope: typeof classifyChatTopicScope;
   webSearch: typeof searchAllowedLegalSources;
   referenceWebSearch: typeof searchReferenceLegalSources;
   reviewedWebAnswer: typeof findReviewedWebCandidate;
@@ -116,6 +124,7 @@ export function createChatHandler(
   const managedAnswer = dependencies.managedAnswer ?? findManagedAnswer;
   const curatedAnswer = dependencies.curatedAnswer ?? findCuratedAnswer;
   const imageIntent = dependencies.imageIntent ?? classifyImageIntent;
+  const topicScope = dependencies.topicScope ?? classifyChatTopicScope;
   const webSearch = dependencies.webSearch ?? searchAllowedLegalSources;
   const referenceWebSearch =
     dependencies.referenceWebSearch ?? searchReferenceLegalSources;
@@ -216,12 +225,21 @@ export function createChatHandler(
           imageDecision.policyVersion,
         );
       }
+      const scopeDecision = topicScope(question);
+      if (!scopeDecision.inScope) {
+        return complete(
+          unavailableResponse(OUT_OF_SCOPE_ANSWER),
+          "retrieval_no_match",
+          "unavailable",
+          scopeDecision.policyVersion,
+        );
+      }
       if (imageDecision.reasons.includes("ambiguous")) {
         // No reviewed, intent-tagged copyright record exists yet. Recognized
         // ambiguous image questions must not enter legacy weak matching or be
         // mapped to the privacy guidance.
         return complete(
-          unavailableResponse(),
+          unavailableResponse(IN_SCOPE_NO_MATCH_ANSWER),
           "retrieval_no_match",
           "unavailable",
           imageDecision.policyVersion,
@@ -231,9 +249,10 @@ export function createChatHandler(
       // Copyright questions skip legacy weak matching, but may use the
       // separately guarded official-source search fallback.
       const knowledgeAnswer =
-        imageDecision.intent === "copyright"
+        scopeDecision.topic === "copyright"
           ? null
-          : (await managedAnswer(question)) ?? curatedAnswer(question);
+          : (await managedAnswer(question, scopeDecision.topic)) ??
+            curatedAnswer(question);
       if (knowledgeAnswer) {
         const knowledgePayload =
           typeof knowledgeAnswer === "string"
@@ -252,7 +271,7 @@ export function createChatHandler(
       }
 
       const reviewedCandidate: ReviewedWebCandidateAnswer | null =
-        await reviewedWebAnswer(question);
+        await reviewedWebAnswer(question, scopeDecision.topic);
       if (reviewedCandidate) {
         const presentation = projectPublicWebSearchAnswer(
           reviewedCandidate.answer,
@@ -297,7 +316,7 @@ export function createChatHandler(
       const webSearchConfig = readOpenAiWebSearchConfig(env);
       if (!webSearchConfig.enabled) {
         return complete(
-          unavailableResponse(),
+          unavailableResponse(IN_SCOPE_NO_MATCH_ANSWER),
           "retrieval_no_match",
           "unavailable",
           WEB_SEARCH_POLICY_VERSION,
@@ -335,9 +354,17 @@ export function createChatHandler(
         const publicPresentation = projectPublicWebSearchAnswer(
           searched.answer,
         );
-        if (publicSources.length === 0 || !publicPresentation) {
+        if (
+          searched.sourceKind !== "official" ||
+          publicSources.length === 0 ||
+          !publicPresentation ||
+          !matchesChatTopic(
+            scopeDecision.topic,
+            publicPresentation.answer,
+          )
+        ) {
           return complete(
-            unavailableResponse(),
+            unavailableResponse(IN_SCOPE_NO_MATCH_ANSWER),
             "retrieval_no_match",
             "unavailable",
             WEB_SEARCH_POLICY_VERSION,
@@ -359,6 +386,7 @@ export function createChatHandler(
         const candidateId = await persistWebCandidate(
           requestId,
           publicResult,
+          scopeDecision.topic,
         );
         if (!candidateId) {
           return complete(
@@ -440,14 +468,43 @@ export function createChatHandler(
             WEB_SEARCH_BUDGET_POLICY_VERSION,
           );
         }
-        if (referenceResult.ok) {
+        if (referenceResult.ok && referenceResult.sourceKind === "reference") {
           const referenceSources = parseReferenceSourceLinks(
             referenceResult.sources,
           );
-          const referencePresentation = projectPublicWebSearchAnswer(
+          const referencePresentation = projectReferenceWebSearchAnswer(
             referenceResult.answer,
           );
           if (referenceSources.length > 0 && referencePresentation) {
+            const isServerSafeReferenceFallback =
+              referenceResult.answerOrigin === "server_safe_fallback";
+            if (
+              !isServerSafeReferenceFallback &&
+              !matchesChatTopic(
+                scopeDecision.topic,
+                referencePresentation.answer,
+              )
+            ) {
+              return complete(
+                unavailableResponse(IN_SCOPE_NO_MATCH_ANSWER),
+                "retrieval_no_match",
+                "unavailable",
+                REFERENCE_SEARCH_POLICY_VERSION,
+                {
+                  providerOutcome: "invalid_output",
+                  providerRequestCount: 2,
+                  providerModel: referenceResult.model,
+                  providerInputTokens: sumKnownTokenCounts(
+                    searched.usage?.inputTokens,
+                    referenceResult.usage.inputTokens,
+                  ),
+                  providerOutputTokens: sumKnownTokenCounts(
+                    searched.usage?.outputTokens,
+                    referenceResult.usage.outputTokens,
+                  ),
+                },
+              );
+            }
             return complete(
               NextResponse.json(
                 {
@@ -486,7 +543,7 @@ export function createChatHandler(
           }
         }
         return complete(
-          unavailableResponse(),
+          unavailableResponse(IN_SCOPE_NO_MATCH_ANSWER),
           "retrieval_no_match",
           "unavailable",
           REFERENCE_SEARCH_POLICY_VERSION,
@@ -503,7 +560,9 @@ export function createChatHandler(
               referenceResult.usage?.outputTokens,
             ),
             providerOutcome:
-              !referenceResult.ok &&
+              referenceResult.ok
+                ? "invalid_output"
+                : !referenceResult.ok &&
               referenceResult.code === "PROVIDER_TIMEOUT"
                 ? "timeout"
                 : !referenceResult.ok &&
@@ -521,7 +580,7 @@ export function createChatHandler(
       }
 
       return complete(
-        unavailableResponse(),
+        unavailableResponse(IN_SCOPE_NO_MATCH_ANSWER),
         "retrieval_no_match",
         "unavailable",
         WEB_SEARCH_POLICY_VERSION,

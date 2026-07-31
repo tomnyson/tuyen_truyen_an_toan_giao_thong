@@ -23,6 +23,10 @@ trạng thái. API chat vẫn trả một đoạn văn thay vì dữ liệu có 
 Giúp học sinh hiểu quy định pháp luật liên quan đến mình và biết hành động an
 toàn tiếp theo, mà không biến sản phẩm thành dịch vụ tư vấn pháp lý cá nhân.
 
+Thông điệp phạm vi MVP dành cho người dùng:
+“Tra cứu nhanh các quy định gần gũi với trường học — từ giao thông, mạng xã hội
+đến bản quyền”.
+
 ### 2.2 Nguyên tắc bắt buộc
 
 1. Sản phẩm vận hành theo mô hình RAG-first: dữ liệu đã được kiểm duyệt là
@@ -99,8 +103,8 @@ sau khi có dữ liệu sử dụng thật:
 ### Chủ đề
 
 - Giao thông.
-- Mạng xã hội.
-- Sở hữu trí tuệ.
+- An toàn và ứng xử trên mạng.
+- Bản quyền học đường.
 
 ### Trải nghiệm người dùng
 
@@ -224,6 +228,13 @@ Mỗi kết quả phải hiển thị:
 ### FR-04 — Chatbot
 
 - Nhận tối đa 8 message gần nhất, tối đa 600 ký tự/message trong MVP hiện tại.
+- Trước mọi retrieval hoặc web search, backend phải kiểm tra câu hỏi có thuộc
+  đúng một trong ba phạm vi `giao thông`, `an toàn/ứng xử trên mạng` hoặc
+  `bản quyền học đường`. Câu ngoài phạm vi không được gọi kho dữ liệu, provider
+  AI hoặc web search và chỉ trả thông báo ngắn đã được sản phẩm duyệt.
+- Thông báo ngoài phạm vi là: “Câu hỏi này chưa thuộc phạm vi hỗ trợ của
+  website. Bạn hãy hỏi về an toàn giao thông, ứng xử trên mạng hoặc bản quyền
+  học đường.”
 - Ưu tiên nội dung đã xuất bản trước nhánh AI.
 - Legacy `/api/chat` phân biệt `knowledge`, `web_search` và `unavailable`;
   contract v1 mục tiêu tiếp tục phân biệt `curated`, `ai_assisted` và
@@ -248,8 +259,13 @@ Mỗi kết quả phải hiển thị:
   Reference result luôn live/no-store và không được persist.
 - `thuvienphapluat.vn` không được dùng làm căn cứ pháp lý cuối cùng. Nguồn này
   chỉ được dùng ở lượt reference sau official no-result, phải ghi rõ “không
-  chính thống, cần xác minh”, không hiển thị chi tiết pháp lý định lượng và
-  không được persist hoặc tự động đưa vào corpus.
+  chính thống, cần xác minh”, chỉ hiển thị bản trả lời rút gọn không có card căn
+  cứ pháp lý/mức phạt/biện pháp pháp lý, và không được persist hoặc tự động đưa
+  vào corpus.
+- Kết quả chính thức chỉ được lưu thành candidate khi câu hỏi đã qua topic gate,
+  source có `sourceKind=official`, presentation hợp lệ và URL qua exact
+  allowlist. Câu ngoài phạm vi, no-match, provider output sai hoặc reference
+  result tuyệt đối không được lưu.
 - Intent ảnh riêng tư/nhạy cảm phải ưu tiên safety guidance; intent bản quyền
   chỉ match dấu hiệu tác giả/tác phẩm/giấy phép/ghi nguồn. Từ chung “hình ảnh”
   hoặc câu mơ hồ không được tự chọn một nhánh.

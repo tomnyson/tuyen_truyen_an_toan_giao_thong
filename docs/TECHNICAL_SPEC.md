@@ -1128,6 +1128,62 @@ Test gate trước cutover:
 - accessibility test kiểm tra heading order, accessible link names, keyboard
   focus; responsive test kiểm tra nội dung tiếng Việt dài tại 320 px.
 
+### 6.6 Topic scope và trust-tier presentation — US-029
+
+`/api/chat` phải chạy `chat-topic-scope-v1` sau input validation và trước mọi
+retrieval/search. Intent ảnh riêng tư có thể chạy trước topic gate để safety
+guidance không bị chặn; nhánh này không retrieval, search hoặc persistence.
+Classifier topic là pure deterministic function, normalize Unicode/tiếng Việt
+và trả một trong:
+
+```ts
+type ChatTopic = "traffic" | "online_safety" | "copyright";
+type ChatScopeDecision =
+  | { inScope: true; topic: ChatTopic; policyVersion: "chat-topic-scope-v1" }
+  | { inScope: false; topic: null; policyVersion: "chat-topic-scope-v1" };
+```
+
+Chỉ signal mạnh hoặc tổ hợp signal có ngữ cảnh được match. Các từ chung như
+“ảnh”, “bài”, “xe”, “mạng” đứng một mình không đủ. Safety intent ảnh riêng tư
+vẫn thuộc `online_safety`; dấu hiệu authorship/tác phẩm/giấy phép thuộc
+`copyright`. Topic gate chỉ giới hạn phạm vi sản phẩm, không được coi là bằng
+chứng pháp lý hoặc thay thế retrieval score.
+
+Mapping legacy phải thu hẹp, không mở rộng phạm vi: `copyright` không được dùng
+mọi record có topic rộng `Sở hữu trí tuệ`. Managed legacy path bỏ qua copyright
+cho tới khi có subtype canonical; reviewed candidate chỉ đủ điều kiện khi topic
+là `Sở hữu trí tuệ` và tags đã duyệt chứa `bản quyền`, `quyền tác giả` hoặc
+`copyright`. Predicate subtype phải nằm trong SQL trước `LIMIT` và được kiểm tra
+lại sau khi parse snapshot.
+
+Nếu `inScope=false`, route trả `mode=unavailable` với đúng message sản phẩm,
+không gọi managed/curated/reviewed retrieval, budget, OpenAI search hoặc
+persistence. Nếu `inScope=true` nhưng toàn bộ nguồn không đủ điều kiện, route
+trả no-match message ngắn, không có `sections`, `sources` hoặc legal claim.
+
+Presentation chia theo trust tier:
+
+1. Reviewed/published application data có thể dùng form đầy đủ, nhưng chỉ field
+   map từ canonical reviewed records mới được dựng legal card.
+2. Official live search chỉ dùng form direct-search đã guard; candidate chỉ
+   được persist khi kết quả khai báo `sourceKind=official`, answer tự chứa
+   signal đúng topic, có official URL và presentation hợp lệ. Tiêu đề source
+   không được dùng để làm một answer chung chung trở thành đúng topic.
+3. Reference live search là reduced form. Server chỉ giữ section
+   `summary|details|next_steps|limitations`, loại mọi
+   `legal_basis|sanctions|legal_remedies|examples`, luôn cảnh báo không chính
+   thống/cần xác minh và không gọi persistence. Chỉ answer mang discriminant
+   `answerOrigin=server_safe_fallback` do adapter tự gắn được phép không chứa
+   topic signal; mọi `answerOrigin=provider` vẫn phải tự match topic đã phân
+   loại trước khi hiển thị. Không suy ra nguồn gốc từ việc so sánh nội dung.
+4. Out-of-scope/no-match/provider-invalid không dùng form trả lời pháp lý và
+   không lưu.
+
+Regression gate phải chứng minh: ba topic được đi tiếp; off-topic dừng trước
+mọi dependency; Vietnamese có/không dấu; generic-token false positive; no-match
+không có structured legal fields; reference projection không có legal section;
+official result sai `sourceKind` không được lưu; reference không persist.
+
 ## 7. Retrieval và answer composition (To-be)
 
 ### 7.1 Pipeline
@@ -2289,6 +2345,14 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   `thuvienphapluat.vn`. Kết quả phải có `sourceKind=reference`, cảnh báo không
   chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist
   thành candidate/evidence/RAG. Official search luôn chạy trước.
+- **DEC-013:** `/api/chat` chạy topic gate deterministic trước mọi retrieval,
+  provider và persistence. Phạm vi chỉ gồm giao thông, an toàn/ứng xử trên mạng
+  và bản quyền học đường. Off-topic/no-match trả message ngắn không có legal
+  form; reference chỉ dùng reduced form và không lưu; chỉ official result đúng
+  loại, đúng URL guard và presentation hợp lệ mới được lưu draft. Reference
+  safe-fallback có `answerOrigin=server_safe_fallback` do adapter tự gắn có thể
+  không chứa topic signal; ngoại lệ này không áp dụng cho provider prose, không
+  được suy ra bằng so sánh text và không mở đường persistence.
 
 ### Điểm còn mở
 

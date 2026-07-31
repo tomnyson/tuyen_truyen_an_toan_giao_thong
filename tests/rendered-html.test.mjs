@@ -368,7 +368,10 @@ test("fails closed when a question is outside published knowledge", async () => 
 
   assert.equal(response.status, 200);
   assert.equal(body.mode, "unavailable");
-  assert.match(body.answer, /chưa có trong dữ liệu/);
+  assert.equal(
+    body.answer,
+    "Câu hỏi này chưa thuộc phạm vi hỗ trợ của website. Bạn hãy hỏi về an toàn giao thông, ứng xử trên mạng hoặc bản quyền học đường.",
+  );
 });
 
 test("rejects an empty chat request", async () => {

@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getInitializedDb } from "@/db";
 import { legalEntries } from "@/db/schema";
 import {
@@ -13,6 +13,10 @@ import {
   type ChatAnswerSection,
   type PublicChatAnswer,
 } from "./chat-answer-presentation";
+import {
+  chatTopicLabel,
+  type ChatTopic,
+} from "./chat-topic-scope";
 import type { OfficialSourceLink } from "./official-source-url";
 
 const [helmetLaw, , falseInformationLaw] = laws;
@@ -158,6 +162,7 @@ export function findCuratedAnswer(question: string): KnowledgeChatAnswer | null 
 
 export async function findManagedAnswer(
   question: string,
+  topic?: ChatTopic,
 ): Promise<KnowledgeChatAnswer | null> {
   const ignoredTerms = new Set(["cho", "cua", "duoc", "khong", "nhung", "the", "nao", "voi"]);
   const terms = normalizeVietnamese(question)
@@ -169,7 +174,14 @@ export async function findManagedAnswer(
     const db = await getInitializedDb();
     const entries = await db.select()
       .from(legalEntries)
-      .where(eq(legalEntries.status, "published"))
+      .where(
+        topic
+          ? and(
+              eq(legalEntries.status, "published"),
+              eq(legalEntries.topic, chatTopicLabel(topic)),
+            )
+          : eq(legalEntries.status, "published"),
+      )
       .orderBy(desc(legalEntries.updatedAt))
       .limit(100);
     const ranked = entries

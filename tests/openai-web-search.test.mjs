@@ -592,6 +592,7 @@ test("reference search rejects deceptive domains and replaces unverified legal d
     },
   );
   assert.equal(legalDetail.ok, true);
+  assert.equal(legalDetail.answerOrigin, "server_safe_fallback");
   assert.doesNotMatch(legalDetail.answer, /400|đồng|mức phạt/i);
   assert.match(legalDetail.answer, /không hiển thị chi tiết pháp lý/i);
   assert.match(legalDetail.warning, /không phải nguồn chính thống/i);
@@ -819,7 +820,9 @@ test("legacy reviewed candidate without issuedAt stays usable but omits legal-ba
       policyVersion: "reviewed-web-candidate-v1",
     }),
   });
-  const response = await chat(chatRequest("Nội dung đã duyệt là gì?"));
+  const response = await chat(
+    chatRequest("Quy định giao thông đã duyệt là gì?"),
+  );
   const body = await response.json();
   assert.equal(response.status, 200);
   assert.equal(body.mode, "knowledge");
@@ -853,10 +856,12 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
     },
     webSearch: async (_config, question) => {
       webCalls += 1;
-      assert.equal(question, "Một quy định mới là gì?");
+      assert.equal(question, "Một quy định giao thông mới là gì?");
       return {
         ok: true,
-        answer: "Kết quả tra cứu có căn cứ Chính phủ.",
+        sourceKind: "official",
+        answer:
+          "Kết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
         warning: "Chưa kiểm duyệt.",
         sources: [
           {
@@ -873,15 +878,20 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
       };
     },
   });
-  const response = await chat(chatRequest("Một quy định mới là gì?"));
+  const response = await chat(
+    chatRequest("Một quy định giao thông mới là gì?"),
+  );
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(await response.json(), {
-    answer: "Trả lời ngắn\nKết quả tra cứu có căn cứ Chính phủ.",
+    answer:
+      "Trả lời ngắn\nKết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
     sections: [
       {
         kind: "summary",
-        paragraphs: ["Kết quả tra cứu có căn cứ Chính phủ."],
+        paragraphs: [
+          "Kết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
+        ],
         bullets: [],
       },
     ],
@@ -899,12 +909,14 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
   assert.equal(persisted, 1);
   assert.equal(
     persistedResult.answer,
-    "Trả lời ngắn\nKết quả tra cứu có căn cứ Chính phủ.",
+    "Trả lời ngắn\nKết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
   );
   assert.deepEqual(persistedResult.sections, [
     {
       kind: "summary",
-      paragraphs: ["Kết quả tra cứu có căn cứ Chính phủ."],
+      paragraphs: [
+        "Kết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
+      ],
       bullets: [],
     },
   ]);
@@ -1074,14 +1086,15 @@ test("chat fails closed when a successful web result cannot be persisted", async
     persistWebCandidate: async () => null,
     webSearch: async () => ({
       ok: true,
-      answer: "Có nguồn nhưng D1 đang lỗi.",
+      sourceKind: "official",
+      answer: "Có nguồn giao thông nhưng D1 đang lỗi.",
       warning: "Chưa kiểm duyệt.",
       sources: [{ title: "Nguồn", url: "https://vbpl.vn/document" }],
       model: "gpt-5.4-mini",
       usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
     }),
   });
-  const response = await chat(chatRequest("Quy định mới?"));
+  const response = await chat(chatRequest("Quy định giao thông mới?"));
   assert.equal(response.status, 200);
   assert.equal((await response.json()).mode, "unavailable");
   for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
@@ -1116,7 +1129,9 @@ test("chat records rejected direct legal claims as invalid provider output", asy
       code: "UNVERIFIED_LEGAL_CLAIM",
     }),
   });
-  const response = await chat(chatRequest("Mức xử lý là gì?"));
+  const response = await chat(
+    chatRequest("Không đội mũ bảo hiểm có mức xử lý gì?"),
+  );
   assert.equal(response.status, 200);
   assert.equal((await response.json()).mode, "unavailable");
   assert.equal(events[0].providerOutcome, "invalid_output");

@@ -6,6 +6,11 @@ import {
   type OfficialSourceLink,
 } from "./official-source-url";
 import type { OpenAiWebSearchResult } from "./openai-web-search";
+import {
+  chatTopicLabel,
+  matchesChatTopic,
+  type ChatTopic,
+} from "./chat-topic-scope";
 
 export const WEB_SEARCH_CANDIDATE_POLICY_VERSION =
   "web-search-candidate-v1";
@@ -68,6 +73,22 @@ export type WebSearchBudgetReservation = {
   dayStart: number;
   reservedTokens: number;
 };
+
+export function reviewedCandidateMatchesChatTopic(
+  snapshot: ReviewedCandidateSnapshot,
+  topic: ChatTopic,
+) {
+  if (snapshot.topic !== chatTopicLabel(topic)) return false;
+  if (topic !== "copyright") return true;
+  return snapshot.tags
+    .map(normalizeVietnamese)
+    .some(
+      (tag) =>
+        tag.includes("ban quyen") ||
+        tag.includes("quyen tac gia") ||
+        tag.includes("copyright"),
+    );
+}
 
 function runtimeValue(name: string) {
   const value = env[name] ?? process.env[name];
@@ -201,11 +222,21 @@ export async function settleWebSearchBudget(
 export async function persistWebSearchCandidate(
   requestId: string,
   result: Extract<OpenAiWebSearchResult, { ok: true }>,
-  dependencies: CandidateDependencies = {},
+  topicOrDependencies: ChatTopic | CandidateDependencies = {},
+  injectedDependencies: CandidateDependencies = {},
 ) {
+  const topic =
+    typeof topicOrDependencies === "string" ? topicOrDependencies : undefined;
+  const dependencies =
+    typeof topicOrDependencies === "string"
+      ? injectedDependencies
+      : topicOrDependencies;
   const sources = parseOfficialSourceLinks(result.sources);
   if (
     !/^[0-9a-f-]{36}$/i.test(requestId) ||
+    !topic ||
+    result.sourceKind !== "official" ||
+    !matchesChatTopic(topic, result.answer) ||
     !boundedText(result.answer, 6_000) ||
     !boundedText(result.model, 100) ||
     sources.length < 1
@@ -688,8 +719,15 @@ function citationIsCurrent(
 
 export async function findReviewedWebCandidate(
   question: string,
-  dependencies: CandidateDependencies = {},
+  topicOrDependencies: ChatTopic | CandidateDependencies = {},
+  injectedDependencies: CandidateDependencies = {},
 ): Promise<ReviewedWebCandidateAnswer | null> {
+  const topic =
+    typeof topicOrDependencies === "string" ? topicOrDependencies : undefined;
+  const dependencies =
+    typeof topicOrDependencies === "string"
+      ? injectedDependencies
+      : topicOrDependencies;
   const terms = normalizeVietnamese(question)
     .split(/[^a-z0-9]+/)
     .filter((term) => term.length >= 3)
@@ -697,22 +735,49 @@ export async function findReviewedWebCandidate(
   if (terms.length < 1) return null;
   try {
     const db = requireDb(dependencies.db);
+    const topicSql = topic
+      ? "AND json_extract(r.canonical_snapshot_json, '$.topic') = ?"
+      : "";
+    const subtypeSql =
+      topic === "copyright"
+        ? `AND EXISTS (
+            SELECT 1
+            FROM json_each(r.canonical_snapshot_json, '$.tags') tag
+            WHERE lower(tag.value) LIKE '%bản quyền%'
+               OR lower(tag.value) LIKE '%quyền tác giả%'
+               OR lower(tag.value) LIKE '%copyright%'
+          )`
+        : "";
+    const candidatePrepared = db.prepare(`
+          SELECT c.id, r.canonical_snapshot_json
+          FROM web_search_candidates c
+          JOIN web_search_candidate_revisions r
+            ON r.id = c.current_revision_id AND r.candidate_id = c.id
+          WHERE c.lifecycle_status = 'published'
+            ${topicSql}
+            ${subtypeSql}
+          ORDER BY c.updated_at DESC LIMIT 100
+        `);
+    const candidateStatement = topic
+      ? candidatePrepared.bind(chatTopicLabel(topic))
+      : candidatePrepared;
+    const sourcePrepared = db.prepare(`
+          SELECT s.candidate_id, s.official_url
+          FROM web_search_candidate_sources s
+          JOIN web_search_candidates c ON c.id = s.candidate_id
+          JOIN web_search_candidate_revisions r
+            ON r.id = c.current_revision_id AND r.candidate_id = c.id
+          WHERE c.lifecycle_status = 'published'
+            ${topicSql}
+            ${subtypeSql}
+          ORDER BY s.candidate_id, s.display_order
+        `);
+    const sourceStatement = topic
+      ? sourcePrepared.bind(chatTopicLabel(topic))
+      : sourcePrepared;
     const [candidateResult, sourceResult] = await db.batch([
-      db.prepare(`
-        SELECT c.id, r.canonical_snapshot_json
-        FROM web_search_candidates c
-        JOIN web_search_candidate_revisions r
-          ON r.id = c.current_revision_id AND r.candidate_id = c.id
-        WHERE c.lifecycle_status = 'published'
-        ORDER BY c.updated_at DESC LIMIT 100
-      `),
-      db.prepare(`
-        SELECT s.candidate_id, s.official_url
-        FROM web_search_candidate_sources s
-        JOIN web_search_candidates c ON c.id = s.candidate_id
-        WHERE c.lifecycle_status = 'published'
-        ORDER BY s.candidate_id, s.display_order
-      `),
+      candidateStatement,
+      sourceStatement,
     ]);
     const allowedByCandidate = new Map<string, Set<string>>();
     for (const row of rows(sourceResult)) {
@@ -747,6 +812,7 @@ export async function findReviewedWebCandidate(
         );
         if (
           !snapshot ||
+          (topic && !reviewedCandidateMatchesChatTopic(snapshot, topic)) ||
           !snapshot.citations.every((citation) =>
             citationIsCurrent(citation, nowMs)
           )

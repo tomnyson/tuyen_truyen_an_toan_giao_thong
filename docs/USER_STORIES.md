@@ -217,6 +217,62 @@ chưa đủ bốn nhóm kiến thức nền.
 `tests/rendered-html.test.mjs` chạy 15/15 pass, gồm ngoài phạm vi, empty request
 và malformed messages.
 
+### [x] US-029 — Giới hạn trợ lý đúng ba chủ đề MVP
+
+- **Priority:** P0
+- **Persona:** Học sinh
+- **Mô tả:** Là học sinh, tôi muốn trợ lý chỉ xử lý câu hỏi về giao thông, an
+  toàn/ứng xử trên mạng và bản quyền học đường, để câu trả lời đúng mục đích
+  website và nội dung sai không bị lưu vào kho.
+
+**Acceptance criteria**
+
+- [x] Backend dùng topic gate deterministic, versioned và chạy trước managed
+  retrieval, reviewed-candidate retrieval, official search, reference search
+  và candidate persistence.
+- [x] Ba phạm vi được phép là `giao thông`, `an toàn/ứng xử trên mạng` và
+  `bản quyền học đường`; classifier hỗ trợ câu tiếng Việt có/không dấu và các
+  cách gọi gần gũi trong trường học nhưng không match chỉ vì một từ chung.
+- [x] Mapping sang nhãn database legacy không được mở rộng phạm vi: copyright
+  bỏ qua managed record chưa có subtype và reviewed candidate `Sở hữu trí tuệ`
+  chỉ match khi có tag bản quyền/quyền tác giả đã duyệt.
+- [x] Câu ngoài phạm vi trả đúng thông báo ngắn: “Câu hỏi này chưa thuộc phạm
+  vi hỗ trợ của website. Bạn hãy hỏi về an toàn giao thông, ứng xử trên mạng
+  hoặc bản quyền học đường.” Response không có legal sections/sources và không
+  gọi provider hoặc persistence.
+- [x] Câu đúng phạm vi nhưng không có nguồn đủ điều kiện trả thông báo no-match
+  ngắn, không dựng form căn cứ/mức phạt và không persist.
+- [x] Kết quả official chỉ được persist khi `sourceKind=official`, answer tự
+  match cùng topic đã phân loại, URL qua exact official guard và presentation
+  hợp lệ. Tiêu đề nguồn không được dùng để hợp thức hóa answer chung chung;
+  output/reference sai loại hoặc không đủ điều kiện phải fail closed.
+- [x] Kết quả reference chỉ hiển thị bản rút gọn gồm tóm tắt, thông tin tham
+  khảo, cách xử lý an toàn và giới hạn; không có căn cứ pháp lý, mức phạt hoặc
+  biện pháp pháp lý, luôn có cảnh báo không chính thống/cần xác minh và không
+  persist.
+- [x] Có regression test cho cả ba topic, câu ngoài phạm vi, no-match, zero
+  provider/persistence call, official persistence guard và reference reduced
+  form.
+
+**Decision (2026-07-31):** Chủ dự án chốt thông điệp “Tra cứu nhanh các quy
+định gần gũi với trường học — từ giao thông, mạng xã hội đến bản quyền”, đồng ý
+reference reduced form và thông báo ngoài phạm vi nêu trên. DEC-013 quy định
+topic gate chạy trước mọi retrieval/search; chỉ official result hợp lệ mới được
+lưu draft.
+
+**Status:** Done. `lib/chat-topic-scope.ts` triển khai classifier versioned;
+`app/api/chat/route.ts`, `lib/legal-chat.ts` và
+`lib/web-search-candidates.ts` đặt topic/trust-tier guard trước retrieval,
+search và persistence; `lib/chat-answer-presentation.ts` tạo reference reduced
+form; `lib/openai-web-search.ts` dùng discriminant nguồn gốc do server gắn cho
+safe fallback; `app/page.tsx` nêu đúng ba phạm vi. Focused suite
+`chat-topic-scope`, `image-intent`, `openai-web-search`,
+`web-search-candidates`, `rendered-html`, `telemetry` đạt 152/152; typecheck,
+lint, build và `git diff --check` pass. Full suite đạt 296/299; ba failure còn
+lại là ledger/schema test cũ đang kỳ vọng migration cuối `0005` trong khi repo
+đã có `0006`, không thuộc US-029. PM và code reviewer độc lập đều PASS sau vòng
+sửa cuối.
+
 ### [ ] US-027 — Tìm nguồn được phép khi kho dữ liệu chưa có câu trả lời
 
 - **Priority:** P0

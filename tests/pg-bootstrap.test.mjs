@@ -70,9 +70,48 @@ test("bootstrap ap duoc va idempotent", async () => {
     "legal_entries",
     "legal_entry_citations",
     "showcases",
+    "rate_limit_buckets",
+    "rate_limit_penalties",
+    "editorial_principals",
+    "editorial_role_grants",
+    "editorial_subjects",
+    "editorial_revisions",
+    "editorial_review_requests",
+    "editorial_review_decisions",
+    "editorial_audit_events",
+    "web_search_candidates",
+    "web_search_candidate_sources",
+    "web_search_candidate_revisions",
+    "web_search_candidate_events",
+    "web_search_budget_days",
   ]) {
     assert.ok(names.includes(expected), `thieu bang ${expected}`);
   }
+});
+
+test("workflow candidate: khong the xoa, chuyen trang thai sai bi chan", async () => {
+  await db.execute(sql.raw(`
+    INSERT INTO web_search_candidates (
+      id, request_id, content_sha256, initial_answer_text,
+      provider_model, policy_version
+    ) VALUES (
+      'cand-1', 'req-1', '${"b".repeat(64)}', 'cau tra loi',
+      'gpt-5.4-nano', 'web-search-v1'
+    )`));
+  await assert.rejects(
+    db.execute(sql.raw("DELETE FROM web_search_candidates WHERE id = 'cand-1'")),
+    rejectsWith(/cannot be deleted/),
+  );
+  await assert.rejects(
+    db.execute(sql.raw(
+      "UPDATE web_search_candidates SET lifecycle_status = 'published' WHERE id = 'cand-1'",
+    )),
+    // PG chạy các BEFORE UPDATE trigger theo thứ tự tên — bất kỳ chốt nào
+    // trong bộ (transition/review/state_check) chặn đều đạt yêu cầu.
+    rejectsWith(
+      /invalid web search candidate transition|independent active reviewer required|state_check/,
+    ),
+  );
 });
 
 test("do thi bon mat hop le duoc chap nhan", async () => {

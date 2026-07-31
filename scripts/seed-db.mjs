@@ -2,7 +2,6 @@
 // Dung: node --experimental-strip-types scripts/seed-d1.mjs [--sql-only]
 import { registerHooks } from "node:module";
 import { writeFile } from "node:fs/promises";
-import { glob } from "node:fs/promises";
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -222,15 +221,6 @@ export async function buildSeedSql(content, options = {}) {
   return ["BEGIN;", ...statements, "COMMIT;"].join("\n");
 }
 
-async function findLocalD1Files() {
-  const files = [];
-  for await (const file of glob(
-    ".wrangler/state/v3/d1/miniflare-D1DatabaseObject/*.sqlite",
-  )) {
-    if (!file.endsWith("metadata.sqlite")) files.push(file);
-  }
-  return files;
-}
 
 const isMain = process.argv[1]?.endsWith("seed-db.mjs");
 if (isMain) {
@@ -239,26 +229,6 @@ if (isMain) {
     await writeFile("db/seeds/seed.v1.sql", await buildSeedSql(content));
     console.log("Da ghi db/seeds/seed.v1.sql — ap len Postgres khac bang:");
     console.log('  psql "$DATABASE_URL" -f db/seeds/seed.v1.sql');
-  } else if (process.argv.includes("--d1")) {
-    // Duong chuyen tiep: van seed vao D1 local (giai doan B se go bo).
-    const files = await findLocalD1Files();
-    if (files.length === 0) {
-      console.error(
-        "Khong tim thay D1 local trong .wrangler/state. Chay `npm run dev` mot lan de miniflare tao DB roi seed lai.",
-      );
-      process.exit(1);
-    }
-    const { DatabaseSync } = await import("node:sqlite");
-    const sqlText = await buildSeedSql(content);
-    for (const file of files) {
-      const db = new DatabaseSync(file);
-      try {
-        db.exec(sqlText);
-        console.log(`Da seed (D1): ${file}`);
-      } finally {
-        db.close();
-      }
-    }
   } else {
     // Mac dinh: Neon PostgreSQL qua DATABASE_URL (transaction that su).
     const url = process.env.DATABASE_URL;

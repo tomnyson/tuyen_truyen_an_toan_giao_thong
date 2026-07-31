@@ -56,3 +56,13 @@ database `verceldb`, schema public trống).
    kèm mức phạt + căn cứ như trước.
 3. Trigger bốn mắt trên PG chặn bản ghi sai (có test chứng minh).
 4. Toàn bộ test repo xanh; các test D1 cũ không bị ảnh hưởng.
+
+## Cập nhật: Giai đoạn B đã hoàn thành (2026-07-31)
+
+Rate-limit, web search budget/candidates và các bảng editorial đã chuyển
+sang Neon (db/pg-workflow.ts, lib/neon-d1.ts, lib/rate-limit.ts). D1 đã gỡ
+khỏi runtime: hosting.json d1=null, worker Env bỏ binding DB, seed bỏ chế
+độ --d1. env.DB chỉ còn là seam cho test bơm mock. Thư mục drizzle/ và
+db/schema.ts giữ lại làm hồ sơ lịch sử schema D1 (tests đối chiếu tài
+liệu vẫn đọc chúng). Đã xác minh E2E: login, chat knowledge, web search
+fallback + persist candidate + budget đều ghi/đọc Neon.

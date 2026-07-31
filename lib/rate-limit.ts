@@ -618,9 +618,12 @@ function createNeonRateLimitDatabase(): RateLimitDatabase | undefined {
 let runtimeDatabase: RateLimitDatabase | undefined;
 
 export function createRuntimeRateLimiter() {
-  runtimeDatabase ??= createNeonRateLimitDatabase();
+  // env.DB là seam cho test bơm mock; production không còn binding D1 nên
+  // luôn rơi về adapter Neon (DATABASE_URL).
+  const envDb = env.DB as RateLimitDatabase | undefined;
+  if (!envDb) runtimeDatabase ??= createNeonRateLimitDatabase();
   return createRateLimiter({
-    database: runtimeDatabase,
+    database: envDb ?? runtimeDatabase,
     secret: env.RATE_LIMIT_KEY_SECRET ?? process.env.RATE_LIMIT_KEY_SECRET,
   });
 }

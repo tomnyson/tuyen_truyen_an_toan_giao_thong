@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { createNeonD1Database } from "./neon-d1";
+import { createNeonD1Database, type NeonD1Database } from "./neon-d1";
 import { normalizeVietnamese } from "./legal-content";
 import {
   canonicalOfficialSourceUrl,
@@ -22,7 +22,7 @@ const topics = new Set([
 const staffRoles = new Set(["editor", "reviewer", "admin"]);
 const freshnessDays = 365;
 
-type D1Like = Pick<D1Database, "prepare" | "batch">;
+type D1Like = Pick<NeonD1Database, "prepare" | "batch">;
 
 type CandidateDependencies = {
   db?: D1Like;
@@ -78,10 +78,14 @@ function runtimeValue(name: string) {
 let runtimeDb: D1Like | undefined;
 
 function requireDb(injected?: D1Like) {
+  // Thứ tự: dependency injection (route/test) → env.DB (seam cho test bơm
+  // adapter giả) → Neon qua DATABASE_URL (đường production duy nhất).
+  const envDb = env.DB as unknown as D1Like | undefined;
+  const db = injected ?? envDb;
+  if (db) return db;
   runtimeDb ??= createNeonD1Database() as D1Like | undefined;
-  const db = injected ?? runtimeDb;
-  if (!db) throw new Error("Neon DATABASE_URL is unavailable");
-  return db;
+  if (!runtimeDb) throw new Error("Neon DATABASE_URL is unavailable");
+  return runtimeDb;
 }
 
 function rows(result: D1Result | undefined) {
@@ -163,9 +167,9 @@ export async function reserveWebSearchBudget(
         day_start, reserved_tokens, actual_tokens, request_count, expires_at
       ) VALUES (?, ?, 0, 1, ?)
       ON CONFLICT(day_start) DO UPDATE SET
-        reserved_tokens = reserved_tokens + excluded.reserved_tokens,
-        request_count = request_count + 1,
-        updated_at = CURRENT_TIMESTAMP
+        reserved_tokens = web_search_budget_days.reserved_tokens + excluded.reserved_tokens,
+        request_count = web_search_budget_days.request_count + 1,
+        updated_at = CAST(CURRENT_TIMESTAMP AS TEXT)
       WHERE
         web_search_budget_days.reserved_tokens
         + web_search_budget_days.actual_tokens
@@ -192,12 +196,17 @@ export async function settleWebSearchBudget(
   const [result] = await db.batch([
     db.prepare(`
       UPDATE web_search_budget_days
-      SET reserved_tokens = max(0, reserved_tokens - ?),
+      SET reserved_tokens = CASE WHEN reserved_tokens >= ? THEN reserved_tokens - ? ELSE 0 END,
           actual_tokens = actual_tokens + ?,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = CAST(CURRENT_TIMESTAMP AS TEXT)
       WHERE day_start = ?
       RETURNING day_start
-    `).bind(reservation.reservedTokens, actual, reservation.dayStart),
+    `).bind(
+        reservation.reservedTokens,
+        reservation.reservedTokens,
+        actual,
+        reservation.dayStart,
+      ),
   ]);
   return rows(result).length === 1;
 }
@@ -464,7 +473,7 @@ export async function saveWebSearchCandidateRevision(
           reviewed_at = NULL,
           review_reason = NULL,
           optimistic_version = optimistic_version + 1,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = CAST(CURRENT_TIMESTAMP AS TEXT)
       WHERE id = ? AND optimistic_version = ?
         AND lifecycle_status IN ('draft', 'rejected')
         AND EXISTS (
@@ -533,7 +542,7 @@ export async function transitionWebSearchCandidate(
       to: "pending_review",
       event: "review_submitted",
       assignment: `
-        submitted_at = CURRENT_TIMESTAMP,
+        submitted_at = CAST(CURRENT_TIMESTAMP AS TEXT),
         reviewer_principal_id = NULL,
         reviewed_at = NULL,
         review_reason = NULL
@@ -546,7 +555,7 @@ export async function transitionWebSearchCandidate(
       event: "review_approved",
       assignment: `
         reviewer_principal_id = ?,
-        reviewed_at = CURRENT_TIMESTAMP,
+        reviewed_at = CAST(CURRENT_TIMESTAMP AS TEXT),
         review_reason = NULL
       `,
       guard: "editor_principal_id != ?",
@@ -557,7 +566,7 @@ export async function transitionWebSearchCandidate(
       event: "review_rejected",
       assignment: `
         reviewer_principal_id = ?,
-        reviewed_at = CURRENT_TIMESTAMP,
+        reviewed_at = CAST(CURRENT_TIMESTAMP AS TEXT),
         review_reason = ?
       `,
       guard: "editor_principal_id != ?",
@@ -589,7 +598,7 @@ export async function transitionWebSearchCandidate(
       SET lifecycle_status = ?,
           ${definition.assignment},
           optimistic_version = optimistic_version + 1,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = CAST(CURRENT_TIMESTAMP AS TEXT)
       WHERE id = ? AND optimistic_version = ?
         AND lifecycle_status = ?
         AND ${definition.guard}

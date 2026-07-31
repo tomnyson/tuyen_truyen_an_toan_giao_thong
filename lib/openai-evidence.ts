@@ -3,6 +3,10 @@ export const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 export const SUPPORTED_OPENAI_MODELS = [
   DEFAULT_OPENAI_MODEL,
   "gpt-5.4-mini-2026-03-17",
+  "gpt-4.1-nano",
+  "gpt-4.1-nano-2025-04-14",
+  "gpt-5.4-nano",
+  "gpt-5.4-nano-2026-03-17",
 ] as const;
 export const PINNED_OPENAI_MODEL = "gpt-5.4-mini-2026-03-17";
 

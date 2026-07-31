@@ -145,7 +145,7 @@ test("migration enforces review, allowlist and source-validity foundations", () 
 });
 
 test("Sites build packages migration inputs but does not prove execution", () => {
-  assert.equal(hosting.d1, "DB");
+  assert.equal(hosting.d1, null); // D1 đã gỡ — tầng dữ liệu chạy Neon Postgres
   assert.match(sitesPlugin, /resolve\(root,\s*"drizzle"\)/);
   assert.match(
     sitesPlugin,

@@ -23,8 +23,8 @@ import {
   type PublicShowcase,
 } from "@/lib/public-showcase";
 import {
-  parseOfficialSourceLinks,
-  parseReferenceSourceLinks,
+  parsePublicSourceLinks,
+  publicSourceUiCopy,
   type OfficialSourceLink,
   type PublicSourceKind,
 } from "@/lib/official-source-url";
@@ -181,9 +181,7 @@ export default function Home() {
           : "official";
       const searchedSources =
         data.mode === "web_search" || data.mode === "knowledge"
-          ? sourceKind === "reference"
-            ? parseReferenceSourceLinks(data.sources)
-            : parseOfficialSourceLinks(data.sources)
+          ? parsePublicSourceLinks(data.sources, sourceKind)
           : [];
       const answerSections =
         data.mode === "web_search" || data.mode === "knowledge"
@@ -425,14 +423,17 @@ export default function Home() {
           </div>
           <div className="chat-body" aria-live="polite">
             <div className="chat-messages">
-              {chatMessages.map((message, index) => (
+              {chatMessages.map((message, index) => {
+                const sourceCopy = publicSourceUiCopy(
+                  message.sourceKind,
+                  Boolean(message.warning),
+                );
+                return (
                 <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
                   {message.warning && (
                     <p className="chat-warning" role="note">
                       <strong>
-                        {message.sourceKind === "reference"
-                          ? "Thông tin tham khảo — chưa xác minh"
-                          : "Kết quả tra cứu tự động"}
+                        {sourceCopy.warningTitle}
                       </strong>
                       <span>{message.warning}</span>
                     </p>
@@ -469,35 +470,22 @@ export default function Home() {
                   {message.sources && (
                     <div className="chat-source-group">
                       <h3>
-                        {message.sourceKind === "reference"
-                          ? "Nguồn tham khảo ngoài — cần xác minh"
-                          : message.warning
-                          ? "Nguồn chính thức đã tra cứu"
-                          : "Nguồn chính thức"}
+                        {sourceCopy.groupTitle}
                       </h3>
                       <ul className="chat-sources">
                         {message.sources.map((source) => (
                           <li key={source.url}>
                             <span>
-                              {source.title ||
-                                (message.sourceKind === "reference"
-                                  ? "Nguồn tham khảo"
-                                  : "Văn bản Chính phủ")}
+                              {source.title || sourceCopy.fallbackTitle}
                             </span>
                             <small>{new URL(source.url).hostname}</small>
                             <a
                               href={source.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              aria-label={
-                                message.sourceKind === "reference"
-                                  ? `Mở nguồn tham khảo cần xác minh: ${source.title || "Nguồn tham khảo"}`
-                                  : `Mở nguồn chính thức: ${source.title || "Văn bản Chính phủ"}`
-                              }
+                              aria-label={`${sourceCopy.openAriaPrefix}: ${source.title || sourceCopy.fallbackTitle}`}
                             >
-                              {message.sourceKind === "reference"
-                                ? "Mở nguồn tham khảo ↗"
-                                : "Mở nguồn chính thức ↗"}
+                              {sourceCopy.openAction}
                             </a>
                           </li>
                         ))}
@@ -505,7 +493,8 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
               {isChatLoading && <div className="chat-message assistant typing">Đang tìm hiểu<span>•••</span></div>}
             </div>
             {chatMessages.length === 1 && (

@@ -49,6 +49,7 @@ export type TelemetryInput = {
   providerOutcome?: "success" | "timeout" | "error" | "refusal" | "invalid_output";
   providerLatencyMs?: number;
   providerModel?: string;
+  providerRequestCount?: number;
   providerInputTokens?: number;
   providerOutputTokens?: number;
 };
@@ -240,6 +241,7 @@ export function createTelemetry(dependencies: TelemetryDependencies = {}) {
       }
       for (const [key, value] of [
         ["providerLatencyMs", boundedDuration(input.providerLatencyMs)],
+        ["providerRequestCount", boundedInteger(input.providerRequestCount, 4)],
         ["providerInputTokens", boundedInteger(input.providerInputTokens, 10_000_000)],
         ["providerOutputTokens", boundedInteger(input.providerOutputTokens, 10_000_000)],
       ] as const) {

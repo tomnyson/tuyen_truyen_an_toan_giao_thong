@@ -51,15 +51,19 @@ const {
   projectPublicWebSearchAnswer,
   reviewedCitationsToLegalBasisSection,
 } = await import("../lib/chat-answer-presentation.ts");
-const { parseOfficialSourceLinks, parseReferenceSourceLinks } = await import(
-  "../lib/official-source-url.ts"
-);
+const {
+  parseOfficialSourceLinks,
+  parsePublicSourceLinks,
+  parseReferenceSourceLinks,
+  publicSourceUiCopy,
+} = await import("../lib/official-source-url.ts");
 const { createChatHandler } = await import("../app/api/chat/route.ts");
 
 function providerResponse({
   url = "https://vanban.chinhphu.vn/?pageid=27160&docid=123#section",
   title = "Văn bản Chính phủ",
   annotations,
+  consultedSources,
   model = "gpt-5.4-mini",
   text = "Theo nguồn Chính phủ, quy định này cần được kiểm tra theo trường hợp cụ thể.",
   overrides = {},
@@ -75,13 +79,15 @@ function providerResponse({
           status: "completed",
           action: {
             type: "search",
-            sources: [
-              { type: "url", url },
-              {
-                type: "url",
-                url: "https://thuvienphapluat.vn/discovery-only",
-              },
-            ],
+            sources:
+              consultedSources ??
+              [
+                { type: "url", url },
+                {
+                  type: "url",
+                  url: "https://thuvienphapluat.vn/discovery-only",
+                },
+              ],
           },
         },
         {
@@ -119,6 +125,11 @@ function providerResponse({
       headers: { "content-type": "application/json" },
     },
   );
+}
+
+function assertFailureCode(result, code) {
+  assert.equal(result.ok, false);
+  assert.equal(result.code, code);
 }
 
 test("reads the web-search flag strictly and never exposes key defaults", () => {
@@ -228,6 +239,15 @@ test("detects legal amounts, provisions, document numbers, dates and ages in dir
     "Điều thứ bảy quy định hành vi này.",
     "Khoản thứ hai có nội dung liên quan.",
     "Văn bản có hiệu lực từ ngày mùng một tháng một năm hai nghìn không trăm hai mươi lăm.",
+    "Văn bản có hiệu lực ngày 1 tháng 1 năm 2025.",
+    "Điều 7a quy định hành vi này.",
+    "Nghị định số 168 năm 2024 có nội dung liên quan.",
+    "Chỉ được chở hai người.",
+    "Giới hạn tốc độ là năm mươi km/h.",
+    "Mỗi xe chỉ chở 2 người.",
+    "Không được chở quá hai người.",
+    "Xe được chở hai người.",
+    "Có hiệu lực từ 01 tháng 01 năm 2025.",
   ]) {
     assert.equal(containsUnverifiedLegalClaim(claim), true, claim);
   }
@@ -293,13 +313,11 @@ test("chat UI keeps warning, structured text and canonical source actions in saf
   assert.ok(warningIndex < sectionsIndex);
   assert.ok(sectionsIndex < sourcesIndex);
   assert.match(pageSource, /parseChatAnswerSections\(data\.sections\)/);
-  assert.match(pageSource, /parseOfficialSourceLinks\(data\.sources\)/);
-  assert.match(pageSource, /parseReferenceSourceLinks\(data\.sources\)/);
-  assert.match(pageSource, /Nguồn chính thức đã tra cứu/);
-  assert.match(pageSource, /Nguồn tham khảo ngoài — cần xác minh/);
-  assert.match(pageSource, /Thông tin tham khảo — chưa xác minh/);
-  assert.match(pageSource, /Mở nguồn tham khảo ↗/);
-  assert.match(pageSource, /Mở nguồn chính thức ↗/);
+  assert.match(
+    pageSource,
+    /parsePublicSourceLinks\(data\.sources, sourceKind\)/,
+  );
+  assert.match(pageSource, /publicSourceUiCopy\(/);
   assert.match(pageSource, /target="_blank"/);
   assert.match(pageSource, /rel="noopener noreferrer"/);
   assert.match(pageSource, /role="note"/);
@@ -310,6 +328,35 @@ test("chat UI keeps warning, structured text and canonical source actions in saf
   assert.match(cssSource, /@media \(max-width: 420px\)/);
   assert.match(cssSource, /\.chat-message \{[^}]*overflow-wrap: anywhere;/);
   assert.match(cssSource, /\.chat-panel \{[^}]*width: calc\(100vw - 24px\)/);
+});
+
+test("reference UI copy and parsing are selected by runtime sourceKind", () => {
+  const referenceSources = [
+    {
+      title: "Bài viết tham khảo",
+      url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+    },
+  ];
+  assert.deepEqual(
+    parsePublicSourceLinks(referenceSources, "reference"),
+    referenceSources,
+  );
+  assert.deepEqual(publicSourceUiCopy("reference", true), {
+    warningTitle: "Thông tin tham khảo — chưa xác minh",
+    groupTitle: "Nguồn tham khảo ngoài — cần xác minh",
+    fallbackTitle: "Nguồn tham khảo",
+    openAction: "Mở nguồn tham khảo ↗",
+    openAriaPrefix: "Mở nguồn tham khảo cần xác minh",
+  });
+
+  // Missing or malformed sourceKind defaults to the stricter official parser,
+  // so a reference URL cannot be mislabeled as official.
+  assert.deepEqual(parsePublicSourceLinks(referenceSources, undefined), []);
+  assert.deepEqual(parsePublicSourceLinks(referenceSources, "external"), []);
+  assert.equal(
+    publicSourceUiCopy(undefined, true).groupTitle,
+    "Nguồn chính thức đã tra cứu",
+  );
 });
 
 test("accepts and canonicalizes only exact official HTTPS authorities", () => {
@@ -488,7 +535,35 @@ test("reference search is separately allowlisted and visibly unverified", async 
   ]);
 });
 
-test("reference search rejects deceptive domains and legal detail claims", async () => {
+test("reference search can expose exact-guarded consulted sources with safe prose", async () => {
+  const result = await searchReferenceLegalSources(
+    { enabled: true, apiKey: "fake-secret" },
+    "đi xe máy tống 3",
+    {
+      fetch: async () =>
+        providerResponse({
+          annotations: [],
+          consultedSources: [
+            {
+              type: "url",
+              url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+              title: "Bài viết đã tra cứu",
+            },
+          ],
+          text: "Kết luận: Đã tìm thấy nội dung tham khảo về tình huống bạn nêu.",
+        }),
+    },
+  );
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.sources, [
+    {
+      title: "Bài viết đã tra cứu",
+      url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+    },
+  ]);
+});
+
+test("reference search rejects deceptive domains and replaces unverified legal details", async () => {
   const deceptive = await searchReferenceLegalSources(
     { enabled: true, apiKey: "fake-secret" },
     "đi xe máy tống 3",
@@ -500,10 +575,7 @@ test("reference search rejects deceptive domains and legal detail claims", async
         }),
     },
   );
-  assert.deepEqual(deceptive, {
-    ok: false,
-    code: "UNTRUSTED_CITATION",
-  });
+  assertFailureCode(deceptive, "UNTRUSTED_CITATION");
 
   const legalDetail = await searchReferenceLegalSources(
     { enabled: true, apiKey: "fake-secret" },
@@ -516,10 +588,10 @@ test("reference search rejects deceptive domains and legal detail claims", async
         }),
     },
   );
-  assert.deepEqual(legalDetail, {
-    ok: false,
-    code: "UNVERIFIED_LEGAL_CLAIM",
-  });
+  assert.equal(legalDetail.ok, true);
+  assert.doesNotMatch(legalDetail.answer, /400|đồng|mức phạt/i);
+  assert.match(legalDetail.answer, /không hiển thị chi tiết pháp lý/i);
+  assert.match(legalDetail.warning, /không phải nguồn chính thống/i);
 
   const missingCitation = await searchReferenceLegalSources(
     { enabled: true, apiKey: "fake-secret" },
@@ -528,14 +600,14 @@ test("reference search rejects deceptive domains and legal detail claims", async
       fetch: async () =>
         providerResponse({
           annotations: [],
+          consultedSources: [
+            { type: "url", url: "https://evil.test/not-allowed" },
+          ],
           text: "Kết luận: Hãy chọn cách di chuyển an toàn hơn.",
         }),
     },
   );
-  assert.deepEqual(missingCitation, {
-    ok: false,
-    code: "MISSING_REFERENCE_CITATION",
-  });
+  assertFailureCode(missingCitation, "MISSING_REFERENCE_CITATION");
 });
 
 test("fails closed when final citation is discovery-only or authority is deceptive", async () => {
@@ -552,7 +624,7 @@ test("fails closed when final citation is discovery-only or authority is decepti
       "Quy định này là gì?",
       { fetch: async () => providerResponse({ url }) },
     );
-    assert.deepEqual(result, { ok: false, code });
+    assertFailureCode(result, code);
   }
 });
 
@@ -562,10 +634,7 @@ test("fails closed when the final answer has no official citation", async () => 
     "Quy định này là gì?",
     { fetch: async () => providerResponse({ annotations: [] }) },
   );
-  assert.deepEqual(result, {
-    ok: false,
-    code: "MISSING_OFFICIAL_CITATION",
-  });
+  assertFailureCode(result, "MISSING_OFFICIAL_CITATION");
 });
 
 test("fails closed when direct web prose contains unreviewed legal claims", async () => {
@@ -583,10 +652,7 @@ test("fails closed when direct web prose contains unreviewed legal claims", asyn
       "Quy định này là gì?",
       { fetch: async () => providerResponse({ text }) },
     );
-    assert.deepEqual(result, {
-      ok: false,
-      code: "UNVERIFIED_LEGAL_CLAIM",
-    });
+    assertFailureCode(result, "UNVERIFIED_LEGAL_CLAIM");
   }
 });
 
@@ -849,7 +915,9 @@ test("chat falls back to a non-persisted reference for đi xe máy tống 3", as
   let referenceCalls = 0;
   let reserveCalls = 0;
   let settleCalls = 0;
+  const settledTokenCounts = [];
   let persisted = 0;
+  const events = [];
   Object.assign(globalThis.__webSearchWorkerEnv, {
     AI_WEB_SEARCH_ENABLED: "true",
     OPENAI_API_KEY: "test-key",
@@ -857,7 +925,7 @@ test("chat falls back to a non-persisted reference for đi xe máy tống 3", as
   });
   const chat = createChatHandler({
     limiter: () => ({ consumeChat: async () => allowed }),
-    telemetry: { emit() {} },
+    telemetry: { emit: (event) => events.push(event) },
     managedAnswer: async () => null,
     curatedAnswer: () => null,
     reviewedWebAnswer: async () => null,
@@ -868,8 +936,9 @@ test("chat falls back to a non-persisted reference for đi xe máy tống 3", as
         reservedTokens: 12_000,
       };
     },
-    settleWebBudget: async () => {
+    settleWebBudget: async (_reservation, actualTokens) => {
       settleCalls += 1;
+      settledTokenCounts.push(actualTokens);
       return true;
     },
     persistWebCandidate: async () => {
@@ -879,7 +948,16 @@ test("chat falls back to a non-persisted reference for đi xe máy tống 3", as
     webSearch: async (_config, question) => {
       officialCalls += 1;
       assert.equal(question, "đi xe máy tống 3");
-      return { ok: false, code: "MISSING_OFFICIAL_CITATION" };
+      return {
+        ok: false,
+        code: "MISSING_OFFICIAL_CITATION",
+        model: "gpt-5.4-mini",
+        usage: {
+          inputTokens: 10,
+          outputTokens: 4,
+          totalTokens: 14,
+        },
+      };
     },
     referenceWebSearch: async (_config, question) => {
       referenceCalls += 1;
@@ -925,7 +1003,49 @@ test("chat falls back to a non-persisted reference for đi xe máy tống 3", as
   assert.equal(referenceCalls, 1);
   assert.equal(reserveCalls, 2);
   assert.equal(settleCalls, 2);
+  assert.deepEqual(settledTokenCounts, [14, 4]);
   assert.equal(persisted, 0);
+  assert.equal(events[0].providerRequestCount, 2);
+  assert.equal(events[0].providerInputTokens, 12);
+  assert.equal(events[0].providerOutputTokens, 6);
+  for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
+    delete globalThis.__webSearchWorkerEnv[key];
+  }
+});
+
+test("chat retries an unsafe official answer through the stricter reference policy", async () => {
+  let referenceCalls = 0;
+  Object.assign(globalThis.__webSearchWorkerEnv, {
+    AI_WEB_SEARCH_ENABLED: "true",
+    OPENAI_API_KEY: "test-key",
+    OPENAI_MODEL: "gpt-5.4-mini",
+  });
+  const chat = createChatHandler({
+    limiter: () => ({ consumeChat: async () => allowed }),
+    telemetry: { emit() {} },
+    managedAnswer: async () => null,
+    curatedAnswer: () => null,
+    reviewedWebAnswer: async () => null,
+    reserveWebBudget: async () => ({
+      dayStart: 1,
+      reservedTokens: 12_000,
+    }),
+    settleWebBudget: async () => true,
+    webSearch: async () => ({
+      ok: false,
+      code: "UNVERIFIED_LEGAL_CLAIM",
+      model: "gpt-5.4-mini",
+      usage: { inputTokens: 10, outputTokens: 4, totalTokens: 14 },
+    }),
+    referenceWebSearch: async () => {
+      referenceCalls += 1;
+      return { ok: false, code: "MISSING_REFERENCE_CITATION" };
+    },
+  });
+
+  const response = await chat(chatRequest("đi xe máy tống 3"));
+  assert.equal((await response.json()).mode, "unavailable");
+  assert.equal(referenceCalls, 1);
   for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
     delete globalThis.__webSearchWorkerEnv[key];
   }
@@ -985,6 +1105,10 @@ test("chat records rejected direct legal claims as invalid provider output", asy
     }),
     settleWebBudget: async () => true,
     webSearch: async () => ({
+      ok: false,
+      code: "UNVERIFIED_LEGAL_CLAIM",
+    }),
+    referenceWebSearch: async () => ({
       ok: false,
       code: "UNVERIFIED_LEGAL_CLAIM",
     }),

@@ -39,7 +39,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-005 — Showcase public đầy đủ | P1 | Done | Full-stack + Code review | Public projector + 503/no-store dependency contract; exact client DTO; UI render toàn bộ API order theo stable ID, đủ field/source, loading/empty/degraded và accessible detail dialog/focus recovery; focused 15/15, current full 198/198 pass | 2026-07-31 |
 | US-006 — Chat ưu tiên kho kiến thức | P0 | Partial | Full-stack | Rendered/chat suite 15/15 pass; vẫn chưa đủ bốn nhóm kiến thức nền theo AC | 2026-07-31 |
 | US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
-| US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Readable sections + warning/source UI và direct-claim guard đã verified: focused 21/21, type/lint/build và live browser/320px pass. Full suite 236/239; 3 failure cũ do migration 0006 và ledger expectations. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
+| US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Official-first/reference-second, warning/source UI, no-persist reference và direct-claim guard đã verified: focused 28/28, type/lint/build và live browser pass. Full suite 243/246; 3 failure cũ do migration 0006 và ledger expectations. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
 | US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; new revision requires issuedAt while legacy snapshot stays retrievable; focused 5/5, combined 26/26, current full 236/239 (3 migration-ledger failures cũ), type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
@@ -77,8 +77,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-31 | DEC-008 | Catalog snapshot có `available_records|available_empty|unavailable`; success-empty là static overlay ready, unavailable mới degraded 200/no-store; reviewed suppression chặn static resurrection. | US-017 |
 | 2026-07-31 | DEC-009 | AI integration đầu tiên chỉ là offline/local shadow, không import chat/API; `AI_SHADOW_ENABLED=false`, exact allowlist `gpt-5.4-mini|gpt-5.4-mini-2026-03-17`, `store:false`, không web/tool/persist. Route shadow chờ production bundle + `waitUntil` seam. | US-026, US-004 |
 | 2026-07-31 | DEC-010 | RAG no-match có thể gọi direct web search có kiểm soát; chỉ final official citation qua exact URL guard được trả, Thư Viện Pháp Luật discovery-only, output gắn nhãn. Phần không persist được DEC-011 thay hẹp bằng draft-only persistence. | US-027 |
-| 2026-07-31 | DEC-012 | Official web search luôn chạy trước; official no-result được phép chạy reference search trên exact allowlist `thuvienphapluat.vn`. Reference phải ghi rõ không chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist/RAG. | US-027 |
 | 2026-07-31 | DEC-011 | Web result qua official guard được persist thành immutable draft không chứa raw question; chỉ authenticated four-eyes approval mới đưa vào reviewed retrieval/RAG. | US-028, US-013, US-014, US-025 |
+| 2026-07-31 | DEC-012 | Official web search luôn chạy trước; official no-result được phép chạy reference search trên exact allowlist `thuvienphapluat.vn`. Reference phải ghi rõ không chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist/RAG. | US-027 |
 
 ### 2026-07-31 — US-004 chat presentation specification
 
@@ -395,14 +395,23 @@ này.
   candidate persistence.
 - `lib/openai-web-search.ts` tách official/reference policy và không còn chặn
   mọi chữ số; số mô tả tình huống được phép nhưng số tiền, văn bản,
-  điều-khoản, ngày/tuổi và ngưỡng pháp lý vẫn fail closed.
+  điều-khoản, ngày/tuổi và ngưỡng pháp lý — gồm cách viết hỗn hợp/bằng chữ —
+  không được public. Với reference, provider prose có chi tiết này bị bỏ toàn
+  bộ và thay bằng safe fallback cố định; source/DTO sai vẫn fail closed.
 - `/api/chat` reserve/settle budget riêng cho lượt reference, trả
   `sourceKind=reference`, không gọi persistence; UI hiển thị “Thông tin tham
   khảo — chưa xác minh” và “Nguồn tham khảo ngoài — cần xác minh”.
+- Completed failure giữ usage/model để settle đúng token thực; telemetry hai
+  lượt ghi `providerRequestCount=2` và tổng input/output. Runtime UI helper được
+  test với `sourceKind=reference`; sourceKind thiếu/sai fail-safe về official
+  parser và không thể gắn nhãn sai cho reference URL.
 - Focused test xác nhận official-first/reference-second, exact HTTPS authority,
   domain giả, output pháp lý định lượng, không persist và câu “đi xe máy tống
-  3”. Live API smoke với key hiện có: official adapter no-result thì reference
-  thành công trên `thuvienphapluat.vn`, warning có mặt, không có legal detail.
+  3”: **28/28 pass**. `npx tsc --noEmit`, ESLint, Vinext build: **pass**. Full
+  suite **243/246**; ba failure là baseline migration-ledger 0006/0005, không
+  thuộc slice này. Live API smoke với key hiện có: official adapter no-result
+  thì reference thành công trên `thuvienphapluat.vn`, warning có mặt, không có
+  legal detail.
 - Live UI `/api/chat` với đúng câu trên trả HTTP 200 bằng nguồn official
   `vbpl.vn` trong 4,2 giây; giao diện hiển thị section ngắn, warning trước nội
   dung và link nguồn chính thức. `/api/content` local vẫn 503 do dependency

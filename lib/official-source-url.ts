@@ -5,6 +5,14 @@ export type OfficialSourceLink = {
 
 export type PublicSourceKind = "official" | "reference";
 
+export type PublicSourceUiCopy = {
+  warningTitle: string;
+  groupTitle: string;
+  fallbackTitle: string;
+  openAction: string;
+  openAriaPrefix: string;
+};
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -98,4 +106,38 @@ export function parseReferenceSourceLinks(
   maximum = 8,
 ): OfficialSourceLink[] {
   return parseSourceLinks(value, canonicalReferenceSourceUrl, maximum);
+}
+
+export function parsePublicSourceLinks(
+  value: unknown,
+  sourceKind: unknown,
+  maximum = 8,
+) {
+  return sourceKind === "reference"
+    ? parseReferenceSourceLinks(value, maximum)
+    : parseOfficialSourceLinks(value, maximum);
+}
+
+export function publicSourceUiCopy(
+  sourceKind: unknown,
+  hasWarning: boolean,
+): PublicSourceUiCopy {
+  if (sourceKind === "reference") {
+    return {
+      warningTitle: "Thông tin tham khảo — chưa xác minh",
+      groupTitle: "Nguồn tham khảo ngoài — cần xác minh",
+      fallbackTitle: "Nguồn tham khảo",
+      openAction: "Mở nguồn tham khảo ↗",
+      openAriaPrefix: "Mở nguồn tham khảo cần xác minh",
+    };
+  }
+  return {
+    warningTitle: "Kết quả tra cứu tự động",
+    groupTitle: hasWarning
+      ? "Nguồn chính thức đã tra cứu"
+      : "Nguồn chính thức",
+    fallbackTitle: "Văn bản Chính phủ",
+    openAction: "Mở nguồn chính thức ↗",
+    openAriaPrefix: "Mở nguồn chính thức",
+  };
 }

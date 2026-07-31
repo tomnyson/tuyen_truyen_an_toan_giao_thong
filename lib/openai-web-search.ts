@@ -41,6 +41,10 @@ export const WEB_SEARCH_WARNING =
   "Đây là kết quả AI tra cứu trực tuyến từ nguồn Chính phủ và chưa đi qua quy trình kiểm duyệt nội dung của cổng. Bạn nên mở nguồn bên dưới để kiểm tra trước khi áp dụng.";
 export const REFERENCE_SEARCH_WARNING =
   "Đây là kết quả AI từ nguồn tham khảo ngoài, không phải nguồn chính thống và chưa được cổng kiểm duyệt. Bạn cần xác minh lại bằng văn bản hoặc cơ quan chính thức trước khi áp dụng.";
+const REFERENCE_SAFE_FALLBACK_ANSWER = [
+  "Kết luận: Đã tìm thấy nội dung tham khảo liên quan đến tình huống bạn nêu, nhưng hệ thống không hiển thị chi tiết pháp lý chưa được xác minh.",
+  "Bạn nên làm gì: Hãy mở nguồn tham khảo bên dưới và đối chiếu lại với văn bản hoặc cơ quan chính thức trước khi áp dụng.",
+].join("\n");
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_PROVIDER_RESPONSE_BYTES = 1_000_000;
@@ -62,9 +66,10 @@ Quy tắc bắt buộc:
 - Nếu không tìm được nguồn Chính phủ hỗ trợ câu trả lời, hãy nói chưa đủ nguồn
   để trả lời; không suy đoán điều, khoản, ngày, độ tuổi hay mức tiền.
 - Direct fallback này chưa được phép công khai số hiệu văn bản, điều/khoản/điểm,
-  ngày pháp lý, độ tuổi áp dụng hoặc mức tiền. Không viết các dữ liệu đó trong
-  câu trả lời, kể cả khi trang web có nêu; người dùng sẽ mở nguồn bên dưới và
-  dữ liệu chi tiết chỉ được hiển thị sau khi biên tập viên kiểm duyệt.
+  ngày pháp lý, độ tuổi, số lượng/ngưỡng áp dụng hoặc mức tiền. Không viết các
+  dữ liệu đó trong câu trả lời, kể cả khi trang web có nêu; người dùng sẽ mở
+  nguồn bên dưới và dữ liệu chi tiết chỉ được hiển thị sau khi biên tập viên
+  kiểm duyệt.
 - Trả lời tối đa bốn phần theo đúng thứ tự và nhãn: "Kết luận:",
   "Giải thích:", "Bạn nên làm gì:", "Lưu ý:". Chỉ thêm phần có nội dung.
 - Viết plain text, câu và đoạn ngắn. Không dùng Markdown, HTML, JSON, code,
@@ -86,8 +91,8 @@ Quy tắc bắt buộc:
 - Chỉ giải thích hành vi/tình huống và gợi ý an toàn chung. Không viết số tiền,
   số hiệu văn bản, điều/khoản/điểm, ngày pháp lý, độ tuổi hay ngưỡng pháp lý;
   không suy đoán chi tiết còn thiếu.
-- Có thể nhắc lại con số mô tả tình huống trong câu hỏi, ví dụ "chở 3 người",
-  nhưng không được biến nó thành một giới hạn hoặc ngưỡng pháp lý.
+- Không nhắc lại chữ số hoặc số lượng từ câu hỏi. Hãy dùng cụm “tình huống bạn
+  nêu” để tránh biến số mô tả thành một giới hạn hoặc ngưỡng pháp lý.
 - Trả lời tối đa bốn phần theo đúng thứ tự và nhãn: "Kết luận:",
   "Giải thích:", "Bạn nên làm gì:", "Lưu ý:". Chỉ thêm phần có nội dung.
 - Viết plain text, câu và đoạn ngắn. Không dùng Markdown, HTML, JSON, code,
@@ -107,6 +112,12 @@ export type OpenAiWebSearchConfig = {
 export type OfficialWebSource = {
   title: string;
   url: string;
+};
+
+export type OpenAiWebSearchUsage = {
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
 };
 
 export type OpenAiWebSearchFailureCode =
@@ -132,15 +143,13 @@ export type OpenAiWebSearchResult =
       sources: OfficialWebSource[];
       warning: string;
       model: string;
-      usage: {
-        inputTokens: number | null;
-        outputTokens: number | null;
-        totalTokens: number | null;
-      };
+      usage: OpenAiWebSearchUsage;
     }
   | {
       ok: false;
       code: OpenAiWebSearchFailureCode;
+      model?: string;
+      usage?: OpenAiWebSearchUsage;
     };
 
 type FetchLike = (
@@ -159,8 +168,21 @@ type CitationAnnotation = {
   endIndex: number;
 };
 
+type ConsultedSource = {
+  url: string;
+  title: string;
+};
+
 function failure(code: OpenAiWebSearchFailureCode): OpenAiWebSearchResult {
   return { ok: false, code };
+}
+
+function completedFailure(
+  code: OpenAiWebSearchFailureCode,
+  model: string,
+  usage: OpenAiWebSearchUsage,
+): OpenAiWebSearchResult {
+  return { ok: false, code, model, usage };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -302,6 +324,35 @@ function extractFinalTextAndCitations(
   return { text: textItems[0].text, citations };
 }
 
+function extractConsultedSources(
+  payload: Record<string, unknown>,
+  fallbackSourceTitle: string,
+): ConsultedSource[] {
+  if (!Array.isArray(payload.output)) return [];
+  const sources: ConsultedSource[] = [];
+  for (const item of payload.output) {
+    if (
+      !isPlainObject(item) ||
+      item.type !== "web_search_call" ||
+      !isPlainObject(item.action) ||
+      !Array.isArray(item.action.sources)
+    ) {
+      continue;
+    }
+    for (const source of item.action.sources) {
+      if (!isPlainObject(source) || !isNonEmptyString(source.url)) continue;
+      sources.push({
+        url: source.url,
+        title:
+          isNonEmptyString(source.title) && source.title.length <= 240
+            ? source.title.trim()
+            : fallbackSourceTitle,
+      });
+    }
+  }
+  return sources;
+}
+
 async function readBoundedBody(
   response: Response,
   signal: AbortSignal,
@@ -348,10 +399,18 @@ export function containsUnverifiedLegalClaim(value: string) {
     ) ||
     /\b\d{1,4}\s*\/\s*\d{4}(?:\s*\/\s*[a-z\d-]+)?\b/.test(normalized) ||
     /\b\d{1,4}[-/]\d{1,2}[-/]\d{1,4}\b/.test(normalized) ||
-    /\b(?:diem\s+[a-z\d]+(?:\s+khoan\s+\d+)?|khoan\s+\d+|dieu\s+\d+)\b/.test(
+    /\b\d{1,2}\s+thang\s+\d{1,2}\s+nam\s+\d{4}\b/.test(normalized) ||
+    /\bngay\s+\d{1,2}\s+thang\s+\d{1,2}\s+nam\s+\d{4}\b/.test(
+      normalized,
+    ) ||
+    /\b(?:nghi dinh|thong tu|luat|quyet dinh)\s+(?:so\s+)?\d+\s+nam\s+\d{4}\b/.test(
+      normalized,
+    ) ||
+    /\b(?:diem\s+[a-z\d]+(?:\s+khoan\s+\d+[a-z]?)?|khoan\s+\d+[a-z]?|dieu\s+\d+[a-z]?)\b/.test(
       normalized,
     ) ||
     /\b(?:tu\s+du\s+)?\d+\s+tuoi\b/.test(normalized) ||
+    /\b\d+\s*(?:nguoi|lan|km\/h|cc|cm3)\b/.test(normalized) ||
     /\b(?:toi da|it nhat|khong qua|duoc phep|chi duoc|cam|vi pham|xu phat)\b.{0,40}\b\d+\s*(?:nguoi|lan|km\/h|cc|cm3)\b/.test(
       normalized,
     ) ||
@@ -369,6 +428,10 @@ export function containsUnverifiedLegalClaim(value: string) {
     ).test(normalized) ||
     new RegExp(
       `\\b(?:tu\\s+du\\s+)?${numberWord}(?:[\\s-]+${numberWord})*\\s+tuoi\\b`,
+      "i",
+    ).test(normalized) ||
+    new RegExp(
+      `\\b${numberWord}(?:[\\s-]+${numberWord})*\\s*(?:nguoi|lan|km\\/h|cc|cm3)\\b`,
       "i",
     ).test(normalized)
   );
@@ -499,22 +562,53 @@ async function searchLegalSources(
     return failure("INVALID_OUTPUT");
   }
 
+  const usageObject = isPlainObject(payload.usage) ? payload.usage : {};
+  const usage: OpenAiWebSearchUsage = {
+    inputTokens: tokenCount(usageObject.input_tokens),
+    outputTokens: tokenCount(usageObject.output_tokens),
+    totalTokens: tokenCount(usageObject.total_tokens),
+  };
   const final = extractFinalTextAndCitations(
     payload,
     policy.fallbackSourceTitle,
   );
-  if (!final) return failure("INVALID_OUTPUT");
-  if (final.citations.length === 0) {
-    return failure(policy.missingCitationCode);
+  if (!final) return completedFailure("INVALID_OUTPUT", providerModel, usage);
+  const usesFinalCitations = final.citations.length > 0;
+  const sourceCandidates: ConsultedSource[] = usesFinalCitations
+    ? final.citations
+    : policy.sourceKind === "reference"
+      ? extractConsultedSources(payload, policy.fallbackSourceTitle)
+      : [];
+  if (sourceCandidates.length === 0) {
+    return completedFailure(
+      policy.missingCitationCode,
+      providerModel,
+      usage,
+    );
   }
-  if (containsUnverifiedLegalClaim(final.text)) {
-    return failure("UNVERIFIED_LEGAL_CLAIM");
+  const containsUnsafeLegalDetail = containsUnverifiedLegalClaim(final.text);
+  if (containsUnsafeLegalDetail && policy.sourceKind !== "reference") {
+    return completedFailure(
+      "UNVERIFIED_LEGAL_CLAIM",
+      providerModel,
+      usage,
+    );
   }
+  const publicText = containsUnsafeLegalDetail
+    ? REFERENCE_SAFE_FALLBACK_ANSWER
+    : final.text;
 
   const sourceMap = new Map<string, OfficialWebSource>();
-  for (const citation of final.citations) {
+  for (const citation of sourceCandidates) {
     const canonicalUrl = policy.canonicalizeSourceUrl(citation.url);
-    if (!canonicalUrl) return failure("UNTRUSTED_CITATION");
+    if (!canonicalUrl) {
+      if (!usesFinalCitations && policy.sourceKind === "reference") continue;
+      return completedFailure(
+        "UNTRUSTED_CITATION",
+        providerModel,
+        usage,
+      );
+    }
     if (!sourceMap.has(canonicalUrl) && sourceMap.size < MAX_SOURCES) {
       sourceMap.set(canonicalUrl, {
         title: citation.title,
@@ -522,18 +616,29 @@ async function searchLegalSources(
       });
     }
   }
-  if (sourceMap.size === 0) return failure(policy.missingCitationCode);
-  const presentation = projectPublicWebSearchAnswer(final.text);
-  if (!presentation) return failure("INVALID_OUTPUT");
+  if (sourceMap.size === 0) {
+    return completedFailure(
+      policy.missingCitationCode,
+      providerModel,
+      usage,
+    );
+  }
+  const presentation = projectPublicWebSearchAnswer(publicText);
+  if (!presentation) {
+    return completedFailure("INVALID_OUTPUT", providerModel, usage);
+  }
   if (
     presentation.sections.some((section) =>
       ["legal_basis", "sanctions", "legal_remedies"].includes(section.kind),
     )
   ) {
-    return failure("UNVERIFIED_LEGAL_CLAIM");
+    return completedFailure(
+      "UNVERIFIED_LEGAL_CLAIM",
+      providerModel,
+      usage,
+    );
   }
 
-  const usage = isPlainObject(payload.usage) ? payload.usage : {};
   return {
     ok: true,
     sourceKind: policy.sourceKind,
@@ -542,11 +647,7 @@ async function searchLegalSources(
     sources: [...sourceMap.values()],
     warning: policy.warning,
     model: providerModel,
-    usage: {
-      inputTokens: tokenCount(usage.input_tokens),
-      outputTokens: tokenCount(usage.output_tokens),
-      totalTokens: tokenCount(usage.total_tokens),
-    },
+    usage,
   };
 }
 

@@ -79,6 +79,16 @@ function unavailableResponse() {
   });
 }
 
+function sumKnownTokenCounts(...values: Array<number | null | undefined>) {
+  const known = values.filter(
+    (value): value is number =>
+      typeof value === "number" && Number.isInteger(value) && value >= 0,
+  );
+  return known.length > 0
+    ? known.reduce((total, value) => total + value, 0)
+    : undefined;
+}
+
 type ChatHandlerDependencies = {
   limiter: () => {
     consumeChat(request: Request): Promise<RateLimitDecision>;
@@ -131,6 +141,7 @@ export function createChatHandler(
       metadata: {
         candidateIds?: string[];
         providerModel?: string;
+        providerRequestCount?: number;
         providerInputTokens?: number;
         providerOutputTokens?: number;
         providerOutcome?: "success" | "timeout" | "error" | "refusal" | "invalid_output";
@@ -309,7 +320,7 @@ export function createChatHandler(
         reservation,
         searched.ok
           ? searched.usage.totalTokens
-          : reservation.reservedTokens,
+          : searched.usage?.totalTokens ?? reservation.reservedTokens,
       );
       if (!settled) {
         return complete(
@@ -332,6 +343,7 @@ export function createChatHandler(
             WEB_SEARCH_POLICY_VERSION,
             {
               providerOutcome: "invalid_output",
+              providerRequestCount: 1,
               providerModel: searched.model,
               providerInputTokens: searched.usage.inputTokens ?? undefined,
               providerOutputTokens: searched.usage.outputTokens ?? undefined,
@@ -356,6 +368,7 @@ export function createChatHandler(
             WEB_SEARCH_CANDIDATE_POLICY_VERSION,
             {
               providerOutcome: "success",
+              providerRequestCount: 1,
               providerModel: searched.model,
               providerInputTokens: searched.usage.inputTokens ?? undefined,
               providerOutputTokens: searched.usage.outputTokens ?? undefined,
@@ -384,6 +397,7 @@ export function createChatHandler(
           {
             candidateIds: [candidateId],
             providerOutcome: "success",
+            providerRequestCount: 1,
             providerModel: searched.model,
             providerInputTokens: searched.usage.inputTokens ?? undefined,
             providerOutputTokens: searched.usage.outputTokens ?? undefined,
@@ -392,7 +406,8 @@ export function createChatHandler(
       }
 
       const canUseReferenceFallback =
-        searched.code === "MISSING_OFFICIAL_CITATION";
+        searched.code === "MISSING_OFFICIAL_CITATION" ||
+        searched.code === "UNVERIFIED_LEGAL_CLAIM";
       if (canUseReferenceFallback) {
         // DEC-012: reference search has its own reservation because it is a
         // second provider request. Its result is live-only and never enters
@@ -414,7 +429,8 @@ export function createChatHandler(
           referenceReservation,
           referenceResult.ok
             ? referenceResult.usage.totalTokens
-            : referenceReservation.reservedTokens,
+            : referenceResult.usage?.totalTokens ??
+                referenceReservation.reservedTokens,
         );
         if (!referenceSettled) {
           return complete(
@@ -453,11 +469,18 @@ export function createChatHandler(
               REFERENCE_SEARCH_POLICY_VERSION,
               {
                 providerOutcome: "success",
+                providerRequestCount: 2,
                 providerModel: referenceResult.model,
                 providerInputTokens:
-                  referenceResult.usage.inputTokens ?? undefined,
+                  sumKnownTokenCounts(
+                    searched.usage?.inputTokens,
+                    referenceResult.usage.inputTokens,
+                  ),
                 providerOutputTokens:
-                  referenceResult.usage.outputTokens ?? undefined,
+                  sumKnownTokenCounts(
+                    searched.usage?.outputTokens,
+                    referenceResult.usage.outputTokens,
+                  ),
               },
             );
           }
@@ -468,6 +491,17 @@ export function createChatHandler(
           "unavailable",
           REFERENCE_SEARCH_POLICY_VERSION,
           {
+            providerRequestCount: 2,
+            providerModel:
+              referenceResult.model ?? searched.model,
+            providerInputTokens: sumKnownTokenCounts(
+              searched.usage?.inputTokens,
+              referenceResult.usage?.inputTokens,
+            ),
+            providerOutputTokens: sumKnownTokenCounts(
+              searched.usage?.outputTokens,
+              referenceResult.usage?.outputTokens,
+            ),
             providerOutcome:
               !referenceResult.ok &&
               referenceResult.code === "PROVIDER_TIMEOUT"
@@ -482,15 +516,6 @@ export function createChatHandler(
                         referenceResult.code === "MISSING_REFERENCE_CITATION")
                     ? "invalid_output"
                     : "error",
-            ...(!referenceResult.ok
-              ? {}
-              : {
-                  providerModel: referenceResult.model,
-                  providerInputTokens:
-                    referenceResult.usage.inputTokens ?? undefined,
-                  providerOutputTokens:
-                    referenceResult.usage.outputTokens ?? undefined,
-                }),
           },
         );
       }
@@ -501,6 +526,7 @@ export function createChatHandler(
         "unavailable",
         WEB_SEARCH_POLICY_VERSION,
         {
+          providerRequestCount: 1,
           providerOutcome:
             searched.code === "PROVIDER_TIMEOUT"
               ? "timeout"

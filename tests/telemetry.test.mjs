@@ -128,6 +128,7 @@ test("telemetry-v1 serializes only exact bounded allowlisted fields", () => {
     providerOutcome: "success",
     providerLatencyMs: 7.5,
     providerModel: "model-v1",
+    providerRequestCount: 2,
     providerInputTokens: 123,
     providerOutputTokens: 45,
     question: canary,
@@ -151,6 +152,7 @@ test("telemetry-v1 serializes only exact bounded allowlisted fields", () => {
     "providerModel",
     "providerOutcome",
     "providerOutputTokens",
+    "providerRequestCount",
     "rankingVersion",
     "requestId",
     "retrievedRecordIds",
@@ -188,11 +190,13 @@ test("invalid required fields are rejected and optional bounds are dropped", () 
     outcome: "success",
     durationMs: 1,
     providerModel: canary,
+    providerRequestCount: 5,
     providerInputTokens: 99_000_000,
     retrievedRecordIds: [canary],
   });
   const [event] = capture.events();
   assert.equal(event.providerModel, undefined);
+  assert.equal(event.providerRequestCount, undefined);
   assert.equal(event.providerInputTokens, undefined);
   assert.equal(event.retrievedRecordIds, undefined);
   assert.doesNotMatch(JSON.stringify(event), /CANARY|Secret123/);

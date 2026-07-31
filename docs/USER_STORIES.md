@@ -269,7 +269,9 @@ và malformed messages.
   corpus RAG.
 - [x] Câu hỏi đời thường có chữ số như “đi xe máy tống 3” không bị chặn chỉ vì
   có số `3`; nhưng output nguồn tham khảo có số tiền, số hiệu văn bản,
-  điều-khoản-điểm, ngày/tuổi hoặc ngưỡng pháp lý vẫn fail closed.
+  điều-khoản-điểm, ngày/tuổi hoặc ngưỡng pháp lý không được public: provider
+  text bị bỏ toàn bộ và thay bằng safe fallback cố định, hoặc fail closed nếu
+  source/DTO không hợp lệ.
 - [x] Có regression test cho chuỗi tìm kiếm “đi xe máy tống 3”, thứ tự
   official-first/reference-second, nhãn UI, exact-domain guard và không persist
   nguồn tham khảo.
@@ -301,16 +303,17 @@ official links; `.env.example` giữ rollback flag mặc định false.
 `lib/chat-answer-presentation.ts` chiếu provider/reviewed answer thành bounded
 section DTO, loại markup/URL khỏi prose và chỉ để structured `sources` tạo link.
 `tests/openai-web-search.test.mjs` có regression official-first/reference-second,
-exact reference guard, không persist và câu “đi xe máy tống 3”; typecheck, lint
-và build
+exact reference guard, runtime UI copy/parser, không persist, budget/telemetry
+hai lượt và câu “đi xe máy tống 3”; typecheck, lint và build
 pass ngày 2026-07-31. Browser smoke với live web-search xác nhận warning đứng
 trước 4 section, source link thân thiện, không có raw Markdown/URL; viewport
-320px có chat panel 296px và không tràn ngang. Full suite 240/243; ba failure
+320px có chat panel 296px và không tràn ngang. Full suite 243/246; ba failure
 không thuộc thay đổi này do commit migration `0006_petite_lady_deathstrike` làm
 test ledger cũ vẫn kỳ vọng `0005` là migration cuối. Story giữ `Partial` vì
 canonical US-004 và production data-control,
 under-18 disclosure, budget/rate limit/telemetry và rollout review còn mở.
-Safety/presentation increment cùng ngày nâng focused suite lên **21/21**:
+Safety/presentation/reference increment cùng ngày nâng focused suite lên
+**28/28**:
 direct web có amount/article/document/date/age claim hoặc section pháp lý
 canonical bị từ chối `UNVERIFIED_LEGAL_CLAIM`; source Chính phủ đơn thuần không
 được coi là claim validation.

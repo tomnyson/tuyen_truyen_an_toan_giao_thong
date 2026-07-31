@@ -1519,6 +1519,21 @@ failure/quarantine/DLQ và gắn owner xử lý.
   hiệu văn bản, điều/khoản/điểm, ngày/tuổi và ngưỡng pháp lý. Reference result
   là live/no-store: không gọi candidate persistence và không tham gia evidence
   graph hoặc RAG.
+- Nếu reference provider text chứa chi tiết pháp lý định lượng, server bỏ toàn
+  bộ provider prose và dùng safe fallback cố định chỉ nói đã tìm thấy nội dung
+  tham khảo/cần đối chiếu; không sửa từng claim. Source vẫn phải qua exact URL
+  guard, nếu không thì fail closed.
+- Reference ưu tiên final `url_citation`; nếu model không annotate final safe
+  prose, server được dùng complete consulted sources từ
+  `web_search_call.action.sources`, nhưng chỉ giữ URL qua exact reference guard.
+  Official result vẫn bắt buộc final citation, không dùng ngoại lệ này.
+- Failure sau completed provider response giữ aggregate usage/model an toàn để
+  settle đúng token thực tế. Nếu chạy hai lượt, telemetry ghi
+  `providerRequestCount=2` và tổng input/output tokens của cả official lẫn
+  reference; không ghi câu hỏi, answer hoặc URL.
+- Numeric guard bao phủ cả cách viết hỗn hợp/phổ biến như `Điều 7a`,
+  `ngày 1 tháng 1 năm 2025`, `Nghị định số 168 năm 2024` và ngưỡng viết bằng
+  chữ; test vẫn cho phép số chỉ mô tả tình huống không kèm kết luận định lượng.
 - Timeout, non-2xx, refusal, incomplete/malformed/oversized response hoặc model
   mismatch fail closed về `unavailable`. Thiếu official final citation chỉ mở
   lượt reference theo DEC-012; reference validation/provider failure vẫn

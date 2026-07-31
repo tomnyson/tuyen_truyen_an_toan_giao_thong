@@ -1533,7 +1533,9 @@ failure/quarantine/DLQ và gắn owner xử lý.
   reference; không ghi câu hỏi, answer hoặc URL.
 - Numeric guard bao phủ cả cách viết hỗn hợp/phổ biến như `Điều 7a`,
   `ngày 1 tháng 1 năm 2025`, `Nghị định số 168 năm 2024` và ngưỡng viết bằng
-  chữ; test vẫn cho phép số chỉ mô tả tình huống không kèm kết luận định lượng.
+  chữ. Superscript/đơn vị Việt hóa như `cm³`, `phân khối`, `km/giờ` phải được
+  normalize và chặn; test vẫn cho phép số chỉ mô tả tình huống không kèm đơn vị
+  hoặc kết luận định lượng.
 - Timeout, non-2xx, refusal, incomplete/malformed/oversized response hoặc model
   mismatch fail closed về `unavailable`. Thiếu official final citation chỉ mở
   lượt reference theo DEC-012; reference validation/provider failure vẫn

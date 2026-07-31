@@ -396,8 +396,9 @@ này.
 - `lib/openai-web-search.ts` tách official/reference policy và không còn chặn
   mọi chữ số; số mô tả tình huống được phép nhưng số tiền, văn bản,
   điều-khoản, ngày/tuổi và ngưỡng pháp lý — gồm cách viết hỗn hợp/bằng chữ —
-  không được public. Với reference, provider prose có chi tiết này bị bỏ toàn
-  bộ và thay bằng safe fallback cố định; source/DTO sai vẫn fail closed.
+  không được public. Guard normalize cả `cm³`, `phân khối`, `km/giờ`. Với
+  reference, provider prose có chi tiết này bị bỏ toàn bộ và thay bằng safe
+  fallback cố định; source/DTO sai vẫn fail closed.
 - `/api/chat` reserve/settle budget riêng cho lượt reference, trả
   `sourceKind=reference`, không gọi persistence; UI hiển thị “Thông tin tham
   khảo — chưa xác minh” và “Nguồn tham khảo ngoài — cần xác minh”.

@@ -248,6 +248,9 @@ test("detects legal amounts, provisions, document numbers, dates and ages in dir
     "Không được chở quá hai người.",
     "Xe được chở hai người.",
     "Có hiệu lực từ 01 tháng 01 năm 2025.",
+    "Xe có dung tích 50 cm³.",
+    "Xe có dung tích 50 phân khối.",
+    "Giới hạn tốc độ 50 km/giờ.",
   ]) {
     assert.equal(containsUnverifiedLegalClaim(claim), true, claim);
   }

@@ -390,7 +390,8 @@ export function containsUnverifiedLegalClaim(value: string) {
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
-    .replace(/đ/g, "d");
+    .replace(/đ/g, "d")
+    .replace(/³/g, "3");
   const numberWord =
     "(?:khong|mot|hai|ba|bon|tu|nam|lam|sau|bay|tam|chin|muoi|tram|nghin|ngan|trieu|ty)";
   return (
@@ -410,7 +411,9 @@ export function containsUnverifiedLegalClaim(value: string) {
       normalized,
     ) ||
     /\b(?:tu\s+du\s+)?\d+\s+tuoi\b/.test(normalized) ||
-    /\b\d+\s*(?:nguoi|lan|km\/h|cc|cm3)\b/.test(normalized) ||
+    /\b\d+\s*(?:nguoi|lan|km\/h|km\/gio|cc|cm3|phan\s+khoi)\b/.test(
+      normalized,
+    ) ||
     /\b(?:toi da|it nhat|khong qua|duoc phep|chi duoc|cam|vi pham|xu phat)\b.{0,40}\b\d+\s*(?:nguoi|lan|km\/h|cc|cm3)\b/.test(
       normalized,
     ) ||
@@ -431,7 +434,7 @@ export function containsUnverifiedLegalClaim(value: string) {
       "i",
     ).test(normalized) ||
     new RegExp(
-      `\\b${numberWord}(?:[\\s-]+${numberWord})*\\s*(?:nguoi|lan|km\\/h|cc|cm3)\\b`,
+      `\\b${numberWord}(?:[\\s-]+${numberWord})*\\s*(?:nguoi|lan|km\\/h|km\\/gio|cc|cm3|phan\\s+khoi)\\b`,
       "i",
     ).test(normalized)
   );

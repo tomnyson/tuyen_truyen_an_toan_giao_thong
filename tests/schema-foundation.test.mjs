@@ -18,7 +18,7 @@ const [
   readFile(new URL("drizzle/0000_groovy_cerise.sql", repositoryRoot), "utf8"),
   readFile(new URL("drizzle/0001_citation_foundation.sql", repositoryRoot), "utf8"),
   readFile(new URL("drizzle/0002_reviewed_rag_bridge.sql", repositoryRoot), "utf8"),
-  readFile(new URL("db/index.ts", repositoryRoot), "utf8"),
+  readFile(new URL("db/pg-bootstrap.ts", repositoryRoot), "utf8"),
   readFile(new URL("drizzle/meta/_journal.json", repositoryRoot), "utf8"),
   readFile(new URL("build/sites-vite-plugin.ts", repositoryRoot), "utf8"),
   readFile(new URL(".openai/hosting.json", repositoryRoot), "utf8"),
@@ -86,7 +86,7 @@ test("declares the citation foundation in Drizzle and bootstrap DDL", () => {
 
   for (const trigger of triggerNames) {
     assert.match(migration, new RegExp(`CREATE TRIGGER IF NOT EXISTS [\`"]${trigger}`));
-    assert.match(bootstrap, new RegExp(`CREATE TRIGGER IF NOT EXISTS ${trigger}`));
+    assert.match(bootstrap, new RegExp(`CREATE OR REPLACE TRIGGER ${trigger}`));
   }
 
   assert.match(schema, /createdBy: text\("created_by"\)\.notNull\(\)/);

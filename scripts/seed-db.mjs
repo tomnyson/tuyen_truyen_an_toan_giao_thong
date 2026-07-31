@@ -109,13 +109,18 @@ const q = (value) =>
     ? "NULL"
     : `'${String(value).replace(/'/g, "''")}'`;
 
-export async function buildSeedSql(content, { now = () => new Date() } = {}) {
+// Sinh danh sach statement idempotent, dung chung cho Postgres (Neon /
+// PGlite — chay tung cau) va SQLite D1 (ghep kem BEGIN/COMMIT).
+export async function buildSeedStatements(
+  content,
+  { now = () => new Date() } = {},
+) {
   const errors = validateSeedContent(content);
   if (errors.length) {
     throw new Error(`Noi dung seed khong hop le:\n${errors.join("\n")}`);
   }
   const stamp = now().toISOString();
-  const lines = ["BEGIN;"];
+  const lines = [];
 
   const sources = new Map();
   for (const situation of content.situations) {
@@ -209,8 +214,12 @@ WHERE e.topic = ${q(situation.topic)} AND e.title = ${q(situation.title)}
   );`);
   }
 
-  lines.push("COMMIT;");
-  return lines.join("\n");
+  return lines;
+}
+
+export async function buildSeedSql(content, options = {}) {
+  const statements = await buildSeedStatements(content, options);
+  return ["BEGIN;", ...statements, "COMMIT;"].join("\n");
 }
 
 async function findLocalD1Files() {
@@ -223,15 +232,15 @@ async function findLocalD1Files() {
   return files;
 }
 
-const isMain = process.argv[1]?.endsWith("seed-d1.mjs");
+const isMain = process.argv[1]?.endsWith("seed-db.mjs");
 if (isMain) {
   const content = (await import("../db/seeds/seed-content.v1.mjs")).default;
-  const sql = await buildSeedSql(content);
   if (process.argv.includes("--sql-only")) {
-    await writeFile("db/seeds/seed.v1.sql", sql);
-    console.log("Da ghi db/seeds/seed.v1.sql — ap len production bang:");
-    console.log("  wrangler d1 execute DB --remote --file db/seeds/seed.v1.sql");
-  } else {
+    await writeFile("db/seeds/seed.v1.sql", await buildSeedSql(content));
+    console.log("Da ghi db/seeds/seed.v1.sql — ap len Postgres khac bang:");
+    console.log('  psql "$DATABASE_URL" -f db/seeds/seed.v1.sql');
+  } else if (process.argv.includes("--d1")) {
+    // Duong chuyen tiep: van seed vao D1 local (giai doan B se go bo).
     const files = await findLocalD1Files();
     if (files.length === 0) {
       console.error(
@@ -240,14 +249,48 @@ if (isMain) {
       process.exit(1);
     }
     const { DatabaseSync } = await import("node:sqlite");
+    const sqlText = await buildSeedSql(content);
     for (const file of files) {
       const db = new DatabaseSync(file);
       try {
-        db.exec(sql);
-        console.log(`Da seed: ${file}`);
+        db.exec(sqlText);
+        console.log(`Da seed (D1): ${file}`);
       } finally {
         db.close();
       }
+    }
+  } else {
+    // Mac dinh: Neon PostgreSQL qua DATABASE_URL (transaction that su).
+    const url = process.env.DATABASE_URL;
+    if (!url) {
+      console.error(
+        "Thieu DATABASE_URL. Chay: npm run seed (script da kem --env-file=.env.local).",
+      );
+      process.exit(1);
+    }
+    const { Client } = await import("@neondatabase/serverless");
+    const { pgBootstrapStatements } = await import("../db/pg-bootstrap.ts");
+    const client = new Client({ connectionString: url });
+    await client.connect();
+    try {
+      for (const statement of pgBootstrapStatements) {
+        await client.query(statement);
+      }
+      const statements = await buildSeedStatements(content);
+      await client.query("BEGIN");
+      for (const statement of statements) {
+        await client.query(statement);
+      }
+      await client.query("COMMIT");
+      const { rows } = await client.query(
+        "SELECT count(*) AS n FROM legal_entries WHERE created_by = 'seed-editor'",
+      );
+      console.log(`Da seed vao Neon Postgres: ${rows[0].n} legal_entries.`);
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      await client.end();
     }
   }
 }

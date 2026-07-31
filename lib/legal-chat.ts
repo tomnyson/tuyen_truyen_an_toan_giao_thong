@@ -5,7 +5,7 @@ import {
   legalEntryCitations,
   legalProvisions,
   legalSources,
-} from "@/db/schema";
+} from "@/db/pg-schema";
 import {
   hasBlockedLegalBasis,
   laws,

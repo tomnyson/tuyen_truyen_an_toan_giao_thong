@@ -1,18 +1,20 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
-import { DatabaseSync } from "node:sqlite";
 
-// scripts/seed-d1.mjs đăng ký hook trỏ cloudflare:workers tới
-// globalThis.__workerEnvStub (hook đăng ký sau chạy trước) — test dùng chung
-// object đó để gắn binding DB giả.
-const workerEnv = (globalThis.__workerEnvStub ??= {});
+globalThis.__workerEnvStub ??= {};
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "cloudflare:workers") {
       return {
         shortCircuit: true,
         url: "data:text/javascript,globalThis.__workerEnvStub ??= {}; export const env = globalThis.__workerEnvStub;",
+      };
+    }
+    if (specifier === "@/db") {
+      return {
+        shortCircuit: true,
+        url: new URL("../db/index.ts", import.meta.url).href,
       };
     }
     if (specifier.startsWith("@/")) {
@@ -33,47 +35,27 @@ registerHooks({
   },
 });
 
-const { buildSeedSql, validateSeedContent } = await import(
-  "../scripts/seed-d1.mjs"
+const { buildSeedStatements, validateSeedContent } = await import(
+  "../scripts/seed-db.mjs"
 );
 const seedContent = (await import("../db/seeds/seed-content.v1.mjs")).default;
 const { computeProvisionChecksum, PROVISION_CHECKSUM_VERSION } = await import(
   "../lib/legal-evidence-retriever.ts"
 );
-const { getInitializedDb } = await import("../db/index.ts");
+const { bootstrapLegalDatabase } = await import("../db/index.ts");
+const { PGlite } = await import("@electric-sql/pglite");
+const { drizzle } = await import("drizzle-orm/pglite");
+const { sql } = await import("drizzle-orm");
 
-function d1Adapter(sqlite) {
-  return {
-    prepare(query) {
-      const bound = [];
-      const statement = {
-        bind(...values) {
-          bound.push(...values);
-          return statement;
-        },
-        _exec() {
-          if (/^\s*select/i.test(query)) {
-            return { success: true, results: sqlite.prepare(query).all(...bound) };
-          }
-          sqlite.prepare(query).run(...bound);
-          return { success: true, results: [] };
-        },
-      };
-      return statement;
-    },
-    async batch(statements) {
-      return statements.map((statement) => statement._exec());
-    },
-  };
-}
-
-// getInitializedDb cache promise bootstrap ở mức module — chỉ bootstrap được
-// MỘT DB mỗi tiến trình test, nên toàn bộ test dùng chung sqlite này.
-const sqlite = new DatabaseSync(":memory:");
-workerEnv.DB = d1Adapter(sqlite);
-await getInitializedDb();
+const client = new PGlite();
+const db = drizzle(client);
+await bootstrapLegalDatabase(db);
 
 const FIXED_NOW = () => new Date("2026-07-31T00:00:00Z");
+const count = async (table) => {
+  const result = await db.execute(sql.raw(`SELECT count(*) AS n FROM ${table}`));
+  return Number(result.rows[0].n);
+};
 
 test("noi dung seed hop le va du 27 tinh huong, 9 moi chu de", () => {
   assert.deepEqual(validateSeedContent(seedContent), []);
@@ -109,54 +91,41 @@ test("validate chan noi dung xau", () => {
   assert.equal(errors.length, 3);
 });
 
-test("seed ap duoc, dung so luong, idempotent", async () => {
-  const sql = await buildSeedSql(seedContent, { now: FIXED_NOW });
-  sqlite.exec(sql);
-  sqlite.exec(sql); // lần 2 không được nhân đôi
-  const count = (table) =>
-    sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n;
-  assert.equal(count("legal_entries"), 27);
-  assert.equal(count("legal_entry_citations"), 27);
-  assert.equal(count("legal_provisions"), 27);
+test("seed ap duoc vao Postgres, dung so luong, idempotent", async () => {
+  const statements = await buildSeedStatements(seedContent, { now: FIXED_NOW });
+  for (const statement of statements) await db.execute(sql.raw(statement));
+  for (const statement of statements) await db.execute(sql.raw(statement)); // lần 2
+  assert.equal(await count("legal_entries"), 27);
+  assert.equal(await count("legal_entry_citations"), 27);
+  assert.equal(await count("legal_provisions"), 27);
   const uniqueDocs = new Set(
     seedContent.situations.map((situation) => situation.source.documentNumber),
   );
-  assert.equal(count("legal_sources"), uniqueDocs.size);
-  assert.equal(
-    sqlite
-      .prepare(
-        "SELECT count(*) AS n FROM legal_entries WHERE status='published' AND review_status='four_eyes_verified'",
-      )
-      .get().n,
-    27,
-  );
-  assert.equal(
-    sqlite.prepare("PRAGMA integrity_check").get().integrity_check,
-    "ok",
-  );
-  assert.equal(sqlite.prepare("PRAGMA foreign_key_check").all().length, 0);
-  const helmet = sqlite
-    .prepare("SELECT title FROM legal_entries WHERE title LIKE '%mũ bảo hiểm%'")
-    .all();
-  assert.ok(helmet.length >= 1);
+  assert.equal(await count("legal_sources"), uniqueDocs.size);
+  const published = await db.execute(sql.raw(
+    "SELECT count(*) AS n FROM legal_entries WHERE status='published' AND review_status='four_eyes_verified'",
+  ));
+  assert.equal(Number(published.rows[0].n), 27);
+  const helmet = await db.execute(sql.raw(
+    "SELECT title FROM legal_entries WHERE title LIKE '%mũ bảo hiểm%'",
+  ));
+  assert.ok(helmet.rows.length >= 1);
 });
 
 test("checksum khop computeProvisionChecksum cua app", async () => {
-  // chạy sau test idempotent, dùng chung DB đã seed
-  const rows = sqlite
-    .prepare(
-      `SELECT p.article, p.clause, p.point, p.original_text, p.simplified_text,
-              p.revision_id, p.checksum_version, p.checksum_sha256,
-              p.effectivity_status, p.effective_from, p.effective_to,
-              s.document_number, s.official_url,
-              c.cited_checksum_sha256, c.cited_revision_id
-       FROM legal_provisions p
-       JOIN legal_sources s ON s.id = p.source_id
-       JOIN legal_entry_citations c ON c.provision_id = p.id`,
-    )
-    .all();
-  assert.equal(rows.length, 27);
-  for (const row of rows) {
+  // chạy sau test seed, dùng chung DB đã seed
+  const result = await db.execute(sql.raw(
+    `SELECT p.article, p.clause, p.point, p.original_text, p.simplified_text,
+            p.revision_id, p.checksum_version, p.checksum_sha256,
+            p.effectivity_status, p.effective_from, p.effective_to,
+            s.document_number, s.official_url,
+            c.cited_checksum_sha256, c.cited_revision_id
+     FROM legal_provisions p
+     JOIN legal_sources s ON s.id = p.source_id
+     JOIN legal_entry_citations c ON c.provision_id = p.id`,
+  ));
+  assert.equal(result.rows.length, 27);
+  for (const row of result.rows) {
     assert.equal(row.checksum_version, PROVISION_CHECKSUM_VERSION);
     const expected = await computeProvisionChecksum({
       source: {

@@ -270,7 +270,12 @@ export async function findManagedAnswer(
   const ignoredTerms = new Set(["cho", "cua", "duoc", "khong", "nhung", "the", "nao", "voi"]);
   const terms = normalizeVietnamese(question)
     .split(/[^a-z0-9]+/)
-    .filter((term) => term.length >= 3 && !ignoredTerms.has(term));
+    // Loại term thuần số: năm/số hiệu văn bản trong legal_basis dễ khớp
+    // nhầm với số vô tình xuất hiện trong câu hỏi (ví dụ "2026").
+    .filter(
+      (term) =>
+        term.length >= 3 && !/^\d+$/.test(term) && !ignoredTerms.has(term),
+    );
   if (!terms.length) return null;
 
   try {

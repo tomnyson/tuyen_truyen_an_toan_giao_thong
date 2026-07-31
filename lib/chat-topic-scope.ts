@@ -6,6 +6,9 @@ export const OUT_OF_SCOPE_ANSWER =
 export const IN_SCOPE_NO_MATCH_ANSWER =
   "Mình chưa tìm thấy thông tin phù hợp và đủ tin cậy. Bạn hãy mô tả rõ hơn tình huống để mình tra cứu lại.";
 
+export const WEB_SEARCH_TEMPORARILY_UNAVAILABLE_ANSWER =
+  "Dịch vụ tra cứu nguồn bên ngoài tạm thời chưa hoàn tất yêu cầu. Bạn vui lòng thử lại câu hỏi này sau ít phút.";
+
 export type ChatTopic = "traffic" | "online_safety" | "copyright";
 
 export type ChatScopeDecision =

@@ -381,6 +381,10 @@ duyệt bốn mắt và public retrieval gate.
 - [x] Timeout, HTTP lỗi, refusal, malformed/oversized output, model mismatch
   hoặc URL ngoài allowlist đều fail closed. Thiếu official citation chỉ mở lượt
   reference theo DEC-012; lượt reference không hợp lệ vẫn trả `unavailable`.
+- [x] Direct web-search cho phép tối đa 30 giây để hoàn tất hosted search. Nếu
+  provider timeout/lỗi tạm thời, UI phải báo dịch vụ tra cứu chưa hoàn tất và
+  đề nghị thử lại; không được diễn đạt thành “không tìm thấy thông tin”. Có
+  regression cho câu “đi xe máy một bánh”.
 - [x] Có adapter/route/UI tests cho flag off, missing key, success có official
   citation, discovery-only citation, malicious URL, timeout và curated-first.
 - [ ] Trước production phải duyệt data-control/under-18 disclosure, budget,
@@ -413,7 +417,8 @@ official links; `.env.example` giữ rollback flag mặc định false.
 section DTO, loại markup/URL khỏi prose và chỉ để structured `sources` tạo link.
 `tests/openai-web-search.test.mjs` có regression official-first/reference-second,
 exact reference guard, runtime UI copy/parser, không persist, budget/telemetry
-hai lượt và câu “đi xe máy tống 3”; typecheck, lint và build
+hai lượt, “đi xe máy tống 3”, “đi xe máy một bánh” và provider-failure copy;
+typecheck, lint và build
 pass ngày 2026-07-31. Browser smoke với live web-search xác nhận warning đứng
 trước 4 section, source link thân thiện, không có raw Markdown/URL; viewport
 320px có chat panel 296px và không tràn ngang. Full suite 243/246; ba failure
@@ -431,6 +436,13 @@ DEC-017 supersede phần fail-closed định lượng nói trên cho MVP. Adapte
 cầu provider dùng section `Mức phạt tham khảo` khi nguồn có mức tiền, giữ
 sanctions cho official/reference dưới warning chưa kiểm chứng và bỏ section khi
 nguồn không có mức phạt. Focused web-search + topic suite đạt **81/81 pass**.
+
+DEC-018 tăng default/config mẫu lên 30.000 ms và tách
+`PROVIDER_TIMEOUT|PROVIDER_ERROR|PROVIDER_REFUSAL` khỏi no-match ở cả UI lẫn
+telemetry. Focused web-search + topic suite đạt **83/83 pass**; typecheck, lint,
+build pass. Live diagnostic đúng câu “đi xe máy một bánh có bị phạt không?” xác
+nhận topic `traffic`, có lượt official thành công sau 17–19 giây và cũng quan
+sát provider error chập chờn; retry copy vì vậy là bắt buộc.
 
 ### [ ] US-028 — Lưu, duyệt và tái sử dụng kết quả tra cứu trực tuyến
 

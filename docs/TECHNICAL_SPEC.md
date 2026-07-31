@@ -2384,6 +2384,12 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   application evidence. Official result chỉ persist immutable draft;
   reference result live/no-store, không candidate/RAG. Thiếu source hợp lệ,
   malformed/active content hoặc sai topic vẫn fail closed.
+- **DEC-018:** Direct hosted web-search dùng timeout mặc định/mẫu 30.000 ms vì
+  live evidence cho thấy một truy vấn hợp lệ có thể hoàn tất sau khoảng 19 giây.
+  `PROVIDER_TIMEOUT|PROVIDER_ERROR|PROVIDER_REFUSAL` vẫn fail closed nhưng route
+  trả thông báo retry riêng; chúng không được ánh xạ sang no-match vì lỗi
+  provider không chứng minh nguồn thiếu dữ liệu. Telemetry ghi
+  `dependency_error` cùng provider outcome tương ứng và không log câu hỏi.
 
 ### Điểm còn mở
 

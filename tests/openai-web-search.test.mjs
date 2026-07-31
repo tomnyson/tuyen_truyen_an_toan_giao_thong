@@ -58,6 +58,9 @@ const {
   publicSourceUiCopy,
 } = await import("../lib/official-source-url.ts");
 const { createChatHandler } = await import("../app/api/chat/route.ts");
+const { WEB_SEARCH_TEMPORARILY_UNAVAILABLE_ANSWER } = await import(
+  "../lib/chat-topic-scope.ts"
+);
 
 function providerResponse({
   url = "https://vanban.chinhphu.vn/?pageid=27160&docid=123#section",
@@ -799,6 +802,44 @@ test("provider timeout fails closed", async () => {
     },
   );
   assert.deepEqual(result, { ok: false, code: "PROVIDER_TIMEOUT" });
+});
+
+test("chat reports provider error as retryable instead of no-match", async () => {
+  const events = [];
+  Object.assign(globalThis.__webSearchWorkerEnv, {
+    AI_WEB_SEARCH_ENABLED: "true",
+    OPENAI_API_KEY: "test-key",
+  });
+  const chat = createChatHandler({
+    limiter: () => ({ consumeChat: async () => allowed }),
+    telemetry: { emit: (event) => events.push(event) },
+    managedAnswer: async () => null,
+    curatedAnswer: () => null,
+    reviewedWebAnswer: async () => null,
+    reserveWebBudget: async () => ({
+      dayStart: 1,
+      reservedTokens: 12_000,
+    }),
+    settleWebBudget: async () => true,
+    webSearch: async () => ({
+      ok: false,
+      code: "PROVIDER_ERROR",
+      model: "gpt-5.6-luna",
+    }),
+  });
+
+  const response = await chat(chatRequest("đi xe máy một bánh"));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    answer: WEB_SEARCH_TEMPORARILY_UNAVAILABLE_ANSWER,
+    mode: "unavailable",
+  });
+  assert.equal(events[0].outcome, "dependency_error");
+  assert.equal(events[0].providerOutcome, "error");
+
+  for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
+    delete globalThis.__webSearchWorkerEnv[key];
+  }
 });
 
 test("HTTP, refusal, malformed, oversized and invalid provider model metadata fail closed", async () => {

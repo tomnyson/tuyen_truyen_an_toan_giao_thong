@@ -41,7 +41,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
 | US-029 — Topic gate ba chủ đề MVP | P0 | Done | Full-stack + PM + Code review | DEC-017 giữ reference sanctions tham khảo dưới warning/no-persist; topic/persistence guard không đổi; web-search + topic focused 81/81 pass | 2026-07-31 |
 | US-030 — Nạp official corpus draft | P0 | Partial | Full-stack + PM + Code review | 7 intent/11 official sources đã nạp D1 local ở draft; full-record audit binding, alias tags, safety/legal discriminant và MVP account guidance đã verified. Còn production Sites/D1 và final review sau MVP | 2026-07-31 |
-| US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Official-first/reference-second, warning/source UI, no-persist reference và direct-claim guard đã verified: focused 28/28, type/lint/build và live browser pass. Full suite 243/246; 3 failure cũ do migration 0006 và ledger expectations. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
+| US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | DEC-018 timeout 30 giây + provider-failure/no-match semantics; focused web-search/topic 83/83, type/lint/build và live diagnostic pass. Full suite gần nhất vẫn có 3 failure cũ do migration 0006/ledger. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
 | US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; new revision requires issuedAt while legacy snapshot stays retrievable; focused 5/5, combined 26/26, current full 236/239 (3 migration-ledger failures cũ), type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
@@ -86,6 +86,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-31 | DEC-015 | Cho MVP dùng ngay official safety guidance không có kết luận pháp lý; record này bị chặn khỏi legal workflow. Legal citation/sanction vẫn giữ bốn mắt. | US-030, US-006, US-013 |
 | 2026-07-31 | DEC-016 | Direct web-search nhận mọi model ID server-side có định dạng an toàn; provider/capability lỗi vẫn fail closed. Offline evidence/shadow tiếp tục exact allowlist. | US-027, US-026 |
 | 2026-07-31 | DEC-017 | Cho phép web-search hiển thị mức phạt/chi tiết pháp lý chưa kiểm chứng dưới nhãn tham khảo và source guard; không biến thành reviewed RAG. | US-027, US-004 |
+| 2026-07-31 | DEC-018 | Hosted web-search dùng timeout 30 giây; timeout/error/refusal trả thông báo retry riêng, không giả thành no-match. | US-027 |
 
 ### 2026-07-31 — US-004 chat presentation specification
 
@@ -833,6 +834,20 @@ này.
 - Rendered integration: **16/16 pass**; typecheck, lint, Vinext build và
   `git diff --check` pass. Live provider smoke đã thử hai lần nhưng đều trả
   `PROVIDER_TIMEOUT`, nên chưa có live evidence cho lần thay đổi này.
+
+### 2026-07-31 — DEC-018 web-search timeout semantics
+
+- Câu “đi xe máy một bánh” được topic gate nhận đúng là `traffic`.
+- Cấu hình local 10.000 ms làm provider timeout và bị trình bày nhầm như
+  no-match. Live diagnostic với 30.000 ms hoàn tất khoảng 19 giây, trả official
+  source `datafiles.chinhphu.vn`.
+- Default adapter, `.env.example` và local test config dùng 30.000 ms.
+  `/api/chat` trả retry copy + `dependency_error` cho provider
+  timeout/error/refusal; no-match copy chỉ còn dùng cho trường hợp không có kết
+  quả đủ điều kiện.
+- Focused web-search/topic **83/83 pass**; typecheck, lint, build và
+  `git diff --check` pass. Live diagnostic có official success sau 17–19 giây
+  xen giữa provider error, xác nhận provider chập chờn nhưng query/key hợp lệ.
 
 ## Cách cập nhật tracker
 

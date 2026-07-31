@@ -68,6 +68,7 @@ function request(question) {
 
 for (const [question, topic] of [
   ["Đi xe máy tống 3 có an toàn không?", "traffic"],
+  ["Đi xe máy một bánh", "traffic"],
   ["Khong doi mu bao hiem khi di xe may", "traffic"],
   ["Đi bộ qua đường thế nào cho an toàn?", "traffic"],
   ["Ngồi ô tô có cần thắt dây an toàn không?", "traffic"],

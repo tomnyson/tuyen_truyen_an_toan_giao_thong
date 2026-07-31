@@ -612,6 +612,7 @@ activation; do đó production deployment vẫn bị chặn.
 | 2026-07-31 | DEC-015 | MVP được trả ngay official safety guidance không đưa ra căn cứ, tội danh hoặc mức phạt; không nới gate cho legal candidate. | Hướng dẫn tài khoản bị chiếm có source Chính phủ và form ngắn; API/CMS chặn record này đi vào legal RAG. Quy trình bốn mắt vẫn giữ cho mọi legal citation/sanction. |
 | 2026-07-31 | DEC-016 | Direct web-search chấp nhận mọi `OPENAI_MODEL` có model ID định dạng an toàn thay vì exact allowlist. | Model là cấu hình server-only, không nhận từ request người dùng. Model không có Responses API/web-search capability trả lỗi an toàn; offline evidence/shadow vẫn giữ exact model policy để tái lập evaluation. |
 | 2026-07-31 | DEC-017 | Chủ dự án chấp nhận hiển thị mức phạt/chi tiết pháp lý do web-search trả về dù chưa được kiểm chứng. | Bắt buộc cảnh báo nổi bật “chỉ tham khảo/chưa kiểm chứng”, source link qua exact authority guard và không gọi là reviewed evidence. Official result vẫn chỉ lưu draft; reference không persist/RAG. |
+| 2026-07-31 | DEC-018 | Hosted web-search được chờ tối đa 30 giây và lỗi provider phải được phân biệt với no-match. | Cấu hình mẫu/default dùng 30 giây. Khi provider timeout/error/refusal, end user nhận thông báo dịch vụ tra cứu chưa hoàn tất và có thể thử lại; không nhận thông báo sai rằng nguồn không có dữ liệu. |
 
 ## 16. Open questions cần chủ dự án xác nhận
 

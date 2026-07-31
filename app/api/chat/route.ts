@@ -15,6 +15,7 @@ import {
   IN_SCOPE_NO_MATCH_ANSWER,
   matchesChatTopic,
   OUT_OF_SCOPE_ANSWER,
+  WEB_SEARCH_TEMPORARILY_UNAVAILABLE_ANSWER,
 } from "@/lib/chat-topic-scope";
 import { findCuratedAnswer, findManagedAnswer } from "@/lib/legal-chat";
 import {
@@ -84,6 +85,14 @@ function unavailableResponse(answer = unavailableAnswer) {
     answer,
     mode: "unavailable",
   });
+}
+
+function isRetryableProviderFailure(code: string) {
+  return (
+    code === "PROVIDER_TIMEOUT" ||
+    code === "PROVIDER_ERROR" ||
+    code === "PROVIDER_REFUSAL"
+  );
 }
 
 function sumKnownTokenCounts(...values: Array<number | null | undefined>) {
@@ -540,8 +549,16 @@ export function createChatHandler(
           }
         }
         return complete(
-          unavailableResponse(IN_SCOPE_NO_MATCH_ANSWER),
-          "retrieval_no_match",
+          unavailableResponse(
+            !referenceResult.ok &&
+              isRetryableProviderFailure(referenceResult.code)
+              ? WEB_SEARCH_TEMPORARILY_UNAVAILABLE_ANSWER
+              : IN_SCOPE_NO_MATCH_ANSWER,
+          ),
+          !referenceResult.ok &&
+            isRetryableProviderFailure(referenceResult.code)
+            ? "dependency_error"
+            : "retrieval_no_match",
           "unavailable",
           REFERENCE_SEARCH_POLICY_VERSION,
           {
@@ -577,8 +594,14 @@ export function createChatHandler(
       }
 
       return complete(
-        unavailableResponse(IN_SCOPE_NO_MATCH_ANSWER),
-        "retrieval_no_match",
+        unavailableResponse(
+          isRetryableProviderFailure(searched.code)
+            ? WEB_SEARCH_TEMPORARILY_UNAVAILABLE_ANSWER
+            : IN_SCOPE_NO_MATCH_ANSWER,
+        ),
+        isRetryableProviderFailure(searched.code)
+          ? "dependency_error"
+          : "retrieval_no_match",
         "unavailable",
         WEB_SEARCH_POLICY_VERSION,
         {

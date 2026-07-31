@@ -38,7 +38,7 @@ export const WEB_SEARCH_WARNING =
   "Đây là kết quả AI tra cứu trực tuyến và chưa được kiểm chứng. Mọi mức phạt, điều khoản và ngày hiệu lực chỉ để tham khảo; bạn nên mở nguồn Chính phủ bên dưới để kiểm tra trước khi áp dụng.";
 export const REFERENCE_SEARCH_WARNING =
   "Đây là kết quả AI từ nguồn tham khảo ngoài, không phải nguồn chính thống và chưa được kiểm chứng. Mọi mức phạt, điều khoản và ngày hiệu lực chỉ để tham khảo; bạn cần xác minh lại bằng văn bản hoặc cơ quan chính thức trước khi áp dụng.";
-const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_PROVIDER_RESPONSE_BYTES = 1_000_000;
 const MAX_QUESTION_LENGTH = 600;
 const MAX_ANSWER_LENGTH = 6_000;

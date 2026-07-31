@@ -105,7 +105,49 @@ for (const [question, intent, expectedReasons] of [
     "copyright",
     ["authorship", "license_or_permission"],
   ],
+  [
+    "Ảnh của em bị lấy dùng mà em không đồng ý",
+    "privacy_safety",
+    ["non_consensual_sharing"],
+  ],
+  [
+    "Ảnh của em bị phát tán",
+    "privacy_safety",
+    ["non_consensual_sharing"],
+  ],
+  [
+    "Hình của em bị phát tán",
+    "privacy_safety",
+    ["non_consensual_sharing"],
+  ],
+  [
+    "Hinh cua em bi phat tan",
+    "privacy_safety",
+    ["non_consensual_sharing"],
+  ],
+  [
+    "anh nong bi phat tan",
+    "privacy_safety",
+    ["non_consensual_sharing", "sensitive_image"],
+  ],
+  [
+    "Ảnh của em chưa đồng ý cho sử dụng",
+    "privacy_safety",
+    ["non_consensual_sharing"],
+  ],
+  [
+    "Ảnh chưa xin phép tác giả sử dụng",
+    "copyright",
+    ["authorship", "license_or_permission"],
+  ],
+  [
+    "Tác giả chia sẻ ảnh của em dù em không đồng ý",
+    "privacy_safety",
+    ["non_consensual_sharing", "authorship"],
+  ],
   ["hình ảnh", "unknown", ["ambiguous"]],
+  ["Cho em hỏi về hình ảnh của em", "unknown", ["ambiguous"]],
+  ["Ảnh của em trong nhóm lớp", "unknown", ["ambiguous"]],
 ]) {
   test(`classifies image intent: ${question}`, () => {
     const decision = classifyImageIntent(question);
@@ -133,6 +175,12 @@ test("privacy signals take precedence over copyright in mixed-risk questions", (
 for (const question of [
   "Việc này ảnh hưởng sức khỏe thế nào?",
   "Em xin phép lái xe được không?",
+  "Anh chưa xin phép lái xe",
+  "Anh chia sẻ bài tập trong nhóm lớp",
+  "Anh nóng tính",
+  "Anh rieng tu va it noi",
+  "Anh nhay cam voi tieng on",
+  "Anh kin tieng ve viec rieng",
   "Có cần ghi nguồn nước trong bài không?",
   "Từ ghép hìnhảnh không phải phrase hợp lệ",
   "Chuỗi bảnquyền không có token boundary",
@@ -204,21 +252,28 @@ test("copyright fails closed before untagged managed or curated weak matches", a
   assert.doesNotMatch(body.answer, /WRONG_/);
 });
 
-test("ambiguous generic image question fails closed instead of guessing", async () => {
-  let managedCalls = 0;
-  const chat = handler({
-    managedAnswer: async () => {
-      managedCalls += 1;
-      return "WRONG_GUESS";
-    },
-  });
-  const response = await chat(chatRequest("Cho em hỏi về hình ảnh"));
-  const body = await response.json();
+for (const question of [
+  "Cho em hỏi về hình ảnh",
+  "Hình ảnh này là gì?",
+  "Em muốn biết thêm về bức ảnh này",
+  "Cho em hỏi về hình ảnh trường học",
+]) {
+  test(`ambiguous generic image question bypasses competing managed answer: ${question}`, async () => {
+    let managedCalls = 0;
+    const chat = handler({
+      managedAnswer: async () => {
+        managedCalls += 1;
+        return "WRONG_GUESS";
+      },
+    });
+    const response = await chat(chatRequest(question));
+    const body = await response.json();
 
-  assert.equal(body.mode, "unavailable");
-  assert.equal(managedCalls, 0);
-  assert.doesNotMatch(body.answer, /WRONG_GUESS/);
-});
+    assert.equal(body.mode, "unavailable");
+    assert.equal(managedCalls, 0);
+    assert.doesNotMatch(body.answer, /WRONG_GUESS/);
+  });
+}
 
 test("non-image questions preserve the existing managed then curated flow", async () => {
   let managedCalls = 0;
@@ -238,3 +293,30 @@ test("non-image questions preserve the existing managed then curated flow", asyn
   assert.equal(body.answer, "Câu trả lời giao thông hiện có");
   assert.equal(managedCalls, 1);
 });
+
+for (const question of [
+  "Hình ảnh biển báo giao thông có ý nghĩa gì?",
+  "Hình ảnh biển báo giao thông trong nhóm lớp có ý nghĩa gì?",
+]) {
+  test(`traffic-qualified image question continues normal retrieval: ${question}`, async () => {
+    let managedCalls = 0;
+    assert.deepEqual(classifyImageIntent(question), {
+      intent: "unknown",
+      reasons: [],
+      policyVersion: imageIntentPolicyVersion,
+    });
+
+    const chat = handler({
+      managedAnswer: async () => {
+        managedCalls += 1;
+        return "Giải thích biển báo từ kho đã duyệt";
+      },
+    });
+    const response = await chat(chatRequest(question));
+    const body = await response.json();
+
+    assert.equal(body.mode, "knowledge");
+    assert.equal(body.answer, "Giải thích biển báo từ kho đã duyệt");
+    assert.equal(managedCalls, 1);
+  });
+}

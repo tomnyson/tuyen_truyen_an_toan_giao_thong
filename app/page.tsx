@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  ShowcaseGallery,
+  type ShowcaseDataState,
+} from "@/components/ShowcaseGallery";
+import {
   laws,
   normalizeVietnamese,
   sources,
@@ -9,6 +13,10 @@ import {
   type LawItem,
   type Topic,
 } from "@/lib/legal-content";
+import {
+  parsePublicShowcases,
+  type PublicShowcase,
+} from "@/lib/public-showcase";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -27,13 +35,7 @@ type PublishedContent = {
     caseStudy: string;
     tags: string;
   }>;
-  showcases?: Array<{
-    id: number;
-    topic: string;
-    title: string;
-    summary: string;
-    sourceUrl: string;
-  }>;
+  showcases?: unknown;
 };
 
 function parseTags(value: string) {
@@ -59,12 +61,20 @@ export default function Home() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([initialChatMessage]);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [managedLaws, setManagedLaws] = useState<LawItem[]>([]);
-  const [managedShowcases, setManagedShowcases] = useState<NonNullable<PublishedContent["showcases"]>>([]);
+  const [managedShowcases, setManagedShowcases] = useState<PublicShowcase[]>([]);
+  const [showcaseState, setShowcaseState] =
+    useState<ShowcaseDataState>("loading");
 
   useEffect(() => {
-    fetch("/api/content")
-      .then((response) => response.json() as Promise<PublishedContent>)
-      .then((content) => {
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/content");
+        if (!response.ok) throw new Error("content dependency unavailable");
+        const content = (await response.json()) as PublishedContent;
+        const parsedShowcases = parsePublicShowcases(content.showcases);
+        if (!parsedShowcases) throw new Error("invalid showcase response");
+        if (!active) return;
         setManagedLaws((content.laws ?? []).map((item) => ({
           id: 100_000 + item.id,
           topic: item.topic,
@@ -76,11 +86,17 @@ export default function Home() {
           caseStudy: item.caseStudy,
           tags: parseTags(item.tags),
         })));
-        setManagedShowcases(content.showcases ?? []);
-      })
-      .catch(() => {
-        // Nội dung nền bên dưới vẫn hoạt động nếu kho quản trị tạm thời gián đoạn.
-      });
+        setManagedShowcases(parsedShowcases);
+        setShowcaseState(parsedShowcases.length > 0 ? "ready" : "empty");
+      } catch {
+        if (!active) return;
+        setManagedShowcases([]);
+        setShowcaseState("degraded");
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const availableLaws = useMemo(() => [...managedLaws, ...laws], [managedLaws]);
@@ -279,16 +295,11 @@ export default function Home() {
           <span className="section-kicker light">GÓC CẢNH BÁO</span>
           <h2>Đừng để một cú nhấp trở thành bài học đắt giá.</h2>
           <p>Các tình huống dưới đây được biên soạn để giáo dục, giúp bạn nhận diện rủi ro trước khi hành động.</p>
-          <button onClick={() => setSelectedLaw(availableLaws.find((item) => item.topic === "Mạng xã hội") ?? laws[2])}>Xem tình huống mạng xã hội <span>→</span></button>
         </div>
-        <div className="case-cards">
-          <article className="case-card yellow">
-            <div className="case-meta"><span>MẠNG XÃ HỘI</span><span>3 PHÚT ĐỌC</span></div>
-            <div className="message-bubbles" aria-hidden="true"><i></i><i></i><i></i></div>
-            <h3>{managedShowcases[0]?.title ?? "Chia sẻ lại tin sai: “Em chỉ đăng lại” có miễn trách nhiệm?"}</h3>
-            <div className="tag-row"><span>#facebook</span><span>#tinsai</span></div>
-          </article>
-        </div>
+        <ShowcaseGallery
+          state={showcaseState}
+          showcases={managedShowcases}
+        />
       </section>
 
       <section className="source-section" id="nguon">

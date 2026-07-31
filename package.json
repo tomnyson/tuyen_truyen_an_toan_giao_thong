@@ -17,6 +17,8 @@
     "test:telemetry": "node --experimental-strip-types --test tests/telemetry.test.mjs",
     "test:ingestion-local": "node --experimental-strip-types --test tests/ingestion-local.test.mjs",
     "test:image-intent": "node --experimental-strip-types --test tests/image-intent.test.mjs",
+    "test:showcase": "node --test tests/public-showcase.test.mjs",
+    "test:catalog-resolver": "node --test tests/catalog-resolver.test.mjs",
     "smoke:ai": "node --env-file=.env.local --experimental-strip-types scripts/smoke-openai-evidence.mjs",
     "auth:hash": "node --experimental-strip-types scripts/generate-admin-password-hash.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",

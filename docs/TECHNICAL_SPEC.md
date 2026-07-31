@@ -469,21 +469,29 @@ record và chỉ tạo source/provision `draft` chưa verified/reviewed. Nó kh�
 D1, không fetch raw file, không index và không publish.
 
 US-024 local-safe slice tại `lib/ingestion-local.ts` chỉ tạo feasibility plan
-thuần từ exact request `local_fixture`. Request chỉ mang provider key, canonical
-sample ref, local actor label và fixture; unknown policy/registry/credential/URL
-override bị từ chối. Planner tự resolve canonical static registry record và chỉ
-cho exact `official/yellow/conditional_go` có sample ref, sau đó tái sử dụng
-mapper phía trên. Idempotency là SHA-256 trên các UTF-8 component có 4-byte
-big-endian length prefix: policy version, provider key, sample ref, upstream ID
-và verified content checksum. Output được deep-freeze, chỉ có draft mapping,
-`persistence=none`, `rawSnapshotRef=null`; lỗi dùng stable code/message và không
-echo input/cause.
+thuần từ exact request bốn field
+`{mode, providerKey, sampleRef, createdBy}`. Caller không truyền fixture,
+policy/registry/credential/URL/limit. Planner resolve canonical static registry
+và manifest server-side; exact sample ref bind tới JSON artifact được static
+import từ repository. Chỉ record `official/yellow/conditional_go` có sample ref
+khớp mới được dùng.
 
-Slice này không đọc file/network/env, không có route/migration/fetch/D1/R2/Queue,
-không gọi AI và không chứng minh production ingestion/deduplication. Static
-yellow source vẫn bị cấm trong production lane; mọi durable green-source,
-trusted trigger, raw store, queue, quarantine, four-eyes và rollout gate bên
-dưới tiếp tục bắt buộc.
+Request được copy thành primitive snapshot; committed fixture được validate,
+copy toàn bộ field/nested field và deep-freeze trước `await` đầu tiên. Mapper
+không giữ caller-owned mutable object qua async boundary. Idempotency v2 là
+SHA-256 trên canonical ordered field-name/value components có 4-byte big-endian
+UTF-8 length prefix, gồm policy, provider, sample ref và **mọi** field fixture;
+nullable field có type marker để không collision. `createdBy` không thuộc
+content identity, nên cùng artifact từ actor khác giữ cùng key dù draft output
+ghi đúng actor.
+
+Output được deep-freeze, chỉ có draft mapping, `persistence=none`,
+`rawSnapshotRef=null`; lỗi dùng stable code/message và không echo input/cause.
+Slice không có runtime file API/network/env, route/migration/fetch/D1/R2/Queue
+hay AI và không chứng minh production ingestion/deduplication. Static yellow
+source vẫn bị cấm trong production lane; mọi durable green-source, trusted
+trigger, raw store, queue, quarantine, four-eyes và rollout gate bên dưới tiếp
+tục bắt buộc.
 
 `ingestion_jobs`
 
@@ -614,27 +622,82 @@ hoặc editor command và không regenerate từ title ở read path. D1 có uni
 constraint theo key; public DTO không dùng offset ID hoặc array index làm
 identity.
 
-Một catalog resolver thuần, versioned nhận:
+Repository phải trả một dependency snapshot có discriminated union, không dùng
+`[]` cho cả success và lỗi:
 
-- static records có explicit key và eligibility/block metadata;
-- managed records đã qua public eligibility;
-- durable suppressions/invalidation;
-- dependency state `available|unavailable`.
+```ts
+type CatalogDependencySnapshot<T> =
+  | {
+      state: "available_records";
+      records: readonly T[];
+      suppressions: readonly ReviewedSuppression[];
+    }
+  | {
+      state: "available_empty";
+      records: readonly [];
+      suppressions: readonly ReviewedSuppression[];
+    }
+  | {
+      state: "unavailable";
+      reason:
+        | "missing_binding"
+        | "schema_unavailable"
+        | "query_failed"
+        | "invalid_snapshot";
+    };
+```
 
-Kết quả:
+`available_empty` chỉ nói managed query thành công và không có managed record;
+nó không có nghĩa public catalog phải rỗng. Resolver vẫn dùng static baseline đã
+lọc và trừ suppression, trả `dataState=ready`. Đây là normal overlay, không phải
+fallback. `unavailable` mới dùng static degraded fallback và reviewed
+suppression snapshot độc lập với D1.
 
-- managed `published` cùng key thay static;
+Resolver thuần, versioned nhận static records có explicit key/eligibility,
+dependency snapshot và fallback suppression snapshot. Kết quả:
+
+- `available_records`: managed `published` cùng key thay static, managed-only
+  key hợp lệ được thêm như content mới;
+- `available_empty`: trả static baseline eligible trừ suppression;
 - draft/pending-review không che static;
 - suppression/block/invalidation không làm static cũ xuất hiện lại;
-- D1 success-empty trả empty, còn D1 unavailable mới được fallback sang static
-  eligible và gắn `dataState=degraded`;
-- duplicate/collision/orphan fail closed với stable reason, không chọn theo
-  `updated_at`;
+- `unavailable`: dùng static eligible trừ fallback suppression snapshot và gắn
+  `dataState=degraded`; snapshot thiếu, sai required version/hash hoặc không bind
+  deployed catalog version thì fail closed về mảng rỗng;
+- duplicate/collision hoặc backfill orphan fail closed với stable reason, không
+  chọn theo `updated_at`;
 - sort theo topic, explicit display order rồi content key.
+
+`orphan` chỉ thuộc migration/backfill validation: một legacy/static key được
+khai báo phải migrate nhưng thiếu/sai mapping, hoặc mapping trỏ target không tồn
+tại/sai entity. Một managed-only record có valid unique key là content mới và
+không phải orphan.
 
 Resolver là owner duy nhất của merge. `app/page.tsx`, public content route và
 chat chỉ consume kết quả đã resolve; không được nối
 `[...managedRecords, ...staticRecords]`.
+
+Public API shape cho cả ready/degraded:
+
+```ts
+type PublicCatalogResponse = {
+  dataState: "ready" | "degraded";
+  resolverPolicyVersion: string;
+  laws: PublicLaw[];
+  showcases: PublicShowcase[];
+};
+```
+
+Degraded response là HTTP `200`, cùng `X-Request-ID`, không có raw dependency
+reason và bắt buộc `Cache-Control: no-store`. Lý do stable chỉ đi telemetry.
+Ready response có thể cache theo policy riêng. Health/alert không được suy
+database khỏe chỉ từ status 200; phải dùng `dataState`/telemetry.
+
+Trước US-017, public content API của US-005 vẫn dùng `503`/no-store khi D1 lỗi
+vì chưa có resolver/suppression-safe fallback. DEC-008 chỉ activate khi resolver
+và suppression snapshot cùng được nối; khi đó API + exact client DTO + tests
+chuyển atomically sang shape `PublicCatalogResponse` và degraded `200`. Không
+đổi status sớm khi fallback còn có thể làm content suppressed hồi sinh.
 
 Public showcase projection tối thiểu:
 
@@ -654,11 +717,76 @@ toàn bộ mảng, không đọc hai index cố định. UI state tách
 `loading|ready|empty|degraded|error`; detail dialog giữ full summary/topic/source,
 đóng bằng button/Escape và quản lý focus.
 
+**US-005 transitional implementation (2026-07-31):** trước khi US-017 cung cấp
+canonical resolver/content key, public DTO dùng positive integer `id` hiện có
+của D1 làm stable identity trong một response. Route query `published` theo
+`updatedAt DESC, id DESC`; `lib/public-showcase.ts` revalidate field/topic,
+exact HTTPS authority DEC-004 và giữ nguyên input/API order. Dependency failure
+trả `503` với stable error code và `Cache-Control: no-store`, khác với
+success-empty.
+
+`components/ShowcaseGallery.tsx` chỉ consume mảng đã project, render toàn bộ
+item theo ID và không tự merge static/managed. UI tách
+`loading|ready|empty|degraded`; dialog hiển thị đúng full
+topic/title/summary/source, đóng bằng button/Escape, có minimal focus trap,
+initial focus và return focus. Client parser chỉ nhận exact public DTO, không tự
+nâng `status`/eligibility field; focus trap kéo focus bị thoát trở lại dialog.
+`tests/public-showcase.test.mjs` pass **15/15**;
+full suite **198/198**, typecheck, lint và build pass. Đây không phải
+implementation của US-017: resolver sau này thay `id` bằng `contentKey` và thêm
+override/suppression/degraded fallback nhưng giữ renderer contract.
+
 Migration US-017 phải expand-only: thêm key nullable, backfill bằng review packet
 tường minh, báo collision/orphan, sau đó mới enforce uniqueness/not-null cho
 record được activate. Không auto-map theo normalized title. Một suppression
-durable phải có actor/reason/audit và đi cùng workflow review; xóa managed row
-không được vô tình hồi sinh static record đã bị retire.
+durable là append-only tombstone bind exact content key/revision/catalog
+version, actor, reason, reviewer/decision và audit. Archive content từng
+published/keyed phải tạo suppression tombstone để static không hồi sinh; khôi
+phục static cần một reviewed restore decision mới. Key không được tái sử dụng.
+Không hard-delete content từng published/keyed; hard-delete chỉ cho draft chưa
+được cấp key, chưa từng publish, không reference/citation và vẫn ghi audit.
+
+Fallback suppression snapshot là export đã review của tombstone ledger, bind
+resolver policy + deployed static catalog version và được đóng gói/activate cùng
+artifact. Nếu snapshot không verify đúng required version/hash, degraded resolver
+trả mảng rỗng. Không được bỏ suppression chỉ vì D1 unavailable.
+
+Local slice trước migration chỉ triển khai pure resolver, DTO/degraded response
+factory và fixture tests cho ba snapshot, managed-only key, orphan, suppression
+và no-resurrection. Slice này không ghi D1, không tạo migration và không đủ để
+check production activation. Production gate riêng yêu cầu expand-only
+migration, authenticated reviewed backfill/suppression ledger, signed hoặc
+MAC-verified fallback export, actual D1 apply-before-code, dual-read shadow,
+collision/orphan report, fallback snapshot activation, restore/rollback và API
+smoke.
+
+**US-017 local implementation (2026-07-31):**
+`lib/catalog-resolver.ts` triển khai `catalog-resolver-v1` thuần và immutable.
+Resolver validate exact key/prefix/field, ba dependency state, static
+eligibility, managed override/managed-only, draft/pending isolation và
+topic/display-order/content-key sort. Duplicate static/managed/suppression,
+many-to-one backfill, true orphan và mọi managed record có
+`eligibility != eligible` thiếu matching tombstone đều fail closed bằng stable
+internal code; khi tombstone tồn tại thì record bị ẩn bất kể
+draft/pending/published/archived.
+
+Fallback suppression snapshot bind exact resolver policy, deployed static
+catalog version, required snapshot version, hai actor label khác nhau về mặt
+cấu trúc, review/expiry window và SHA-256 canonical payload. SHA-256 không khóa
+chỉ chứng minh payload không đổi so với digest được cung cấp; local slice không
+xác thực actor, review decision hoặc nguồn gốc digest và không được claim
+four-eyes. Snapshot thiếu, stale/same-actor-label/version/catalog/hash mismatch
+trả empty degraded. Resolver snapshot dependency discriminator, `asOf`, version
+và mọi fallback field trước async hash boundary; malformed record/mapping không
+thể làm throw.
+`createPublicCatalogHttpResponse` tạo exact public DTO HTTP `200`, giữ request ID
+và map mọi internal `failed_closed` thành public `dataState=degraded` +
+`Cache-Control: no-store` mà không lộ reason/issues, nhưng factory **chưa được
+nối** vào route/page/chat. Fixture/test local tại
+`fixtures/catalog/static-catalog.v1.json` và
+`tests/catalog-resolver.test.mjs` pass 20/20; full suite 198/198, typecheck,
+lint và build pass. Không có authenticated reviewed ledger/export signature,
+migration, backfill, D1 activation hoặc consumer parity trong slice này.
 
 ## 6. API contract đích
 
@@ -933,8 +1061,25 @@ safe action từ fixture eligible; không dùng prompt hoặc model để phân 
 
 **Implementation (2026-07-31):**
 
-- `lib/image-intent.ts` là policy source cho `image-intent-v1`; decision và
+- `lib/image-intent.ts` là policy source cho `image-intent-v2`; decision và
   reason list được freeze để caller không thể thay đổi kết quả sau phân loại.
+- Classifier giữ cả normalized text có dấu và folded text: token `ảnh` có dấu là
+  image subject; token `anh` không dấu chỉ là image khi nằm trong phrase ảnh
+  đủ mạnh. Vì vậy các câu `Anh chưa xin phép lái xe`, `Anh chia sẻ ... nhóm
+  lớp`, `Anh nóng tính` không kích hoạt safety/copyright.
+- Folded sensitive phrase chỉ kích hoạt khi kèm passive risk, non-consent hoặc
+  sharing; `hình|hinh` standalone chỉ là image subject khi kèm passive risk như
+  `Hinh cua em bi phat tan`. `anh nong` không dấu cũng cần risk guard, nên
+  `Anh nóng tính` vẫn là negative.
+- Image subject đi với non-consent, passive dissemination hoặc bị lấy/sử dụng
+  ưu tiên privacy. Classifier loại exact phrase `chưa/không xin phép tác giả`
+  khỏi consent-risk text để giữ copyright, nhưng không dùng sự xuất hiện của
+  `tác giả` để triệt non-consent khác trong cùng câu; mixed true-consent risk
+  vẫn privacy precedence.
+- Peer/lớp chỉ thêm safety reason khi kèm sharing, non-consent, passive hoặc
+  sensitive risk. Generic image mặc định `ambiguous`; chỉ substantive-domain
+  allowlist như biển báo/giao thông/đèn tín hiệu/đường bộ/xe/mũ bảo hiểm cho
+  phép tiếp tục managed/curated retrieval, kể cả classroom qualifier.
 - `app/api/chat/route.ts` chạy intent gate trước mọi legacy managed/curated
   ranking. Privacy dùng safe guidance tĩnh có tag `privacy_safety`; copyright
   chưa có reviewed intent-tagged record và câu ảnh mơ hồ trả `unavailable`,
@@ -945,7 +1090,8 @@ safe action từ fixture eligible; không dùng prompt hoặc model để phân 
   structured retriever kiểm tra intent tag và eligibility; không nối lại
   untagged legacy ranking.
 - `tests/image-intent.test.mjs` là intent matrix và route regression; focused
-  18/18, full suite 142/142, typecheck, lint và build pass ngày 2026-07-31.
+  39/39, current full suite 198/198, typecheck, lint và build pass ngày
+  2026-07-31.
 
 ### 7.2 Threshold
 
@@ -1210,7 +1356,7 @@ failure/quarantine/DLQ và gắn owner xử lý.
 - `OPENAI_API_KEY` là secret server-only; `OPENAI_MODEL` và feature flags là
   configuration. Không dùng biến `NEXT_PUBLIC_*` cho provider secret.
 - Config contract dự kiến trong `.env.example`:
-  `AI_REPHRASE_ENABLED=false`, `AI_WEB_SEARCH_ENABLED=false`,
+  `AI_SHADOW_ENABLED=false`, `AI_WEB_SEARCH_ENABLED=false`,
   `AI_PROVIDER_TIMEOUT_MS`, `AI_PROVIDER_MAX_REQUESTS_PER_MINUTE`.
 - Ingestion config dự kiến:
   `INGESTION_ENABLED=false`, `SOURCE_PROVIDER_BASE_URL`,
@@ -1320,6 +1466,87 @@ Chưa triển khai: caller fallback curated/unavailable, D1 citation assembly,
 rate limit/quota/circuit breaker, cost aggregation, semantic claim-span
 evaluator, canonical provenance/relationship verification và production
 telemetry.
+
+### 7.8 Lát cắt kế tiếp — AI shadow/local activation
+
+Mục tiêu của lát cắt là kiểm chứng orchestration provider mà không thay đổi
+response người dùng. `AI_SHADOW_ENABLED` là canonical request-path flag mới:
+missing, rỗng hoặc khác exact `true` đều disabled. `OPENAI_API_KEY` hiện có chỉ
+được đọc tại server runtime; key tồn tại không tự bật shadow. Flag foundation
+`AI_REPHRASE_ENABLED` tại mục 7.7 là contract as-is của adapter cô lập và phải
+được deprecate/không còn là activation path độc lập khi nối shadow.
+
+Precondition trước outbound call:
+
+1. baseline curated/unavailable response đã được dựng từ logic hiện tại;
+2. shadow flag bật;
+3. rate-limit/config hợp lệ và key khả dụng;
+4. US-025 boundary trả non-empty `validatedEvidenceBundle` đã verify canonical
+   source-provision-answer relationship, revision/checksum/provenance,
+   published/in-force/fresh và four-eyes;
+5. bundle được snapshot/sanitize/bound trước async provider boundary.
+
+Nếu thiếu bất kỳ precondition nào, shadow return stable internal outcome và
+không gọi provider. Provider request giữ contract:
+
+```ts
+type AiShadowRequestPolicy = {
+  store: false;
+  tools: readonly [];
+  webSearch: false;
+  input: {
+    serverInstruction: string;
+    sanitizedQuestion: string;
+    reviewedEvidence: readonly ProviderEvidenceInput["evidence"];
+  };
+};
+```
+
+Không nhận base URL, tool, system/developer instruction, conversation hoặc
+feature/policy override từ client. Không dùng Responses API web search,
+built-in tool hay live web lookup. Output phải qua strict schema/evidence-ID
+validation hiện có nhưng sau đó chỉ tạo internal shadow result và bị discard;
+không được gắn citation/sanction hoặc mutate baseline response.
+
+Shadow failure taxonomy dùng stable enum của mục 7.7, bổ sung
+`MISSING_VALIDATED_BUNDLE` nếu cần. Missing key/evidence, timeout, network,
+non-2xx, refusal, incomplete, schema/malformed output, unknown evidence ID hoặc
+validator/provider error đều fail closed theo nghĩa **giữ nguyên baseline
+response**. Với shadow, fail closed không được đổi curated thành unavailable,
+đổi HTTP status/header hay làm request người dùng phụ thuộc provider.
+
+Prompt, sanitized question, evidence text, provider body/refusal và composition
+không được ghi D1/R2/KV/Queue/file/cache/log hoặc telemetry. Object chỉ tồn tại
+trong memory của invocation tới khi validation/discard hoàn tất. Provider call
+luôn `store:false`. Telemetry `telemetry-v1` chỉ nhận:
+
+- `requestId`;
+- stable `shadowOutcome`/error enum;
+- bounded canonical evidence IDs;
+- allowlisted model, provider latency và token usage.
+
+Telemetry cấm raw question/evidence/output, official URL/query, API key,
+provider response/refusal, exception message/stack và mọi field ngoài allowlist.
+Một layer duy nhất sở hữu provider telemetry.
+
+Verification tách hai lane:
+
+- fixture lane tự động dùng injected fake provider, không credential/network,
+  chứng minh no-call khi flag/config/evidence invalid, exact request policy,
+  baseline invariance và mọi failure path;
+- live smoke thủ công dùng `OPENAI_API_KEY` server-side cùng technical fixture
+  không có dữ liệu người dùng. Smoke chỉ chứng minh credential, outbound
+  network, allowlisted model và provider structured-output compatibility; không
+  chứng minh D1 graph, retrieval quality, semantic correctness, privacy,
+  production readiness hoặc quyền trả output cho user.
+
+Điều kiện direct `ai_assisted` là gate khác, không được activate bằng
+`AI_SHADOW_ENABLED`: US-025 phải có validated production bundle và golden-set
+gate đã duyệt; US-026 phải có semantic claim/span/predicate validator, exact
+numeric/date/article guard, canonical D1 citation/sanction assembly,
+rate-limit/cost/telemetry, prompt-injection negatives và API/E2E tests. Sau đó
+product + technical + content review mới chốt rollout/canary/rollback để output
+được phép tham gia `LegalAnswerResponse`.
 
 ## 8. CMS và publication workflow (To-be)
 
@@ -1579,6 +1806,12 @@ retrieval/provider query smoke, no-secret canary và alert smoke.
 - Adapter US-026 có thể được xây/test cô lập với fixture evidence trước phase
   này, nhưng không được nối request path. Chỉ shadow-call sau khi validated
   bundle và output guard có evidence.
+- AI shadow dùng `AI_SHADOW_ENABLED=false` mặc định, `store:false`, không
+  web/tool và discard output; mọi provider failure giữ nguyên baseline
+  response. Fixture verification và live smoke manual được ghi evidence riêng.
+- Phase này không cấp quyền trả `ai_assisted`; direct response chỉ được review
+  sau production bundle/eval của US-025 và validation/assembly/integration của
+  US-026.
 
 ### Phase 5 — API v1 và frontend cutover
 
@@ -1707,6 +1940,19 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   salt qua server-side secret manager; plaintext bị bỏ qua và cấu hình
   thiếu/malformed fail closed. Rotation đổi cả hash và session secret để làm
   phiên cũ mất hiệu lực.
+- **DEC-008:** catalog resolver nhận snapshot
+  `available_records|available_empty|unavailable`. Success-empty vẫn resolve
+  static baseline và là `ready`; chỉ unavailable trả HTTP 200
+  `dataState=degraded` + `Cache-Control: no-store`. Managed-only key hợp lệ
+  không phải orphan. Reviewed suppression/archive là tombstone append-only áp
+  dụng cả degraded fallback; content từng published/keyed không hard-delete hoặc
+  tái sử dụng key. Local resolver slice không thay production migration gate.
+- **DEC-009:** request-path AI đầu tiên chỉ chạy shadow sau validated reviewed
+  evidence, dùng `AI_SHADOW_ENABLED=false` mặc định và
+  `OPENAI_API_KEY` server-only hiện có. Request bắt buộc `store:false`, không
+  web/tool; prompt/output không persist và output không đổi baseline
+  response/citation. Fixture test và live smoke là evidence riêng; direct
+  `ai_assisted` cần gate US-025/US-026 cùng rollout review khác.
 
 ### Điểm còn mở
 

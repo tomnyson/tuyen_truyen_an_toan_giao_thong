@@ -174,8 +174,16 @@ sau khi có dữ liệu sử dụng thật:
 - Public catalog phải có stable content key và một resolver duy nhất; managed
   published có thể override static cùng key nhưng không được nối hai bản thành
   duplicate.
-- Dependency failure được phân biệt với success-empty; static fallback chỉ dùng
-  record còn đủ điều kiện và phải được đánh dấu degraded.
+- Repository phân biệt `available_records`, `available_empty` và `unavailable`.
+  Query thành công nhưng không có managed record vẫn dùng static baseline đã
+  trừ reviewed suppression và là trạng thái ready; chỉ dependency unavailable
+  mới là degraded fallback.
+- Degraded public content trả HTTP 200 có `dataState=degraded`,
+  `resolverPolicyVersion`, danh sách đã lọc và `Cache-Control: no-store`; không
+  làm content đã archive/suppress xuất hiện lại.
+- Content từng published/keyed không hard-delete hoặc tái sử dụng key.
+  Archive/suppression phải là tombstone durable, qua review/audit và áp dụng cả
+  khi fallback.
 
 ### FR-02 — Chi tiết câu trả lời
 
@@ -320,6 +328,22 @@ type LegalAnswerResponse = {
 - Mỗi factual claim phải map tới evidence span/predicate; numeric/date/article
   fields phải exact-match canonical record.
 - Không đủ evidence, provider lỗi hoặc output invalid phải fail closed.
+- Shadow AI chỉ được gọi server-side khi `AI_SHADOW_ENABLED=true` và
+  `OPENAI_API_KEY` hiện có khả dụng; biến thiếu hoặc mọi giá trị khác `true`
+  đều là disabled. Provider request bắt buộc `store:false`, không bật web
+  search/tool và chỉ nhận evidence bundle đã validate/review.
+- Shadow output không được thay đổi body, mode, citation, sanction, status hoặc
+  header của câu trả lời hiện tại; không persist prompt/output. Missing key,
+  missing/invalid evidence, timeout, schema/refusal/provider error chỉ tạo
+  outcome kỹ thuật đã redact và giữ nguyên baseline response.
+- Fixture test dùng provider giả lập và live smoke thủ công bằng fixture kỹ
+  thuật là hai loại evidence riêng. Live smoke chỉ chứng minh credential,
+  network và provider schema, không chứng minh corpus/retrieval an toàn hoặc
+  quyền trả AI output cho người dùng.
+- `ai_assisted` chỉ được phép ảnh hưởng response sau khi US-025 tạo validated
+  evidence bundle từ graph production và US-026 hoàn tất claim/span validation,
+  DB citation/sanction assembly, negative tests, evaluation gate và rollout
+  review riêng.
 
 ## 10. Non-functional requirements
 
@@ -512,6 +536,8 @@ activation; do đó production deployment vẫn bị chặn.
 | 2026-07-30 | DEC-005 | Sản phẩm là RAG-first; MVP retrieve corpus đã reviewed/published/effective trước khi dùng model compose và không bắt buộc vector database. | Structured search/alias/FTS5 là baseline; không có evidence hợp lệ thì trả `unavailable`. |
 | 2026-07-30 | DEC-006 | Dữ liệu ngoài chỉ được ingest vào staging/draft có provenance và qua bốn mắt; AI không auto-publish hoặc làm nguồn xác minh. | API key chỉ dùng cho discovery/extraction draft hoặc evidence-bound composer; end-user query không live-search và không dùng kiến thức mở làm fallback. |
 | 2026-07-31 | DEC-007 | Credential admin chỉ lưu dạng hash versioned `PBKDF2-HMAC-SHA256`, không hỗ trợ plaintext. | Cấu hình thiếu/malformed fail closed; rotation đổi cả password hash và session secret; benchmark Worker là rollout gate. |
+| 2026-07-31 | DEC-008 | Catalog phân biệt managed success-empty với dependency unavailable; static baseline là normal overlay, còn unavailable dùng degraded fallback. | Degraded trả HTTP 200 + `dataState=degraded` + no-store; reviewed suppression áp dụng cả fallback, managed-only key hợp lệ không phải orphan và local slice không đóng production migration gate. |
+| 2026-07-31 | DEC-009 | AI request-path đầu tiên chỉ chạy shadow, dùng `AI_SHADOW_ENABLED=false` mặc định và `OPENAI_API_KEY` server-only hiện có. | Chỉ validated evidence được gửi với `store:false`, không web/tool; output không đổi response/citation và không persist. Direct `ai_assisted` cần gate US-025/US-026 riêng. |
 
 ## 16. Open questions cần chủ dự án xác nhận
 

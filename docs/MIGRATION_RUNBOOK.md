@@ -1,0 +1,322 @@
+# Sites + Cloudflare D1 Migration Runbook
+
+> Production target: Sites-hosted Cloudflare Worker + D1 (DEC-001)  
+> Deployment status: **BLOCKED**. This repository proves only that ordered
+> migration inputs are packaged. It does not prove that the Sites control plane
+> applies them exactly once or before application activation.
+
+## 1. Repository deployment contract
+
+This repository does not contain a `wrangler.toml`, `wrangler.json`,
+`wrangler.jsonc`, `migrations_dir` or a real D1 database identifier suitable for
+a safe manual Wrangler migration.
+
+The repository-side packaging path is the Sites build pipeline:
+
+1. `.openai/hosting.json` identifies the Sites project and declares D1 binding
+   `DB`.
+2. `build/sites-vite-plugin.ts` copies `.openai/hosting.json` and the complete
+   `drizzle/` directory to `dist/.openai/`.
+
+The static repository contract test verifies only those two packaging facts.
+It is not evidence that any migration was submitted, executed, recorded exactly
+once, or completed before code activation.
+
+Current read-only control-plane checks cannot resolve the Sites project
+referenced by `.openai/hosting.json`; project ownership/access and the D1
+environment binding are therefore **UNVERIFIED**. Preflight must resolve access
+to that exact opaque project ID. Do not create a replacement project, derive an
+ID, or substitute another project's ID. Production deployment remains blocked
+until the Sites control plane provides migration status and a verifiable
+migration-before-activation guarantee.
+
+Do **not** run `wrangler d1 migrations apply` using the binding name `DB`, a
+guessed database name or a database identifier copied from another environment.
+That path is prohibited until the repository has an explicit, reviewed Wrangler
+configuration and a verified environment-to-database mapping.
+
+## 2. Scope of migrations 0001–0005
+
+`0001_citation_foundation` is expand-only. It creates:
+
+- `legal_sources`;
+- `legal_provisions`;
+- `legal_entry_citations`;
+- indexes and integrity checks;
+- creator-immutability, publication and source-invalidation triggers.
+
+It does not alter or seed `legal_entries`/`showcases`, and current public/admin
+APIs do not depend on the new tables. Do not add legal-source seed or mapping to
+this migration. Backfill requires approval from the internal content reviewer
+under the four-eyes workflow.
+
+`0002_reviewed_rag_bridge` is also expand-only, but uses `ALTER TABLE ... ADD
+COLUMN` plus new indexes/triggers. It adds nullable/default-safe review
+attribution to legacy answers/citations and revision/checksum/effectivity
+metadata to provisions. Existing rows remain `legacy_unverified`/`unknown` with
+null revision metadata. It does not insert actors, fabricate checksums or promote
+any row into the RAG corpus.
+
+Migration 0002 is intentionally not raw-SQL idempotent: SQLite cannot safely
+repeat `ADD COLUMN` without an external migration ledger. The control plane must
+apply the journal entry exactly once. Do not rerun the SQL file manually.
+
+`0003_editorial_trust_primitives` is an expand-only, identity-neutral sidecar.
+It creates principal/role, subject/revision, review request/decision and audit
+tables with database-enforced state, four-eyes and immutable-history guards.
+It contains no principal, credential, session, role, legal-content or corpus
+seed; it does not backfill or promote the reviewed graph.
+
+Migration 0003 is intentionally excluded from `db/index.ts` runtime bootstrap.
+It must be applied only by the ordered migration ledger. Applying the migration
+does not activate editorial workflow: the current application has no
+authenticated sidecar API, identity provisioning boundary or graph-promotion
+transaction.
+
+The database validates revision checksum shape/version but cannot recompute
+SHA-256 from canonical JSON. A future authenticated runtime must canonicalize
+the snapshot, recompute `editorial-sha256-v1` before insert and reject a digest
+mismatch.
+
+`0004_rate_limit_v1` is expand-only. It creates `rate_limit_buckets` and
+`rate_limit_penalties` with HMAC-key shape constraints, expiry indexes and
+versioned scope checks. It stores no raw IP, username, question or credential.
+It is intentionally excluded from `db/index.ts` runtime bootstrap: login/chat
+must fail closed until the ordered migration ledger applies 0004 before code.
+
+`0005_web_search_candidate_workflow` creates immutable web-search intake,
+source, revision and audit tables plus a global daily token-budget bucket.
+Database triggers enforce allowed state transitions, active editor/reviewer
+roles, independent reviewer, immutable source/revision/history and no hard
+delete. It stores no raw question or conversation. Runtime web-search must stay
+disabled until 0005 is applied and distinct principals/role grants are
+provisioned according to `docs/WEB_SEARCH_REVIEW_RUNBOOK.md`.
+
+## 3. Preflight
+
+1. Confirm the intended Sites project and environment. Treat IDs returned by
+   Sites as opaque; do not derive or substitute them. Confirm that the operator
+   can resolve the exact project referenced by `.openai/hosting.json`; the
+   current repository review could not.
+2. Confirm the exact source commit to build and deploy.
+3. Run repository checks:
+
+   ```bash
+   npm run lint
+   npx tsc --noEmit
+   node --test tests/schema-foundation.test.mjs
+   npm test
+   ```
+
+4. Build the exact source state:
+
+   ```bash
+   npm run build
+   ```
+
+5. Inspect the artifact before saving/deploying a Sites version:
+
+   ```text
+   dist/.openai/hosting.json
+   dist/.openai/drizzle/0000_groovy_cerise.sql
+   dist/.openai/drizzle/0001_citation_foundation.sql
+   dist/.openai/drizzle/0002_reviewed_rag_bridge.sql
+   dist/.openai/drizzle/0003_editorial_trust_primitives.sql
+   dist/.openai/drizzle/0004_rate_limit_v1.sql
+   dist/.openai/drizzle/0005_web_search_candidate_workflow.sql
+   dist/.openai/drizzle/meta/_journal.json
+   ```
+
+6. Confirm journal order is `0000` through `0005`; confirm
+   migration 0003 contains no principal/role/content seed and neither 0003 nor
+   0004 is imported/auto-applied by `db/index.ts`.
+7. Through the Sites/D1 control plane, create or record a pre-migration backup,
+   Time Travel bookmark/timestamp or equivalent restore point. Assign an owner
+   and verify the restore procedure before continuing.
+
+## 4. Migration-before-activation gate
+
+Save/publish the candidate source artifact through the Sites workflow, but do
+not activate the application version until the control plane reports:
+
+- the artifact is associated with the intended Sites project;
+- D1 binding `DB` resolves to the intended environment database;
+- ordered migrations through `0005_web_search_candidate_workflow` completed
+  exactly once;
+- no migration is failed, pending or partially applied.
+
+If the Sites workflow cannot expose migration status before activation, stop.
+Do not bypass the gate with ad-hoc Wrangler commands. The deployment remains
+blocked until the control plane or hosting configuration provides a verifiable
+migration-before-code guarantee.
+
+## 5. Database verification
+
+Use the read-only query facility attached to the exact Sites/D1 environment:
+
+```sql
+SELECT name, type
+FROM sqlite_master
+WHERE name LIKE 'legal_%'
+   OR name LIKE 'editorial_%'
+   OR name LIKE 'rate_limit_%'
+   OR name LIKE 'web_search_%'
+ORDER BY type, name;
+
+PRAGMA foreign_key_check;
+PRAGMA integrity_check;
+
+SELECT name
+FROM sqlite_master
+WHERE type = 'trigger'
+  AND name IN (
+    'legal_entries_created_by_immutable',
+    'legal_entries_material_change_invalidates_review',
+    'legal_entries_review_insert_check',
+    'legal_entries_review_update_check',
+    'legal_entry_citations_binding_change_invalidates_review',
+    'legal_entry_citations_created_by_immutable',
+    'legal_entry_citations_relation_immutable',
+    'legal_entry_citations_review_insert_check',
+    'legal_entry_citations_review_update_check',
+    'legal_provisions_revision_immutable',
+    'legal_provisions_state_invalidates_citations',
+    'legal_provisions_created_by_immutable',
+    'legal_provisions_published_source_insert_check',
+    'legal_provisions_published_source_update_check',
+    'legal_sources_created_by_immutable',
+    'legal_sources_invalidate_published_provisions',
+    'legal_sources_material_change_invalidates_rag'
+  )
+ORDER BY name;
+
+SELECT name
+FROM sqlite_master
+WHERE type = 'index'
+  AND name IN (
+    'rate_limit_buckets_expiry_idx',
+    'rate_limit_penalties_expiry_idx'
+  )
+ORDER BY name;
+```
+
+Expected:
+
+- three citation-foundation tables, the revision index and reviewed bridge
+  columns exist;
+- all foundation and reviewed-bridge triggers exist;
+- `PRAGMA foreign_key_check` returns no rows;
+- `PRAGMA integrity_check` returns `ok`;
+- the control plane records migrations 0001 through 0005 exactly once, in
+  journal order;
+- all seven `editorial_*` tables and 0003 integrity triggers exist, while every
+  editorial table remains empty immediately after migration.
+- both `rate_limit_*` tables and expiry indexes exist and are empty immediately
+  after migration.
+- all candidate/source/revision/event/budget tables and their triggers exist;
+  they are empty immediately after migration and no question/message column
+  exists.
+
+Constraint probes belong in a non-production D1 clone. They must prove:
+
+- rate-limit scope/hash/state-version constraints reject malformed state;
+- concurrent account/client/pair-attempt/chat bucket batches cannot authorize
+  above policy threshold and any `success: false` result fails closed;
+- stale login reset tokens cannot clear a newer pair failure;
+- non-HTTPS URLs are rejected;
+- `official_host` is lowercase, contains only `a-z0-9.-`, and contains no `..`;
+- URL authority matches `official_host`, including URL query/fragment cases;
+- non-draft sources outside the approved host allowlist are rejected;
+- creator and verifier/reviewer cannot be the same;
+- `created_by` cannot be reassigned after insert to bypass the four-eyes rule;
+- a published provision cannot reference a draft/unverified source;
+- invalidating a source moves dependent published provisions to
+  `pending_review` and clears review metadata;
+- legacy rows remain unverified after 0002;
+- entry/citation self-review, partial review metadata and stale revision binding
+  are rejected;
+- published provisions require a unique revision ID,
+  `provision-sha256-v1`, lowercase 64-hex digest and `in_force` window;
+- canonical fields of an assigned provision revision cannot be edited in place;
+- answer/source/provision changes invalidate dependent citation review;
+- a valid source, provision and citation graph succeeds.
+
+For migration 0003, the non-production clone must additionally prove:
+
+- only the first self-admin grant can bootstrap an empty grant table; later
+  grants and one-way revocation require an active admin;
+- a disabled principal cannot be re-enabled and a bound external subject cannot
+  be rebound;
+- revision numbers are contiguous, revisions are creator-owned and draft-only;
+- subject insert requires an active `editor|admin` creator and starts exactly at
+  `draft`, null current revision and optimistic version `0`;
+- current revision changes are draft-only, require an optimistic-version
+  increment and fail while pending or published;
+- submit/approve/reject atomically update subject/request state and append a
+  source-bound audit event;
+- forged role, cross-subject audit, self-review, stale revision, duplicate
+  operation and one-sided hash attempts fail;
+- revision, decision, audit and role-grant history cannot be updated/deleted.
+
+For migration 0005, also prove:
+
+- successful search creates exactly one draft, its official sources and one
+  `draft_persisted` event in one batch;
+- source, initial answer, revision and audit cannot be edited/deleted;
+- URL outside the immutable intake set cannot enter a reviewed snapshot;
+- editor cannot approve their own revision, disabled/ungranted actors fail and
+  stale optimistic versions do not partially mutate state;
+- `published` enters reviewed retrieval only while every citation is in force
+  and fresh; archive removes it immediately;
+- daily budget reservation is atomic and fails at the configured ceiling.
+
+## 6. Activate and smoke test
+
+Only after migration and database verification:
+
+1. activate/deploy the saved Sites version built from the exact verified source;
+2. confirm the Worker starts and existing public/admin routes still work;
+3. confirm login/chat write only HMAC-keyed state to the two `rate_limit_*`
+   tables; confirm no raw identity/body is stored, and no route provisions
+   principals or activates editorial workflow;
+4. confirm chat remains fail-closed outside reviewed retrieval;
+5. confirm the scheduled expiry sweep and its owner before claiming physical
+   retention; lazy cleanup alone is not retention evidence;
+6. monitor Worker and D1 errors before ending the maintenance window.
+
+## 7. Rollback and restore
+
+Because migrations 0001 through 0004 are expand-only, the preferred application
+rollback is:
+
+1. roll back the Sites application version;
+2. leave the unused citation and editorial sidecar tables in place;
+3. investigate without dropping tables or editing migration history.
+
+There is intentionally no automatic down migration. SQLite cannot safely drop
+the added 0002 columns without rebuilding tables, and dropping foundation tables
+can destroy future citation data. Neither operation is a routine rollback.
+
+If migration execution corrupts or blocks D1:
+
+1. prevent application version activation and stop writes;
+2. capture control-plane migration status and logs;
+3. restore the recorded D1 Time Travel point or validated backup through the
+   same environment's approved control-plane procedure;
+4. run `foreign_key_check`, `integrity_check` and application smoke tests;
+5. document the incident before attempting a corrected, newly versioned
+   migration.
+
+Never modify migration 0001, migration 0002, migration 0003, migration 0004 or any migration
+after it has been applied to a shared environment. Corrections require a new
+migration.
+
+## 8. Drizzle metadata limitation
+
+`drizzle/meta/_journal.json` records migrations 0001, 0002, 0003 and 0004, and the
+Sites artifact contains the journal and all three SQL files. The repository did
+not fabricate `0001_snapshot.json`, `0002_snapshot.json` or
+`0003_snapshot.json`. Before relying on a Drizzle Kit workflow that requires
+snapshots, regenerate/validate metadata with the pinned `drizzle-kit` version
+and review the resulting diff. The reviewed SQL migrations remain the
+production source of truth.

@@ -1,9 +1,19 @@
 import { env } from "cloudflare:workers";
+import { verifyAdminPassword } from "@/lib/password-hash";
 
 export const adminCookieName = "law_school_admin";
 const sessionTtlSeconds = 8 * 60 * 60;
 
-function getSecret(name: "ADMIN_USERNAME" | "ADMIN_PASSWORD" | "ADMIN_SESSION_SECRET") {
+export type AdminSessionActor = {
+  username: string;
+  principalId: string;
+};
+
+type AdminAccount = AdminSessionActor & {
+  passwordHash: string;
+};
+
+function getSecret(name: string) {
   const value = env[name] ?? process.env[name];
   return typeof value === "string" ? value : "";
 }
@@ -12,6 +22,70 @@ function toBase64Url(bytes: Uint8Array) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function fromBase64Url(value: string) {
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) return null;
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/")
+    .padEnd(Math.ceil(value.length / 4) * 4, "=");
+  try {
+    const binary = atob(padded);
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+
+function accountRegistry(): AdminAccount[] {
+  const rawRegistry = getSecret("ADMIN_ACCOUNTS_JSON").trim();
+  if (rawRegistry) {
+    try {
+      const parsed = JSON.parse(rawRegistry);
+      if (!Array.isArray(parsed) || parsed.length < 1 || parsed.length > 20) {
+        return [];
+      }
+      const accounts: AdminAccount[] = [];
+      const usernames = new Set<string>();
+      const principals = new Set<string>();
+      for (const value of parsed) {
+        if (!value || typeof value !== "object") return [];
+        const record = value as Record<string, unknown>;
+        const username =
+          typeof record.username === "string" ? record.username.trim() : "";
+        const passwordHash =
+          typeof record.passwordHash === "string"
+            ? record.passwordHash.trim()
+            : "";
+        const principalId =
+          typeof record.principalId === "string"
+            ? record.principalId.trim()
+            : "";
+        if (
+          !/^[A-Za-z0-9._@-]{1,80}$/.test(username) ||
+          !/^[A-Za-z0-9._:@-]{1,128}$/.test(principalId) ||
+          !passwordHash ||
+          usernames.has(username) ||
+          principals.has(principalId)
+        ) {
+          return [];
+        }
+        usernames.add(username);
+        principals.add(principalId);
+        accounts.push({ username, passwordHash, principalId });
+      }
+      return accounts;
+    } catch {
+      return [];
+    }
+  }
+
+  const username = getSecret("ADMIN_USERNAME").trim();
+  const passwordHash = getSecret("ADMIN_PASSWORD_HASH").trim();
+  const principalId =
+    getSecret("ADMIN_PRINCIPAL_ID").trim() || `legacy-admin:${username}`;
+  return username && passwordHash && /^[A-Za-z0-9._:@-]{1,128}$/.test(principalId)
+    ? [{ username, passwordHash, principalId }]
+    : [];
 }
 
 async function digest(value: string) {
@@ -41,39 +115,88 @@ async function sign(payload: string) {
 }
 
 export async function validateAdminCredentials(username: string, password: string) {
-  const expectedUsername = getSecret("ADMIN_USERNAME");
-  const expectedPassword = getSecret("ADMIN_PASSWORD");
-  if (!expectedUsername || !expectedPassword || getSecret("ADMIN_SESSION_SECRET").length < 32) {
+  if (
+    getSecret("ADMIN_SESSION_SECRET").length < 32 ||
+    !password ||
+    new TextEncoder().encode(password).length > 1024
+  ) {
     return false;
   }
-  const [usernameMatches, passwordMatches] = await Promise.all([
-    safeEqual(username, expectedUsername),
-    safeEqual(password, expectedPassword),
-  ]);
-  return usernameMatches && passwordMatches;
+  const accounts = accountRegistry();
+  const comparisons = await Promise.all(
+    accounts.map(async (account) => {
+      const [usernameMatches, passwordMatches] = await Promise.all([
+        safeEqual(username, account.username),
+        verifyAdminPassword(password, account.passwordHash),
+      ]);
+      return usernameMatches && passwordMatches;
+    }),
+  );
+  return comparisons.some(Boolean);
 }
 
-export async function createAdminSession() {
+export async function createAdminSession(username?: string) {
+  const accounts = accountRegistry();
+  const account = username
+    ? accounts.find((candidate) => candidate.username === username)
+    : accounts[0];
+  if (!account) throw new Error("Tài khoản quản trị chưa được cấu hình.");
   const expiresAt = Math.floor(Date.now() / 1000) + sessionTtlSeconds;
-  const payload = `${getSecret("ADMIN_USERNAME")}.${expiresAt}`;
+  const payload = toBase64Url(
+    new TextEncoder().encode(
+      JSON.stringify({
+        version: 2,
+        username: account.username,
+        principalId: account.principalId,
+        expiresAt,
+      }),
+    ),
+  );
   const signature = await sign(payload);
   if (!signature) throw new Error("ADMIN_SESSION_SECRET phải có ít nhất 32 ký tự.");
-  return { token: `${payload}.${signature}`, maxAge: sessionTtlSeconds };
+  return { token: `v2.${payload}.${signature}`, maxAge: sessionTtlSeconds };
+}
+
+export async function verifyAdminSessionActor(
+  token: string | undefined,
+): Promise<AdminSessionActor | null> {
+  if (!token) return null;
+  const [version, payload, signature, extra] = token.split(".");
+  if (version !== "v2" || !payload || !signature || extra) return null;
+  const expectedSignature = await sign(payload);
+  if (!expectedSignature || !(await safeEqual(signature, expectedSignature))) {
+    return null;
+  }
+  const decoded = fromBase64Url(payload);
+  if (!decoded) return null;
+  let session: Record<string, unknown>;
+  try {
+    session = JSON.parse(new TextDecoder().decode(decoded));
+  } catch {
+    return null;
+  }
+  if (
+    session.version !== 2 ||
+    typeof session.username !== "string" ||
+    typeof session.principalId !== "string" ||
+    typeof session.expiresAt !== "number" ||
+    !Number.isInteger(session.expiresAt) ||
+    session.expiresAt <= Date.now() / 1000
+  ) {
+    return null;
+  }
+  const account = accountRegistry().find(
+    (candidate) =>
+      candidate.username === session.username &&
+      candidate.principalId === session.principalId,
+  );
+  return account
+    ? { username: account.username, principalId: account.principalId }
+    : null;
 }
 
 export async function verifyAdminSession(token: string | undefined) {
-  if (!token) return false;
-  const separator = token.lastIndexOf(".");
-  if (separator < 1) return false;
-  const payload = token.slice(0, separator);
-  const signature = token.slice(separator + 1);
-  const [username, expiresAtValue] = payload.split(".");
-  const expiresAt = Number(expiresAtValue);
-  if (username !== getSecret("ADMIN_USERNAME") || !Number.isFinite(expiresAt) || expiresAt <= Date.now() / 1000) {
-    return false;
-  }
-  const expectedSignature = await sign(payload);
-  return Boolean(signature && expectedSignature) && safeEqual(signature, expectedSignature);
+  return Boolean(await verifyAdminSessionActor(token));
 }
 
 export function readCookie(request: Request, name: string) {
@@ -87,6 +210,10 @@ export function readCookie(request: Request, name: string) {
 
 export async function isAdminRequest(request: Request) {
   return verifyAdminSession(readCookie(request, adminCookieName));
+}
+
+export async function getAdminRequestActor(request: Request) {
+  return verifyAdminSessionActor(readCookie(request, adminCookieName));
 }
 
 export function adminSessionCookie(token: string, maxAge: number, secure: boolean) {

@@ -1,6 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { createObservableWorker } from "../lib/worker-observability";
 
 interface Env {
   ASSETS: Fetcher;
@@ -25,7 +26,7 @@ interface ExecutionContext {
 // dangerouslyAllowSVG: true in next.config.js and uncomment below:
 // const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
 
-const worker = {
+const applicationHandler = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
@@ -43,5 +44,9 @@ const worker = {
     return handler.fetch(request, env, ctx);
   },
 };
+
+const worker = createObservableWorker({
+  handler: applicationHandler,
+});
 
 export default worker;

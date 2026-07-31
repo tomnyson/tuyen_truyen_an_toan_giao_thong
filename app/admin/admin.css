@@ -48,6 +48,12 @@
 .admin-actions button.danger { color: #a52318; border-color: #a52318; }
 .admin-empty { padding: 42px 20px; border: 2px dashed #9ca1ae; border-radius: 13px; text-align: center; }
 .admin-empty p { margin-bottom: 0; color: #71788a; font-size: 11px; }
+.admin-candidates { display: grid; gap: 14px; padding-bottom: 32px; }
+.candidate-editor { max-width: none; }
+.candidate-citation { border: 1px solid #d8dee8; border-radius: 12px; margin: 14px 0; padding: 14px; }
+.candidate-citation legend { font-weight: 800; padding: 0 6px; }
+.candidate-item details { margin-top: 12px; }
+.candidate-item details li { margin-top: 6px; overflow-wrap: anywhere; }
 
 @media (max-width: 900px) {
   .admin-welcome { align-items: start; flex-direction: column; }

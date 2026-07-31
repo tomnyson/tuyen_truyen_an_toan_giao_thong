@@ -1,6 +1,10 @@
-export const DEFAULT_OPENAI_MODEL = "gpt-5.6-sol";
+export const DEFAULT_OPENAI_MODEL = "gpt-5.4-mini";
 export const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-export const SUPPORTED_OPENAI_MODELS = [DEFAULT_OPENAI_MODEL] as const;
+export const SUPPORTED_OPENAI_MODELS = [
+  DEFAULT_OPENAI_MODEL,
+  "gpt-5.4-mini-2026-03-17",
+] as const;
+export const PINNED_OPENAI_MODEL = "gpt-5.4-mini-2026-03-17";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_PROVIDER_RESPONSE_BYTES = 1_000_000;
@@ -97,6 +101,9 @@ type FetchLike = (
 type ComposerDependencies = {
   fetch?: FetchLike;
 };
+
+export type SupportedOpenAiModel =
+  (typeof SUPPORTED_OPENAI_MODELS)[number];
 
 const linkedTextSchema = {
   type: "object",
@@ -430,6 +437,98 @@ function readTokenCount(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function abortError() {
+  return new DOMException("Provider response timed out", "AbortError");
+}
+
+async function readProviderBody(
+  response: Response,
+  signal: AbortSignal,
+): Promise<string> {
+  const contentLengthHeader = response.headers.get("content-length");
+  if (contentLengthHeader !== null) {
+    const contentLength = Number(contentLengthHeader);
+    if (
+      !/^\d+$/.test(contentLengthHeader) ||
+      !Number.isSafeInteger(contentLength) ||
+      contentLength > MAX_PROVIDER_RESPONSE_BYTES
+    ) {
+      throw new RangeError("Provider response exceeds the byte limit");
+    }
+  }
+
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const parts: string[] = [];
+  let receivedBytes = 0;
+  let completed = false;
+
+  const readWithAbort = () =>
+    new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
+      if (signal.aborted) {
+        reject(abortError());
+        return;
+      }
+      const onAbort = () => reject(abortError());
+      signal.addEventListener("abort", onAbort, { once: true });
+      reader.read().then(resolve, reject).finally(() => {
+        signal.removeEventListener("abort", onAbort);
+      });
+    });
+
+  try {
+    while (true) {
+      const chunk = await readWithAbort();
+      if (chunk.done) break;
+      receivedBytes += chunk.value.byteLength;
+      if (receivedBytes > MAX_PROVIDER_RESPONSE_BYTES) {
+        throw new RangeError("Provider response exceeds the byte limit");
+      }
+      parts.push(decoder.decode(chunk.value, { stream: true }));
+    }
+    parts.push(decoder.decode());
+    completed = true;
+    return parts.join("");
+  } catch (error) {
+    void reader.cancel().catch(() => {
+      // Cancellation is best-effort and must not replace the stable error.
+    });
+    throw error;
+  } finally {
+    if (completed) reader.releaseLock();
+  }
+}
+
+async function cancelProviderBody(
+  response: Response,
+  signal: AbortSignal,
+): Promise<void> {
+  if (!response.body) return;
+  const reader = response.body.getReader();
+  const aborted = new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
+    signal.addEventListener("abort", () => resolve(), { once: true });
+  });
+  try {
+    await Promise.race([
+      reader.cancel().then(() => undefined),
+      aborted,
+    ]);
+  } catch {
+    // Cancellation is best-effort and must not replace the stable failure.
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      // A pending cancel may still own the lock after timeout.
+    }
+  }
+}
+
 function buildProviderInput(request: EvidenceCompositionRequest) {
   return {
     question: sanitizeQuestion(request.question),
@@ -482,6 +581,20 @@ export function readOpenAiComposerConfig(
   };
 }
 
+export function resolveOpenAiModel(
+  value: unknown,
+): SupportedOpenAiModel | null {
+  const model =
+    typeof value === "string" && value.trim().length > 0
+      ? value.trim()
+      : DEFAULT_OPENAI_MODEL;
+  return SUPPORTED_OPENAI_MODELS.includes(
+    model as SupportedOpenAiModel,
+  )
+    ? (model as SupportedOpenAiModel)
+    : null;
+}
+
 export async function composeEvidenceAnswer(
   config: OpenAiComposerConfig,
   request: EvidenceCompositionRequest,
@@ -489,14 +602,8 @@ export async function composeEvidenceAnswer(
 ): Promise<OpenAiComposerResult> {
   if (!config.enabled) return failure("DISABLED");
   if (!isNonEmptyString(config.apiKey)) return failure("MISSING_API_KEY");
-  const model = config.model?.trim() || DEFAULT_OPENAI_MODEL;
-  if (
-    !SUPPORTED_OPENAI_MODELS.includes(
-      model as (typeof SUPPORTED_OPENAI_MODELS)[number],
-    )
-  ) {
-    return failure("INVALID_CONFIG");
-  }
+  const model = resolveOpenAiModel(config.model);
+  if (!model) return failure("INVALID_CONFIG");
 
   const invalidRequest = validateEvidenceRequest(request);
   if (invalidRequest) return failure(invalidRequest);
@@ -510,9 +617,9 @@ export async function composeEvidenceAnswer(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  let response: Response;
+  let rawPayload: string;
   try {
-    response = await (dependencies.fetch ?? fetch)(OPENAI_RESPONSES_URL, {
+    const response = await (dependencies.fetch ?? fetch)(OPENAI_RESPONSES_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
@@ -547,6 +654,11 @@ export async function composeEvidenceAnswer(
       }),
       signal: controller.signal,
     });
+    if (!response.ok) {
+      await cancelProviderBody(response, controller.signal);
+      return failure("PROVIDER_ERROR");
+    }
+    rawPayload = await readProviderBody(response, controller.signal);
   } catch (error) {
     if (
       controller.signal.aborted ||
@@ -559,25 +671,6 @@ export async function composeEvidenceAnswer(
     clearTimeout(timeout);
   }
 
-  if (!response.ok) return failure("PROVIDER_ERROR");
-  const contentLength = Number(response.headers.get("content-length") ?? "0");
-  if (
-    Number.isFinite(contentLength) &&
-    contentLength > MAX_PROVIDER_RESPONSE_BYTES
-  ) {
-    return failure("PROVIDER_ERROR");
-  }
-
-  let rawPayload: string;
-  try {
-    rawPayload = await response.text();
-  } catch {
-    return failure("PROVIDER_ERROR");
-  }
-  if (rawPayload.length > MAX_PROVIDER_RESPONSE_BYTES) {
-    return failure("PROVIDER_ERROR");
-  }
-
   let payload: unknown;
   try {
     payload = JSON.parse(rawPayload);
@@ -587,6 +680,16 @@ export async function composeEvidenceAnswer(
   if (!isPlainObject(payload)) return failure("INVALID_OUTPUT");
   if (hasRefusal(payload)) return failure("PROVIDER_REFUSAL");
   if (payload.status !== "completed") return failure("PROVIDER_ERROR");
+  const providerModel =
+    typeof payload.model === "string" ? payload.model.trim() : "";
+  if (
+    !SUPPORTED_OPENAI_MODELS.includes(
+      providerModel as SupportedOpenAiModel,
+    ) ||
+    (model === PINNED_OPENAI_MODEL && providerModel !== model)
+  ) {
+    return failure("INVALID_OUTPUT");
+  }
 
   const outputTexts = extractOutputTexts(payload);
   if (outputTexts.length !== 1) return failure("INVALID_OUTPUT");
@@ -611,10 +714,7 @@ export async function composeEvidenceAnswer(
     ok: true,
     composition,
     responseId: typeof payload.id === "string" ? payload.id : "",
-    model:
-      typeof payload.model === "string"
-        ? payload.model
-        : model,
+    model: providerModel,
     usage: {
       inputTokens: readTokenCount(usage.input_tokens),
       outputTokens: readTokenCount(usage.output_tokens),

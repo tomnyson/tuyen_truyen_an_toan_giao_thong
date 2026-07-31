@@ -975,47 +975,75 @@ approval sau khi có authenticated session boundary và promotion transaction.
   hoặc điều kiện không được evidence hỗ trợ phải bị loại hoặc fail closed.
 - [ ] Missing key, timeout, malformed output hoặc unknown citation fail closed:
   curated response nếu đủ dữ liệu, nếu không `unavailable`.
-- [ ] `OPENAI_API_KEY` server-only; model, feature flag, timeout, quota/rate
-  limit và cost telemetry được tài liệu hóa.
+- [x] Trong adapter/offline slice, `OPENAI_API_KEY` chỉ đọc server-side;
+  exact model/feature flag, provider timeout, bounded per-run case/quota và
+  content-free token-usage aggregate được tài liệu hóa và có test.
+- [ ] Production provider budget, time-window rate limit, circuit breaker,
+  approved threshold và cost alert/telemetry chưa được activate.
 - [ ] Có defense cho prompt injection từ câu hỏi và source document.
-- [ ] Có adapter tests cho success, flag-off, missing config, empty/invalid
+- [x] Có adapter tests cho success, flag-off, missing config, empty/invalid
   bundle, timeout, non-2xx, refusal, malformed structured output và unknown
-  evidence ID; có validator tests cho hallucination,
-  unsupported-claim/numeric-mismatch.
+  evidence ID; numeric/citation smuggling và oversized/streaming body đều fail
+  closed.
+- [ ] Có semantic validator tests cho hallucination, unsupported claim,
+  predicate/span entailment và numeric/date/article mismatch với canonical DB
+  record.
 - [ ] `/api/chat` hoặc API v1 chỉ được gọi adapter sau khi structured retrieval
   trả validated citation bundle. Trước gate đó route hiện tại phải tiếp tục
   fail closed và test chứng minh credential/flag không gây outbound provider
   call khi không có bundle.
-- [ ] Shadow orchestration dùng `AI_SHADOW_ENABLED` làm canonical request-path
-  flag, mặc định/absent/giá trị khác exact `true` là disabled.
+- [x] Offline/local shadow runner dùng `AI_SHADOW_ENABLED` làm canonical flag,
+  mặc định/absent/giá trị khác exact `true` là disabled và không được import
+  vào `/api/chat` hoặc API v1 trong lát cắt này.
   `OPENAI_API_KEY` hiện có chỉ được đọc server-side; key tồn tại không tự bật
   shadow và flag adapter cũ `AI_REPHRASE_ENABLED` không được tạo activation path
   thứ hai.
-- [ ] Shadow chỉ gọi provider sau khi retriever/validator trả non-empty
-  `validatedEvidenceBundle` đã chứng minh published/in-force/fresh/four-eyes và
-  canonical relationship/provenance. Request luôn `store:false`, không khai báo
-  web search/tool và không nhận provider base URL, system instruction hoặc
-  conversation từ client.
-- [ ] Baseline response được quyết định độc lập với shadow. Shadow success,
+- [x] Model policy dùng exact allowlist
+  `gpt-5.4-mini|gpt-5.4-mini-2026-03-17`, không prefix/family matching.
+  `OPENAI_MODEL` missing/rỗng dùng `gpt-5.4-mini`; local/manual smoke được dùng
+  alias, repeatable evaluation/cutover phải pin snapshot.
+  `gpt-5.6-sol` và mọi ID khác fail `INVALID_CONFIG` trước outbound call.
+  Tests bao phủ default, hai ID hợp lệ, whitespace normalization và unknown ID.
+- [x] Offline shadow chỉ gọi provider với committed synthetic technical fixture
+  đã version/checksum-bound, có distinct structural review labels và qua
+  fixture + adapter eligibility validation. Request luôn `store:false`, không
+  khai báo web search/tool và không nhận provider base URL, system instruction
+  hoặc conversation từ client. Fixture không được coi là authenticated
+  four-eyes, corpus production hay legal review evidence.
+- [x] Baseline response được quyết định độc lập với shadow. Shadow success,
   missing key/evidence, timeout, refusal, malformed/schema output, unknown
   evidence ID, network/non-2xx hoặc provider error đều không thay đổi body,
   `mode`, citation, sanction, HTTP status hay header hiện tại; output shadow bị
   discard sau validation.
-- [ ] Không persist hoặc log prompt, sanitized question, evidence text,
-  provider body/refusal hay shadow output. Telemetry chỉ cho stable
-  `requestId`, shadow outcome/error enum, bounded canonical evidence IDs,
-  model, latency và token usage đã allowlist; không chứa API key, nội dung pháp
-  lý/người dùng, URL query hoặc exception message/stack.
-- [ ] Fixture tests dùng injected fake provider và không cần key/network, bao
+- [x] Offline runner không persist/log prompt, sanitized question, evidence
+  text, provider body/refusal hay shadow output. Aggregate chỉ chứa policy,
+  fixture version, stable outcome/failure counts, allowlisted model và bounded
+  token usage; không chứa API key, nội dung, response ID, URL query hoặc
+  exception message/stack.
+- [ ] `store:false` không được claim là Zero Data Retention: abuse-monitoring
+  log mặc định của provider có thể chứa prompt/response. Offline smoke chỉ dùng
+  versioned technical fixture không có dữ liệu người dùng. Trước khi gửi câu
+  hỏi/evidence thật của học sinh phải verify data-control trên exact OpenAI
+  org/project và có product + privacy/legal approval. Personal data của trẻ
+  dưới 13 tuổi hoặc dưới tuổi đồng thuận số áp dụng bị chặn nếu chưa xác minh
+  Zero Data Retention.
+- [ ] Direct/route AI cho người dưới 18 chỉ activate sau disclosure phù hợp độ
+  tuổi, age-appropriate content filter, monitoring/reporting + high-risk
+  escalation, age assurance khi phù hợp và privacy/legal review có evidence.
+  Model choice phải được review lại theo current under-18 safety guidance;
+  offline `gpt-5.4-mini` allowlist không tự phê duyệt production minor use.
+- [x] Fixture tests dùng injected fake provider và không cần key/network, bao
   phủ flag-off, valid bundle, baseline invariance và toàn bộ fail-closed path.
   Live smoke là thao tác manual riêng với non-user technical fixture; kết quả
   chỉ là provider/config evidence, không được dùng để check retrieval,
-  claim-validation, public integration hoặc direct-answer activation.
+  claim-validation, privacy/data-control, public integration hoặc direct-answer
+  activation.
 - [ ] AI output chỉ được trả trực tiếp cho người dùng sau khi US-025 hoàn tất
   validated bundle production + evaluation gate và US-026 hoàn tất semantic
   claim/span guard, canonical DB assembly, rate-limit/telemetry, API contract
-  integration, negative/e2e tests cùng rollout review. `AI_SHADOW_ENABLED`
-  không bao giờ tự cấp quyền direct response.
+  integration, negative/e2e tests cùng rollout review. Route shadow còn cần
+  execution-lifetime seam như Cloudflare `waitUntil`; `AI_SHADOW_ENABLED` không
+  bao giờ tự cấp quyền route hoặc direct response.
 
 **Decision (2026-07-30):** API key không phải fallback kiến thức mở. Thay đổi
 điều này cần một quyết định mới sửa DEC-002/DEC-006 và không được khuyến nghị.
@@ -1026,9 +1054,12 @@ retrieval/citation bundle và không thay public response contract trong lát c�
 này.
 
 **Delivery slice kế tiếp — shadow/local activation:** chỉ nối orchestration
-shadow sau validated fixture/local bundle, dùng `AI_SHADOW_ENABLED=false` mặc
-định và discard output. Slice này không đổi câu trả lời/citation hiện tại,
-không persist nội dung và không mở `ai_assisted` cho end user.
+offline sau committed validated/reviewed technical fixture, dùng
+`AI_SHADOW_ENABLED=false` mặc định và discard output. Runner không được import
+vào chat/API route, không đổi câu trả lời/citation hiện tại, không persist nội
+dung và không mở `ai_assisted` cho end user. Model policy chuyển khỏi
+adapter-only `gpt-5.6-sol` sang exact allowlist của DEC-009 trước khi chạy live
+smoke.
 
 **Evidence:** `lib/openai-evidence.ts`, `tests/openai-evidence.test.mjs`,
 `scripts/smoke-openai-evidence.mjs`, `.env.example` và
@@ -1039,3 +1070,18 @@ cùng của Full-stack chạy 15/15 pass. Live smoke bằng fixture kỹ thuật
 semantic claim/span validation, rate limit/telemetry vận hành hoặc `/api/chat`
 integration. Live smoke adapter đã ghi nhận trước đây không phải evidence cho
 shadow orchestration hoặc direct-answer gate; các AC mới giữ unchecked.
+
+**Evidence offline/local shadow (2026-07-31):**
+`lib/ai-shadow.ts`, `fixtures/ai-shadow/cases.v1.json`,
+`scripts/shadow-openai-evidence.mjs`, `tests/ai-shadow.test.mjs` và adapter
+hardened trong `lib/openai-evidence.ts`. Shadow suite chạy **9/9**, adapter suite
+**20/20**, combined **29/29**; full local suite **212/212**, typecheck, lint,
+build và diff check pass.
+Implementation dùng exact shadow flag, alias/snapshot model allowlist, bounded
+case/quota, checksum-bound synthetic fixture, timeout bao trọn streamed body và
+content-free aggregate; composition bị discard và `/api/chat` không đổi. Chưa
+verify ZDR/MAM/under-18 hoặc production integration. Live technical smoke dùng
+alias request nhưng ghi nhận actual pinned snapshot
+`gpt-5.4-mini-2026-03-17`, đạt **2/2**, tổng **1.522 tokens** và không ghi
+prompt/evidence/composition; đây chỉ là provider/config evidence. Story giữ
+`Partial`.

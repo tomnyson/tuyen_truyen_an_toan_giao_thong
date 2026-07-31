@@ -28,9 +28,11 @@ declare module "cloudflare:workers" {
     OPENAI_API_KEY?: string;
     OPENAI_MODEL?: string;
     AI_REPHRASE_ENABLED?: string;
+    AI_SHADOW_ENABLED?: string;
     AI_WEB_SEARCH_ENABLED?: string;
     AI_PROVIDER_TIMEOUT_MS?: string;
     AI_PROVIDER_MAX_REQUESTS_PER_MINUTE?: string;
+    AI_SHADOW_MAX_CASES?: string;
     [key: string]: unknown;
   };
 }

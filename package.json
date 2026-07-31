@@ -11,6 +11,7 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
     "test:ai-adapter": "node --experimental-strip-types --test tests/openai-evidence.test.mjs",
+    "test:ai-shadow": "node --test tests/ai-shadow.test.mjs",
     "test:retriever": "node --experimental-strip-types --test tests/legal-evidence-retriever.test.mjs",
     "test:admin-auth": "node --experimental-strip-types --test tests/admin-auth.test.mjs",
     "test:rate-limit": "node --experimental-strip-types --test tests/rate-limit.test.mjs",
@@ -20,6 +21,7 @@
     "test:showcase": "node --test tests/public-showcase.test.mjs",
     "test:catalog-resolver": "node --test tests/catalog-resolver.test.mjs",
     "smoke:ai": "node --env-file=.env.local --experimental-strip-types scripts/smoke-openai-evidence.mjs",
+    "shadow:ai": "node --env-file=.env.local --experimental-strip-types scripts/shadow-openai-evidence.mjs",
     "auth:hash": "node --experimental-strip-types scripts/generate-admin-password-hash.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"

@@ -121,6 +121,38 @@ test("reads the feature flag strictly and keeps the current model default", () =
   );
 });
 
+test("accepts only the exact alias and pinned snapshot after outer trim", async () => {
+  for (const [configuredModel, expectedModel] of [
+    [undefined, "gpt-5.4-mini"],
+    ["", "gpt-5.4-mini"],
+    [" gpt-5.4-mini ", "gpt-5.4-mini"],
+    [
+      " gpt-5.4-mini-2026-03-17 ",
+      "gpt-5.4-mini-2026-03-17",
+    ],
+  ]) {
+    let providerModel;
+    const result = await composeEvidenceAnswer(
+      {
+        enabled: true,
+        apiKey: "secret",
+        model: configuredModel,
+      },
+      request(),
+      {
+        fetch: async (_url, init) => {
+          providerModel = JSON.parse(init.body).model;
+          return completedResponse(validComposition, {
+            model: expectedModel,
+          });
+        },
+      },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(providerModel, expectedModel);
+  }
+});
+
 test("sanitizes Unicode, control characters and repeated whitespace", () => {
   assert.equal(
     sanitizeQuestion("  đội\u0000   mũ\n bảo hiểm  "),
@@ -150,21 +182,28 @@ test("disabled and missing-key paths fail closed without outbound fetch", async 
   assert.equal(calls, 0);
 });
 
-test("rejects unsupported model configuration without outbound fetch", async () => {
-  let called = false;
-  const result = await composeEvidenceAnswer(
-    { enabled: true, apiKey: "secret", model: "unreviewed-model" },
-    request(),
-    {
-      fetch: async () => {
-        called = true;
-        return completedResponse();
+test("rejects old sol, family-like and unknown models without outbound fetch", async () => {
+  for (const model of [
+    "gpt-5.6-sol",
+    "gpt-5.4-mini-latest",
+    "gpt-5.4-mini-2026-03-17-extra",
+    "unreviewed-model",
+  ]) {
+    let called = false;
+    const result = await composeEvidenceAnswer(
+      { enabled: true, apiKey: "secret", model },
+      request(),
+      {
+        fetch: async () => {
+          called = true;
+          return completedResponse();
+        },
       },
-    },
-  );
+    );
 
-  assert.deepEqual(result, { ok: false, code: "INVALID_CONFIG" });
-  assert.equal(called, false);
+    assert.deepEqual(result, { ok: false, code: "INVALID_CONFIG" });
+    assert.equal(called, false);
+  }
 });
 
 test("rejects evidence that is not published, fresh and four-eyes reviewed", async () => {
@@ -464,6 +503,18 @@ test("fails closed for malformed, incomplete, refusal and multiple text output",
       }),
       code: "INVALID_OUTPUT",
     },
+    {
+      response: completedResponse(validComposition, {
+        model: "provider-expanded-model",
+      }),
+      code: "INVALID_OUTPUT",
+    },
+    {
+      response: completedResponse(validComposition, {
+        model: undefined,
+      }),
+      code: "INVALID_OUTPUT",
+    },
   ];
 
   for (const item of cases) {
@@ -476,6 +527,70 @@ test("fails closed for malformed, incomplete, refusal and multiple text output",
       { ok: false, code: item.code },
     );
   }
+});
+
+test("a pinned request rejects an alias response while an alias may resolve to the pinned snapshot", async () => {
+  assert.deepEqual(
+    await composeEvidenceAnswer(
+      {
+        enabled: true,
+        apiKey: "secret",
+        model: "gpt-5.4-mini-2026-03-17",
+      },
+      request(),
+      {
+        fetch: async () =>
+          completedResponse(validComposition, {
+            model: "gpt-5.4-mini",
+          }),
+      },
+    ),
+    { ok: false, code: "INVALID_OUTPUT" },
+  );
+
+  const aliasResult = await composeEvidenceAnswer(
+    {
+      enabled: true,
+      apiKey: "secret",
+      model: "gpt-5.4-mini",
+    },
+    request(),
+    {
+      fetch: async () =>
+        completedResponse(validComposition, {
+          model: "gpt-5.4-mini-2026-03-17",
+        }),
+    },
+  );
+  assert.equal(aliasResult.ok, true);
+  if (aliasResult.ok) {
+    assert.equal(aliasResult.model, "gpt-5.4-mini-2026-03-17");
+  }
+});
+
+test("non-2xx responses cancel their unread body before failing closed", async () => {
+  let cancelled = false;
+  const result = await composeEvidenceAnswer(
+    { enabled: true, apiKey: "secret" },
+    request(),
+    {
+      fetch: async () =>
+        new Response(
+          new ReadableStream({
+            pull(controller) {
+              controller.enqueue(new TextEncoder().encode("secret"));
+            },
+            cancel() {
+              cancelled = true;
+            },
+          }),
+          { status: 503 },
+        ),
+    },
+  );
+
+  assert.deepEqual(result, { ok: false, code: "PROVIDER_ERROR" });
+  assert.equal(cancelled, true);
 });
 
 test("fails closed for HTTP, network and timeout errors without returning bodies", async () => {
@@ -519,6 +634,56 @@ test("fails closed for HTTP, network and timeout errors without returning bodies
     ),
     { ok: false, code: "PROVIDER_TIMEOUT" },
   );
+});
+
+test("timeout covers a response body that never completes", async () => {
+  const result = await composeEvidenceAnswer(
+    { enabled: true, apiKey: "secret", timeoutMs: 5 },
+    request(),
+    {
+      fetch: async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                new TextEncoder().encode('{"status":"completed"'),
+              );
+            },
+          }),
+          { status: 200 },
+        ),
+    },
+  );
+
+  assert.deepEqual(result, { ok: false, code: "PROVIDER_TIMEOUT" });
+});
+
+test("rejects declared or streamed oversized provider bodies", async () => {
+  const oversizedChunk = new Uint8Array(1_000_001);
+  const responses = [
+    new Response("{}", {
+      status: 200,
+      headers: { "content-length": "1000001" },
+    }),
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(oversizedChunk);
+          controller.close();
+        },
+      }),
+      { status: 200 },
+    ),
+  ];
+
+  for (const response of responses) {
+    const result = await composeEvidenceAnswer(
+      { enabled: true, apiKey: "secret" },
+      request(),
+      { fetch: async () => response },
+    );
+    assert.deepEqual(result, { ok: false, code: "PROVIDER_ERROR" });
+  }
 });
 
 test("the public chat route remains disconnected until RAG citations exist", async () => {

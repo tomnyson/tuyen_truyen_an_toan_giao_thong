@@ -328,14 +328,30 @@ type LegalAnswerResponse = {
 - Mỗi factual claim phải map tới evidence span/predicate; numeric/date/article
   fields phải exact-match canonical record.
 - Không đủ evidence, provider lỗi hoặc output invalid phải fail closed.
-- Shadow AI chỉ được gọi server-side khi `AI_SHADOW_ENABLED=true` và
+- Offline/local shadow AI chỉ được gọi server-side khi
+  `AI_SHADOW_ENABLED=true` và
   `OPENAI_API_KEY` hiện có khả dụng; biến thiếu hoặc mọi giá trị khác `true`
   đều là disabled. Provider request bắt buộc `store:false`, không bật web
   search/tool và chỉ nhận evidence bundle đã validate/review.
+- Model allowlist shadow chỉ nhận exact `gpt-5.4-mini` hoặc
+  `gpt-5.4-mini-2026-03-17`; local/manual smoke dùng alias, còn evaluation hoặc
+  cutover có tính lặp lại phải pin snapshot. Missing model dùng
+  `gpt-5.4-mini`; không match prefix/family và không chấp nhận
+  `gpt-5.6-sol` trong lát cắt này.
 - Shadow output không được thay đổi body, mode, citation, sanction, status hoặc
   header của câu trả lời hiện tại; không persist prompt/output. Missing key,
   missing/invalid evidence, timeout, schema/refusal/provider error chỉ tạo
   outcome kỹ thuật đã redact và giữ nguyên baseline response.
+- `store:false` không được diễn giải là Zero Data Retention. Offline smoke chỉ
+  dùng technical fixture không có dữ liệu người dùng. Trước khi gửi câu hỏi
+  thật của học sinh, phải xác minh data-control trên đúng OpenAI project và có
+  product/privacy/legal approval; personal data của trẻ dưới 13 tuổi hoặc dưới
+  tuổi đồng thuận số áp dụng không được xử lý nếu chưa có Zero Data Retention.
+- Trước trải nghiệm AI cho người dưới 18 tuổi, phải có disclosure phù hợp độ
+  tuổi, content filter, monitoring/reporting và escalation cho tương tác rủi ro,
+  age assurance khi phù hợp, cùng review lại model theo hướng dẫn an toàn hiện
+  hành. Exact mini-model allowlist của offline shadow không phải production
+  approval cho direct minor experience.
 - Fixture test dùng provider giả lập và live smoke thủ công bằng fixture kỹ
   thuật là hai loại evidence riêng. Live smoke chỉ chứng minh credential,
   network và provider schema, không chứng minh corpus/retrieval an toàn hoặc
@@ -537,7 +553,7 @@ activation; do đó production deployment vẫn bị chặn.
 | 2026-07-30 | DEC-006 | Dữ liệu ngoài chỉ được ingest vào staging/draft có provenance và qua bốn mắt; AI không auto-publish hoặc làm nguồn xác minh. | API key chỉ dùng cho discovery/extraction draft hoặc evidence-bound composer; end-user query không live-search và không dùng kiến thức mở làm fallback. |
 | 2026-07-31 | DEC-007 | Credential admin chỉ lưu dạng hash versioned `PBKDF2-HMAC-SHA256`, không hỗ trợ plaintext. | Cấu hình thiếu/malformed fail closed; rotation đổi cả password hash và session secret; benchmark Worker là rollout gate. |
 | 2026-07-31 | DEC-008 | Catalog phân biệt managed success-empty với dependency unavailable; static baseline là normal overlay, còn unavailable dùng degraded fallback. | Degraded trả HTTP 200 + `dataState=degraded` + no-store; reviewed suppression áp dụng cả fallback, managed-only key hợp lệ không phải orphan và local slice không đóng production migration gate. |
-| 2026-07-31 | DEC-009 | AI request-path đầu tiên chỉ chạy shadow, dùng `AI_SHADOW_ENABLED=false` mặc định và `OPENAI_API_KEY` server-only hiện có. | Chỉ validated evidence được gửi với `store:false`, không web/tool; output không đổi response/citation và không persist. Direct `ai_assisted` cần gate US-025/US-026 riêng. |
+| 2026-07-31 | DEC-009 | AI integration đầu tiên chỉ là offline/local shadow, không import vào chat/API route; dùng `AI_SHADOW_ENABLED=false` mặc định và `OPENAI_API_KEY` server-only hiện có. Exact model allowlist là `gpt-5.4-mini` + snapshot `gpt-5.4-mini-2026-03-17`. | Chỉ non-user technical fixture được gửi với `store:false`, không web/tool/persist. `store:false` không phải ZDR; dữ liệu học sinh cần data-control + under-18 privacy/safety gate. Route shadow còn chờ production bundle + `waitUntil`; direct `ai_assisted` cần gate riêng. |
 
 ## 16. Open questions cần chủ dự án xác nhận
 

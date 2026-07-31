@@ -52,12 +52,12 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-018 — Password hash và env nhất quán | P0 | Done | Full-stack + Code review | PBKDF2 Web Crypto hash/version/salt, strict fail-closed config/parser, generator + rotation runbook; focused auth 6/6, rendered 15/15, build và typecheck pass | 2026-07-31 |
 | US-019 — Rate limit login/chat | P0 | Partial | Full-stack + Code review | Local `rate-limit-v1`: D1 atomic bucket/penalty, HMAC identity, route fail-closed và focused tests; còn production migration/header/concurrency/telemetry/threshold approval gate | 2026-07-31 |
 | US-020 — Logging/observability an toàn | P1 | Partial | Full-stack + PM + Code review | Local `telemetry-v1`, outer correlation, privacy tests và runbook có evidence; còn structured retrieval/provider metadata + D1/query correlation và production Workers Logs/access/retention/canary/alert gate | 2026-07-31 |
-| US-021 — Backend/workflow E2E tests | P0 | Partial | Full-stack + Code review | Full local suite hiện tại 198/198 pass, gồm editorial workflow, schema, local ingestion, retriever, AI adapter, rate limit, telemetry, image-intent, public showcase, catalog resolver và rendered/auth/chat. Chưa có authenticated editor→reviewer API E2E, CI hoặc production D1 smoke | 2026-07-31 |
+| US-021 — Backend/workflow E2E tests | P0 | Partial | Full-stack + Code review | Full local suite hiện tại 212/212 pass, gồm offline AI shadow, editorial workflow, schema, local ingestion, retriever, AI adapter, rate limit, telemetry, image-intent, public showcase, catalog resolver và rendered/auth/chat. Chưa có authenticated editor→reviewer API E2E, CI hoặc production D1 smoke | 2026-07-31 |
 | US-022 — Runtime/deploy thống nhất | P0 | Partial | PM + Full-stack | Migration/runbook có local evidence, nhưng production **BLOCKED**: Sites `project_id` không resolve và migration control-plane behavior chưa xác minh; chưa smoke test | 2026-07-29 |
 | US-023 — Đánh giá/đăng ký nguồn ngoài | P0 | Partial | PM + Internal content reviewer | Static registry, official sample, draft-only mapper, go/no-go và 8/8 tests có evidence. Mọi `green` fail-closed; còn thiếu authenticated durable PM+reviewer approval, approved terms/license và provider contract | 2026-07-31 |
 | US-024 — Ingestion vào staging/draft | P0 | Partial | Full-stack + Code review + Internal content reviewer | Local v2: exact four-field request, static committed-fixture manifest, snapshot-before-await, all-fixture-field canonical identity, draft-only frozen plan và 7/7 tests; current full 198/198 pass. Không có migration/connector/consumer/D1/R2/Queue/quarantine hay production activation | 2026-07-31 |
 | US-025 — Index/retrieval RAG | P0 | Partial | Full-stack + PM + Code review + Internal content reviewer | Migration 0002 + candidate foundation và 0003 trust primitives đã có nhưng approval chưa nối graph. Legacy corpus vẫn 0 eligible; chưa có authenticated promotion, FTS5/index jobs, validated bundle hay golden-set eval | 2026-07-31 |
-| US-026 — Evidence-bound AI analysis | P0 | Partial | Full-stack + PM + Code review | Adapter foundation có evidence. DEC-009 đã khóa shadow flag/store/no-tool/no-persist/baseline invariance và direct-answer gate nhưng orchestration chưa triển khai; còn production bundle, DB assembly, semantic span gate, rate limit/telemetry và API integration | 2026-07-31 |
+| US-026 — Evidence-bound AI analysis | P0 | Partial | Full-stack + PM + Code review | Local AC đã check cho offline runner/model/fixture/isolation/no-persist/tests và adapter config/failure guards; 9/9 + 20/20, full 212/212, live technical 2/2. Không nối chat; production bundle, `waitUntil`, semantic/DB assembly, rate-limit/budget, ZDR/under-18 và direct AI vẫn mở | 2026-07-31 |
 
 ## Thứ tự triển khai đề xuất
 
@@ -73,7 +73,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-30 | DEC-006 | Dữ liệu ngoài chỉ vào draft có provenance/four-eyes; AI không auto-publish hoặc fallback kiến thức mở. | US-023, US-024, US-026 |
 | 2026-07-31 | DEC-007 | Admin credential chỉ dùng versioned salted PBKDF2 hash; plaintext bị bỏ qua, rotation invalidate session. | US-018 |
 | 2026-07-31 | DEC-008 | Catalog snapshot có `available_records|available_empty|unavailable`; success-empty là static overlay ready, unavailable mới degraded 200/no-store; reviewed suppression chặn static resurrection. | US-017 |
-| 2026-07-31 | DEC-009 | AI request-path đầu tiên chỉ chạy shadow sau validated evidence; `AI_SHADOW_ENABLED=false`, `store:false`, không web/tool/persist và không đổi baseline response. | US-026, US-004 |
+| 2026-07-31 | DEC-009 | AI integration đầu tiên chỉ là offline/local shadow, không import chat/API; `AI_SHADOW_ENABLED=false`, exact allowlist `gpt-5.4-mini|gpt-5.4-mini-2026-03-17`, `store:false`, không web/tool/persist. Route shadow chờ production bundle + `waitUntil` seam. | US-026, US-004 |
 
 ### Batch local tiếp theo — specification gate và implementation
 
@@ -108,21 +108,33 @@ Batch này không cần production credential. Thứ tự implementation đề x
 1. [x] **Spec only / US-026 + US-004:** DEC-009 đã khóa
    `AI_SHADOW_ENABLED=false`, dùng `OPENAI_API_KEY` server-only hiện có,
    validated evidence precondition, `store:false`, no web/tool, discard/no
-   persistence, baseline invariance và content-free telemetry.
-2. [ ] Triển khai shadow orchestration sau validated local/fixture bundle; flag
-   off, missing key/evidence và mọi provider/schema failure phải no-call hoặc
-   giữ nguyên exact baseline response.
-3. [ ] Chạy fixture suite bằng injected fake provider; ghi riêng command/count
+   persistence, baseline invariance, content-free telemetry và exact model
+   allowlist. Official model reference đã verify `gpt-5.4-mini` hỗ trợ Responses
+   + Structured Outputs.
+2. [x] Triển khai offline shadow runner sau committed
+   version/checksum-bound technical fixture đã review riêng và local validator;
+   flag off, missing key/evidence và mọi provider/schema failure phải no-call
+   hoặc stable redacted outcome. Static test chứng minh runner không được import
+   bởi chat/API route.
+3. [x] Chạy fixture suite bằng injected fake provider; ghi riêng command/count
    và không yêu cầu credential/network.
-4. [ ] Chạy live smoke manual bằng technical fixture không có dữ liệu người
-   dùng; ghi riêng model/outcome/usage an toàn. Smoke không check retrieval,
-   semantic validation, public integration hoặc direct-answer activation.
+4. [x] Chạy live smoke manual bằng technical fixture không có dữ liệu người
+   dùng đã version/checksum-bound và review riêng; ghi model/outcome/usage an
+   toàn. Local smoke dùng alias; repeatable eval/cutover pin snapshot. Smoke
+   không check retrieval, semantic validation, ZDR/MAM, under-18 safety, public
+   integration hoặc direct-answer activation.
 5. [ ] Chỉ xem xét direct `ai_assisted` sau khi production validated bundle/eval
    US-025 và semantic guard/DB assembly/rate-limit/telemetry/API E2E US-026 có
-   evidence cùng rollout review.
+   evidence cùng rollout review. Route shadow trước đó cũng cần
+   `waitUntil`/execution-lifetime seam có test.
+6. [ ] Trước khi gửi dữ liệu học sinh thật: verify data-control trên exact
+   OpenAI project và product/privacy/legal approval. Personal data của trẻ dưới
+   13/applicable digital-consent age yêu cầu verified ZDR; đồng thời hoàn tất
+   under-18 disclosure, age-appropriate filter, monitoring/reporting,
+   high-risk escalation và age assurance khi phù hợp.
 
 US-026 giữ `Partial`; spec-only checkpoint không check các implementation AC
-mới và không thay đổi trạng thái US-004.
+mới ngoài local/offline evidence đã liệt kê; không thay đổi trạng thái US-004.
 
 ### Sprint 1A — Safety hotfix
 
@@ -264,19 +276,70 @@ này.
 
 ## Verification evidence
 
+### 2026-07-31 — US-026 offline/local AI shadow implementation
+
+- `lib/openai-evidence.ts` chuyển default/exact allowlist sang
+  `gpt-5.4-mini|gpt-5.4-mini-2026-03-17`, trim outer whitespace và từ chối
+  `gpt-5.6-sol`, family-like ID hoặc provider-returned model ngoài allowlist.
+- Timeout bao trọn fetch + streaming body read. Content-length và byte stream
+  đều bị chặn ở 1 MB; body treo/vượt giới hạn và mọi provider/schema failure
+  trả stable code, không lộ raw body hoặc exception.
+- `lib/ai-shadow.ts` chỉ bật với exact `AI_SHADOW_ENABLED=true`, bỏ qua
+  `AI_REPHRASE_ENABLED`, snapshot config/fixture trước async boundary, verify
+  committed fixture checksum + structural review labels, giới hạn case/quota,
+  no retry, discard composition và chỉ trả aggregate content-free. Module/runner
+  không được import vào `/api/chat`.
+- Fixture/runner/config nằm tại `fixtures/ai-shadow/cases.v1.json`,
+  `scripts/shadow-openai-evidence.mjs`, `.env.example`,
+  `cloudflare-env.d.ts` và `package.json`.
+- Focused suites: `tests/ai-shadow.test.mjs` **9/9 pass** và
+  `tests/openai-evidence.test.mjs` **20/20 pass**; combined **29/29 pass**.
+  Regression mới xác nhận cấu hình RPM được tài liệu hóa là `30` hợp lệ nhưng
+  hard cap mỗi batch vẫn tối đa 20 case. `tsc --noEmit`, ESLint,
+  `git diff --check`, Vinext build 5 environment và full local suite
+  **212/212**: **pass**.
+- Exact runner command với `.env.local` trả aggregate `DISABLED`, exit 1 và
+  không outbound vì shadow flag absent/false. Manual live smoke sau đó bật flag
+  process-only, dùng đúng technical fixture: **2/2 success** với allowlisted
+  alias request `gpt-5.4-mini`; provider thực tế trả pinned snapshot
+  `gpt-5.4-mini-2026-03-17`, 1.069 input + 453 output = **1.522 tokens**.
+  Aggregate tách requested/observed model và không chứa key, prompt, evidence
+  hay composition. US-026 giữ `Partial`;
+  evidence này không đóng production bundle, retrieval/semantic quality,
+  ZDR/MAM/under-18, route-shadow hoặc direct-answer gate.
+- Product review chỉ check các AC local/offline có evidence: adapter config và
+  technical failure tests; exact shadow flag/model; checksum-bound synthetic
+  fixture; no-route baseline isolation; discard/content-free aggregate; fixture
+  suite và live-smoke separation. Production rate-limit/budget, authenticated
+  validated bundle, semantic validator, ZDR/under-18, `waitUntil` và direct AI
+  giữ unchecked.
+
 ### 2026-07-31 — US-026/US-004 AI shadow pre-implementation specification
 
-- DEC-009 phân biệt adapter foundation, shadow/local activation và direct
-  `ai_assisted`. Key hiện có không tự bật provider; canonical request-path flag
-  là `AI_SHADOW_ENABLED=false`.
+- DEC-009 phân biệt adapter foundation, offline shadow/local activation, route
+  shadow và direct `ai_assisted`. Key hiện có không tự bật provider; canonical
+  offline-runner flag là `AI_SHADOW_ENABLED=false`, và runner không import vào
+  chat/API.
+- Model drift được ghi nhận trước code: `.env.example` dùng
+  `gpt-5.4-mini` nhưng adapter chỉ allowlist/default `gpt-5.6-sol`, nên config
+  hiện fail trước outbound. Exact policy mới cho alias
+  `gpt-5.4-mini` và snapshot `gpt-5.4-mini-2026-03-17`; implementation/tests
+  vẫn chưa có.
 - Shadow chỉ nhận validated reviewed evidence, dùng `store:false`, không
   web/tool, không persist prompt/output và không thay exact baseline
   response/citation/status/header ở success hoặc failure.
 - Fixture test tự động và live smoke manual là evidence độc lập; live smoke
   không chứng minh retrieval, safety/evaluation hoặc quyền direct response.
-- Đây chỉ là requirement/specification evidence. Chưa có source/test cho shadow
-  orchestration, nên không check implementation AC và US-026/US-004 giữ
-  `Partial`.
+- Route shadow vẫn blocked bởi production validated bundle/output guard và
+  `waitUntil`/execution-lifetime seam; offline runner evidence không đóng gate
+  này.
+- Official data-control review xác nhận `store:false` không đồng nghĩa ZDR;
+  abuse-monitoring logs mặc định có thể giữ customer content tới 30 ngày.
+  Under-18 gate và exact-project ZDR/MAM verification chưa có implementation/
+  operational evidence, nên các AC này giữ unchecked.
+- Tại checkpoint pre-implementation này chưa có source/test cho shadow
+  orchestration. Evidence implementation được ghi riêng phía trên; US-026 và
+  US-004 vẫn giữ `Partial`.
 
 ### 2026-07-31 — US-017 local catalog resolver slice
 

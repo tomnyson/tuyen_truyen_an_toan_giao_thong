@@ -8,7 +8,10 @@ import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
 import { sql } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import * as schema from "./pg-schema";
-import { pgBootstrapStatements } from "./pg-bootstrap";
+import {
+  pgBootstrapSentinelTable,
+  pgBootstrapStatements,
+} from "./pg-bootstrap";
 
 export type LegalDatabase = NeonHttpDatabase<typeof schema>;
 
@@ -41,9 +44,23 @@ export async function bootstrapLegalDatabase(database: {
   }
 }
 
+async function ensureBootstrapped(database: LegalDatabase): Promise<void> {
+  // ~100 câu DDL qua HTTP là quá đắt cho mỗi cold start — kiểm tra sentinel
+  // (bảng cuối chuỗi bootstrap) trước, chỉ chạy đủ bộ khi schema còn thiếu.
+  const sentinel = await database.execute(
+    sql.raw(
+      `SELECT to_regclass('public.${pgBootstrapSentinelTable}') IS NOT NULL AS ready`,
+    ),
+  );
+  const ready = (sentinel as { rows?: Array<{ ready?: unknown }> }).rows?.[0]
+    ?.ready;
+  if (ready === true || ready === "t") return;
+  await bootstrapLegalDatabase(database);
+}
+
 export async function getInitializedDb(): Promise<LegalDatabase> {
   const database = getDb();
-  schemaInitialization ??= bootstrapLegalDatabase(database).catch((error) => {
+  schemaInitialization ??= ensureBootstrapped(database).catch((error) => {
     schemaInitialization = null;
     throw error;
   });

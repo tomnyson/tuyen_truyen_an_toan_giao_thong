@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { createNeonD1Database } from "./neon-d1";
 import { normalizeVietnamese } from "./legal-content";
 import {
   canonicalOfficialSourceUrl,
@@ -74,9 +75,12 @@ function runtimeValue(name: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+let runtimeDb: D1Like | undefined;
+
 function requireDb(injected?: D1Like) {
-  const db = injected ?? env.DB;
-  if (!db) throw new Error("D1 binding DB is unavailable");
+  runtimeDb ??= createNeonD1Database() as D1Like | undefined;
+  const db = injected ?? runtimeDb;
+  if (!db) throw new Error("Neon DATABASE_URL is unavailable");
   return db;
 }
 

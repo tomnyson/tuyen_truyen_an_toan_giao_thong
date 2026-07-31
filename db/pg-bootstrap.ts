@@ -613,6 +613,8 @@ export const pgRateLimitStatements: readonly string[] = [
   ON rate_limit_penalties (expires_at)`,
 ];
 
+import { pgWorkflowStatements } from "./pg-workflow";
+
 export const pgBootstrapStatements: readonly string[] = [
   createLegalSourcesTable,
   createLegalProvisionsTable,
@@ -622,4 +624,9 @@ export const pgBootstrapStatements: readonly string[] = [
   ...indexStatements,
   ...triggerStatements,
   ...pgRateLimitStatements,
+  ...pgWorkflowStatements,
 ];
+
+// Bảng cuối cùng của chuỗi bootstrap — dùng làm sentinel: nếu đã tồn tại
+// thì coi như schema đầy đủ, bỏ qua việc chạy lại toàn bộ DDL.
+export const pgBootstrapSentinelTable = "web_search_budget_days";

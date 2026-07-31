@@ -2371,6 +2371,13 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   không hiện nút legal review/publish. Việc này không thay đổi DEC-003:
   `legal_candidate` và mọi citation/sanction vẫn bắt buộc bốn mắt trước khi vào
   reviewed RAG.
+- **DEC-016:** Model policy của direct web-search tách khỏi policy của offline
+  evidence/shadow. `OPENAI_MODEL` cho `/api/chat` web fallback chấp nhận mọi
+  model ID server-side khớp `^[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}$`; missing/rỗng
+  dùng default. Model ID không đến từ client. Provider response chỉ được chấp
+  nhận khi trả model ID cùng định dạng; capability/HTTP/refusal/output lỗi tiếp
+  tục fail closed. Exact allowlist/pinned model tại DEC-009 vẫn giữ nguyên cho
+  offline evaluation và evidence composer.
 
 ### Điểm còn mở
 

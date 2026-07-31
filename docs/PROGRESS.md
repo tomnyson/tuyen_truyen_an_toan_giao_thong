@@ -84,6 +84,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-31 | DEC-013 | Topic gate deterministic chạy trước retrieval/search/persist; chỉ ba topic MVP được đi tiếp. Off-topic/no-match trả ngắn, reference reduced form/no-persist, chỉ official hợp lệ mới lưu draft. | US-029, US-027, US-028 |
 | 2026-07-31 | DEC-014 | Official corpus seed là review packet versioned, import idempotent vào draft-only; không tạo revision/review/publish và không lưu câu hỏi thật. NĐ 174/2026 thay căn cứ NĐ 15 cho hành vi mạng xã hội mới từ 01/07/2026. | US-030, US-013, US-025 |
 | 2026-07-31 | DEC-015 | Cho MVP dùng ngay official safety guidance không có kết luận pháp lý; record này bị chặn khỏi legal workflow. Legal citation/sanction vẫn giữ bốn mắt. | US-030, US-006, US-013 |
+| 2026-07-31 | DEC-016 | Direct web-search nhận mọi model ID server-side có định dạng an toàn; provider/capability lỗi vẫn fail closed. Offline evidence/shadow tiếp tục exact allowlist. | US-027, US-026 |
 
 ### 2026-07-31 — US-004 chat presentation specification
 
@@ -804,6 +805,19 @@ này.
   Full suite hiện **306/309 pass**; 3 failure là migration-ledger regression đã
   tồn tại do commit `0006_petite_lady_deathstrike` nhưng test nền còn khóa
   migration cuối ở `0005`, không phát sinh từ US-030.
+
+### 2026-07-31 — US-027 flexible web-search model policy
+
+- DEC-016 bỏ exact model allowlist chỉ cho direct web-search. Model ID vẫn là
+  cấu hình server-only, bị giới hạn 100 ký tự và alphabet an toàn; model/output
+  metadata sai định dạng hoặc provider/capability lỗi tiếp tục fail closed.
+- Offline evidence/shadow không thay đổi và vẫn dùng exact alias/snapshot để
+  giữ evaluation tái lập.
+- `node --experimental-strip-types --test tests/openai-web-search.test.mjs`:
+  **29/29 pass**; typecheck và ESLint pass.
+- Live smoke bằng fixture kỹ thuật không có dữ liệu người dùng: **pass** với
+  requested/observed model `gpt-5.6-luna`, 1 source `vbpl.vn`, usage 15.069
+  input + 491 output = 15.560 tokens.
 
 ## Cách cập nhật tracker
 

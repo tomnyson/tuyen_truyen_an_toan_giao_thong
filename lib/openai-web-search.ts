@@ -1,9 +1,6 @@
 import {
   DEFAULT_OPENAI_MODEL,
   OPENAI_RESPONSES_URL,
-  PINNED_OPENAI_MODEL,
-  SUPPORTED_OPENAI_MODELS,
-  type SupportedOpenAiModel,
 } from "./openai-evidence";
 import {
   projectPublicWebSearchAnswer,
@@ -232,14 +229,14 @@ export function readOpenAiWebSearchConfig(
   };
 }
 
-function resolveModel(value: unknown): SupportedOpenAiModel | null {
+const OPENAI_MODEL_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}$/;
+
+function resolveModel(value: unknown): string | null {
   const model =
     typeof value === "string" && value.trim().length > 0
       ? value.trim()
       : DEFAULT_OPENAI_MODEL;
-  return SUPPORTED_OPENAI_MODELS.includes(model as SupportedOpenAiModel)
-    ? (model as SupportedOpenAiModel)
-    : null;
+  return OPENAI_MODEL_ID_PATTERN.test(model) ? model : null;
 }
 
 function hasRefusal(payload: Record<string, unknown>): boolean {
@@ -563,12 +560,7 @@ async function searchLegalSources(
 
   const providerModel =
     typeof payload.model === "string" ? payload.model.trim() : "";
-  if (
-    !SUPPORTED_OPENAI_MODELS.includes(
-      providerModel as SupportedOpenAiModel,
-    ) ||
-    (model === PINNED_OPENAI_MODEL && providerModel !== model)
-  ) {
+  if (!OPENAI_MODEL_ID_PATTERN.test(providerModel)) {
     return failure("INVALID_OUTPUT");
   }
 

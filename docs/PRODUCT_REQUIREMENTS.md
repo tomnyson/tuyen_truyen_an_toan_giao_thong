@@ -610,6 +610,7 @@ activation; do đó production deployment vẫn bị chặn.
 | 2026-07-31 | DEC-011 | Kết quả web qua official guard được lưu thành immutable draft không chứa raw question. | D1 persistence là điều kiện trước khi trả web result; chỉ stable principal + independent reviewer mới publish candidate vào reviewed retrieval. |
 | 2026-07-31 | DEC-014 | Official corpus seed là review packet versioned, import idempotent vào draft-only và bind full-record hash vào audit metadata. | Không auto-publish; legal record đi tiếp qua workflow hiện có, còn canonical question không được lưu vào D1. |
 | 2026-07-31 | DEC-015 | MVP được trả ngay official safety guidance không đưa ra căn cứ, tội danh hoặc mức phạt; không nới gate cho legal candidate. | Hướng dẫn tài khoản bị chiếm có source Chính phủ và form ngắn; API/CMS chặn record này đi vào legal RAG. Quy trình bốn mắt vẫn giữ cho mọi legal citation/sanction. |
+| 2026-07-31 | DEC-016 | Direct web-search chấp nhận mọi `OPENAI_MODEL` có model ID định dạng an toàn thay vì exact allowlist. | Model là cấu hình server-only, không nhận từ request người dùng. Model không có Responses API/web-search capability trả lỗi an toàn; offline evidence/shadow vẫn giữ exact model policy để tái lập evaluation. |
 
 ## 16. Open questions cần chủ dự án xác nhận
 

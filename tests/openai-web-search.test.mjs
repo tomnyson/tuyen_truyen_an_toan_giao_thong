@@ -681,7 +681,7 @@ test("fails closed when direct web prose contains unreviewed legal claims", asyn
   }
 });
 
-test("flag-off, missing key and unknown model do not call the provider", async () => {
+test("flag-off, missing key and malformed model ID do not call the provider", async () => {
   let calls = 0;
   const fetch = async () => {
     calls += 1;
@@ -705,13 +705,35 @@ test("flag-off, missing key and unknown model do not call the provider", async (
   );
   assert.deepEqual(
     await searchAllowedLegalSources(
-      { enabled: true, apiKey: "fake-secret", model: "unknown" },
+      { enabled: true, apiKey: "fake-secret", model: "bad model id" },
       "Câu hỏi?",
       { fetch },
     ),
     { ok: false, code: "INVALID_CONFIG" },
   );
   assert.equal(calls, 0);
+});
+
+test("direct web search accepts any syntactically valid server-side model ID", async () => {
+  let requestBody;
+  const result = await searchAllowedLegalSources(
+    {
+      enabled: true,
+      apiKey: "fake-secret",
+      model: "gpt-5.6-luna",
+    },
+    "Quy định giao thông này thế nào?",
+    {
+      fetch: async (_url, init) => {
+        requestBody = JSON.parse(init.body);
+        return providerResponse({ model: "gpt-5.6-luna" });
+      },
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(requestBody.model, "gpt-5.6-luna");
+  assert.equal(result.model, "gpt-5.6-luna");
 });
 
 test("provider timeout fails closed", async () => {
@@ -732,7 +754,7 @@ test("provider timeout fails closed", async () => {
   assert.deepEqual(result, { ok: false, code: "PROVIDER_TIMEOUT" });
 });
 
-test("HTTP, refusal, malformed, oversized and model mismatch all fail closed", async () => {
+test("HTTP, refusal, malformed, oversized and invalid provider model metadata fail closed", async () => {
   const oversized = "x".repeat(1_000_001);
   const cases = [
     {
@@ -763,7 +785,7 @@ test("HTTP, refusal, malformed, oversized and model mismatch all fail closed", a
     },
     {
       expected: "INVALID_OUTPUT",
-      response: providerResponse({ model: "unreviewed-model" }),
+      response: providerResponse({ model: "invalid model metadata" }),
     },
   ];
 

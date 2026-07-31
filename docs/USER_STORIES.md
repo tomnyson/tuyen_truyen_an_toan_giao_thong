@@ -331,7 +331,9 @@ duyệt bốn mắt và public retrieval gate.
 - [x] `/api/chat` chỉ gọi web search sau khi cả managed và curated retrieval
   không match; safety intent vẫn chạy trước và không bị thay thế.
 - [x] Web search mặc định tắt, chỉ bật với exact
-  `AI_WEB_SEARCH_ENABLED=true`, có API key và model thuộc exact allowlist.
+  `AI_WEB_SEARCH_ENABLED=true` và có API key. `OPENAI_MODEL` là cấu hình
+  server-only, chấp nhận mọi model ID có định dạng an toàn; model không hỗ trợ
+  Responses API/web-search phải fail closed theo lỗi provider.
 - [x] Request dùng Responses API `web_search`, `tool_choice=required`,
   `store=false`, domain filter cố định phía server và yêu cầu complete sources;
   không nhận domain, instruction, tool hoặc provider URL từ client.

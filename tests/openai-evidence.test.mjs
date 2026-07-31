@@ -686,11 +686,12 @@ test("rejects declared or streamed oversized provider bodies", async () => {
   }
 });
 
-test("the public chat route remains disconnected until RAG citations exist", async () => {
+test("the evidence composer remains disconnected while guarded web search uses a separate boundary", async () => {
   const chatRoute = await readFile(
     new URL("../app/api/chat/route.ts", import.meta.url),
     "utf8",
   );
   assert.doesNotMatch(chatRoute, /openai-evidence|composeEvidenceAnswer/);
-  assert.match(chatRoute, /must fail closed/);
+  assert.match(chatRoute, /openai-web-search/);
+  assert.match(chatRoute, /DEC-010/);
 });

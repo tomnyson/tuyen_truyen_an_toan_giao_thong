@@ -688,3 +688,147 @@ export const rateLimitPenalties = sqliteTable(
     ),
   ],
 );
+
+export const webSearchCandidates = sqliteTable(
+  "web_search_candidates",
+  {
+    id: text("id").primaryKey(),
+    requestId: text("request_id").notNull(),
+    contentSha256: text("content_sha256").notNull(),
+    initialAnswerText: text("initial_answer_text").notNull(),
+    providerModel: text("provider_model").notNull(),
+    policyVersion: text("policy_version").notNull(),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    totalTokens: integer("total_tokens"),
+    lifecycleStatus: text("lifecycle_status", {
+      enum: ["draft", "pending_review", "published", "rejected", "archived"],
+    }).notNull().default("draft"),
+    currentRevisionId: text("current_revision_id"),
+    editorPrincipalId: text("editor_principal_id").references(
+      () => editorialPrincipals.id,
+      { onDelete: "restrict" },
+    ),
+    submittedAt: text("submitted_at"),
+    reviewerPrincipalId: text("reviewer_principal_id").references(
+      () => editorialPrincipals.id,
+      { onDelete: "restrict" },
+    ),
+    reviewedAt: text("reviewed_at"),
+    reviewReason: text("review_reason"),
+    optimisticVersion: integer("optimistic_version").notNull().default(0),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("web_search_candidates_request_unique").on(table.requestId),
+    index("web_search_candidates_status_updated_idx").on(
+      table.lifecycleStatus,
+      table.updatedAt,
+    ),
+    index("web_search_candidates_content_hash_idx").on(table.contentSha256),
+  ],
+);
+
+export const webSearchCandidateSources = sqliteTable(
+  "web_search_candidate_sources",
+  {
+    candidateId: text("candidate_id")
+      .notNull()
+      .references(() => webSearchCandidates.id, { onDelete: "restrict" }),
+    displayOrder: integer("display_order").notNull(),
+    title: text("title").notNull(),
+    officialUrl: text("official_url").notNull(),
+    officialHost: text("official_host").notNull(),
+    urlSha256: text("url_sha256").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    primaryKey({ columns: [table.candidateId, table.displayOrder] }),
+    uniqueIndex("web_search_candidate_sources_url_unique").on(
+      table.candidateId,
+      table.officialUrl,
+    ),
+    index("web_search_candidate_sources_candidate_idx").on(
+      table.candidateId,
+      table.displayOrder,
+    ),
+  ],
+);
+
+export const webSearchCandidateRevisions = sqliteTable(
+  "web_search_candidate_revisions",
+  {
+    id: text("id").primaryKey(),
+    candidateId: text("candidate_id")
+      .notNull()
+      .references(() => webSearchCandidates.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    canonicalSnapshotJson: text("canonical_snapshot_json").notNull(),
+    snapshotSha256: text("snapshot_sha256").notNull(),
+    createdByPrincipalId: text("created_by_principal_id")
+      .notNull()
+      .references(() => editorialPrincipals.id, { onDelete: "restrict" }),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("web_search_candidate_revisions_version_unique").on(
+      table.candidateId,
+      table.version,
+    ),
+    index("web_search_candidate_revisions_candidate_idx").on(
+      table.candidateId,
+      table.version,
+    ),
+  ],
+);
+
+export const webSearchCandidateEvents = sqliteTable(
+  "web_search_candidate_events",
+  {
+    id: text("id").primaryKey(),
+    operationId: text("operation_id").notNull(),
+    candidateId: text("candidate_id")
+      .notNull()
+      .references(() => webSearchCandidates.id, { onDelete: "restrict" }),
+    revisionId: text("revision_id").references(
+      () => webSearchCandidateRevisions.id,
+      { onDelete: "restrict" },
+    ),
+    actorPrincipalId: text("actor_principal_id").references(
+      () => editorialPrincipals.id,
+      { onDelete: "restrict" },
+    ),
+    actorRole: text("actor_role", {
+      enum: ["system", "editor", "reviewer", "admin"],
+    }).notNull(),
+    action: text("action").notNull(),
+    reason: text("reason"),
+    metadataJson: text("metadata_json"),
+    occurredAt: text("occurred_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("web_search_candidate_events_operation_unique").on(
+      table.operationId,
+    ),
+    index("web_search_candidate_events_candidate_idx").on(
+      table.candidateId,
+      table.occurredAt,
+    ),
+  ],
+);
+
+export const webSearchBudgetDays = sqliteTable(
+  "web_search_budget_days",
+  {
+    dayStart: integer("day_start").primaryKey(),
+    reservedTokens: integer("reserved_tokens").notNull().default(0),
+    actualTokens: integer("actual_tokens").notNull().default(0),
+    requestCount: integer("request_count").notNull().default(0),
+    expiresAt: integer("expires_at").notNull(),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("web_search_budget_days_expiry_idx").on(table.expiresAt),
+  ],
+);

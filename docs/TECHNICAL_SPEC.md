@@ -1349,6 +1349,63 @@ failure/quarantine/DLQ và gắn owner xử lý.
 - Backoffice discovery có thể dùng Responses API `web_search` với
   `allowed_domains` official và yêu cầu complete sources; kết quả chỉ tạo
   candidate.
+- Direct fallback theo DEC-010 là boundary riêng với evidence composer:
+  `/api/chat` chỉ gọi sau managed/curated no-match và chỉ khi exact
+  `AI_WEB_SEARCH_ENABLED=true`. Request dùng `store:false`,
+  `tool_choice:"required"`, `include:["web_search_call.action.sources"]` và
+  domain list hard-code phía server.
+- Direct search chỉ cho phép `vbpl.vn`, `vbpl.moj.gov.vn`, `chinhphu.vn` hoặc
+  subdomain chính thức và dùng `search_context_size=low`.
+  `thuvienphapluat.vn` chỉ dành cho backoffice discovery riêng. Ít nhất một
+  final official `url_citation` là bắt buộc; source consulted nhưng không
+  annotate final answer không đủ điều kiện. Server deduplicate URL, loại
+  credentials/fragment, giữ query hợp lệ trên đúng official authority và không
+  tin title/URL ngoài exact parser.
+- Client không được truyền domain/tool/instruction/model/base URL. Provider chỉ
+  nhận câu hỏi cuối đã normalize và redact email/số điện thoại/URL; không nhận
+  conversation history. Output có nhãn chưa kiểm duyệt; theo DEC-011 chỉ được
+  persist thành intake draft không chứa raw question và không được tự promote
+  vào RAG.
+- Timeout, non-2xx, refusal, incomplete/malformed/oversized response, model
+  mismatch hoặc thiếu official final citation fail closed về `unavailable`.
+
+#### 7.2.1 Web-search candidate persistence và reviewed promotion
+
+DEC-011 cho phép ngoại lệ hẹp so với “không persist” của DEC-010: server lưu
+kết quả đã vượt exact official-URL guard thành candidate `draft`. Đây là intake
+queue, chưa phải reviewed evidence.
+
+- `/api/chat` chỉ trả `mode=web_search` sau khi lưu candidate, sources và usage
+  thành công. Lỗi D1 trả `unavailable`; không có best-effort response thiếu
+  trace.
+- Không lưu raw question/conversation. `request_id` do Worker tạo và
+  `content_sha256` tính từ answer/model/source canonical.
+- Bốn bảng `web_search_candidates`, `web_search_candidate_sources`,
+  `web_search_candidate_revisions`, `web_search_candidate_events` lần lượt giữ
+  intake, source gốc, snapshot biên tập và audit append-only.
+- Snapshot canonical gồm `topic`, `title`, `answer`, `tags` và ít nhất một
+  citation có `title`, `url`, `documentNumber`, `effectiveFrom`,
+  `lastVerifiedAt`; `article`, `clause`, `point`, `effectiveTo` là tùy chọn.
+- URL revision phải canonicalize bằng DEC-004 và thuộc tập source ban đầu. Ngày
+  dùng ISO `YYYY-MM-DD`.
+- Session admin v2 resolve registry server-only thành stable `principalId`.
+  Candidate API lấy role active từ D1; body không nhận actor/role.
+- Trigger enforce active role, lifecycle
+  `draft → pending_review → published → archived`,
+  `pending_review → rejected → draft` và `reviewer != editor`. Initial
+  answer/source, revision và event không được update/delete.
+- Reviewed retrieval chỉ đọc candidate `published`, parse exact snapshot, bỏ
+  citation ngoài allowlist/hết hiệu lực/tương lai/quá freshness window, rank
+  deterministic rồi trả canonical DB source trước live web-search.
+- Global budget dùng D1 atomic UTC-day bucket theo
+  `web-search-budget-v1`. Missing/sai config hoặc D1 lỗi fail closed khi flag
+  web-search bật. Telemetry chỉ ghi stable outcome/model/token/candidate ID.
+
+Production activation: apply migration; seed distinct editor/reviewer principal
+và role grant; cấu hình account registry/budget; deploy với flag false; smoke
+auth/workflow/retrieval; verify Workers Logs + data-control/under-18; sau đó mới
+canary flag. Rollback bằng `AI_WEB_SEARCH_ENABLED=false`.
+
 - Extraction/composition dùng Structured Outputs theo JSON Schema.
 - Runtime composer chỉ nhận sanitized question + validated evidence bundle.
 - Model chỉ trả evidence IDs; server lấy citation/URL/mức xử lý từ D1.
@@ -1933,7 +1990,7 @@ Log kỹ thuật tối thiểu:
 Metric:
 
 - request volume và latency p50/p95/p99;
-- tỷ lệ `curated`/`ai_assisted`/`unavailable`;
+- tỷ lệ `curated`/`ai_assisted`/`web_search`/`unavailable`;
 - tỷ lệ response có citation hợp lệ;
 - retrieval no-match và false-positive trên evaluation;
 - provider timeout/error;
@@ -2010,7 +2067,8 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
 
 - **DEC-001:** Cloudflare Worker + D1 là production primary.
 - **DEC-002:** câu ngoài retrieval đã duyệt trả `unavailable`; AI không dùng
-  kiến thức mở.
+  kiến thức mở trong evidence composer. DEC-010 tạo boundary web-search riêng,
+  không thay đổi composer.
 - **DEC-003:** bắt buộc bốn mắt. `created_by` phải khác `verified_by` khi source
   `in_force`, và khác `reviewed_by` khi provision `published`. Người duyệt là
   người duyệt nội dung nội bộ; `created_by` bất biến sau insert để không thể đổi
@@ -2024,8 +2082,8 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   `unavailable`.
 - **DEC-006:** dữ liệu ngoài chỉ vào staging/draft có provenance, checksum,
   allowlist và four-eyes. AI chỉ discovery/extraction draft hoặc evidence-bound
-  composer; không auto-publish, không live-search cho end user và không dùng
-  kiến thức mở làm fallback.
+  composer; không auto-publish. Phần cấm live-search cho end user được DEC-010
+  thay đổi hẹp cho official-citation fallback và không cấp quyền persist.
 - **DEC-007:** credential admin chỉ nhận hash versioned PBKDF2-HMAC-SHA256 có
   salt qua server-side secret manager; plaintext bị bỏ qua và cấu hình
   thiếu/malformed fail closed. Rotation đổi cả hash và session secret để làm
@@ -2048,6 +2106,12 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   data cần verified data-control và under-18 safety/privacy/legal gate. Route
   shadow cần production bundle + `waitUntil` seam; direct `ai_assisted` cần gate
   US-025/US-026 cùng rollout review khác.
+- **DEC-010:** direct web-search fallback là mode riêng, chỉ chạy sau RAG
+  no-match và không thay thế evidence-bound composer. Câu trả lời phải có final
+  citation Chính phủ qua exact HTTPS authority guard, gắn nhãn chưa kiểm duyệt
+  và không persist. `thuvienphapluat.vn` bị loại khỏi direct domain list và chỉ
+  dành cho backoffice discovery; thiếu official citation hoặc mọi lỗi đều
+  `unavailable`. Feature flag là rollback boundary.
 
 ### Điểm còn mở
 

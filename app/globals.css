@@ -170,6 +170,10 @@ footer { border-top: 2px solid var(--ink); padding: 34px clamp(24px, 7vw, 110px)
 .chat-message { max-width: 88%; border: 1.5px solid var(--ink); padding: 10px 12px; font-size: 11px; line-height: 1.55; white-space: pre-wrap; }
 .chat-message.assistant { align-self: flex-start; background: var(--mint); border-radius: 13px 13px 13px 3px; }
 .chat-message.user { align-self: flex-end; background: var(--yellow); border-radius: 13px 13px 3px 13px; }
+.chat-message p { margin: 0; }
+.chat-warning { margin-top: 8px !important; padding-top: 8px; border-top: 1px solid rgba(20, 27, 45, 0.35); font-weight: 700; }
+.chat-sources { margin: 8px 0 0; padding-left: 17px; white-space: normal; }
+.chat-sources a { color: #173f9f; font-weight: 800; overflow-wrap: anywhere; }
 .chat-message.typing { color: #586077; }
 .chat-message.typing span { margin-left: 4px; letter-spacing: 2px; color: var(--blue); }
 .chat-suggestions { display: grid; gap: 6px; }

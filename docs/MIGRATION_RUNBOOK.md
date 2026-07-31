@@ -35,7 +35,7 @@ guessed database name or a database identifier copied from another environment.
 That path is prohibited until the repository has an explicit, reviewed Wrangler
 configuration and a verified environment-to-database mapping.
 
-## 2. Scope of migrations 0001–0004
+## 2. Scope of migrations 0001–0005
 
 `0001_citation_foundation` is expand-only. It creates:
 
@@ -84,6 +84,14 @@ versioned scope checks. It stores no raw IP, username, question or credential.
 It is intentionally excluded from `db/index.ts` runtime bootstrap: login/chat
 must fail closed until the ordered migration ledger applies 0004 before code.
 
+`0005_web_search_candidate_workflow` creates immutable web-search intake,
+source, revision and audit tables plus a global daily token-budget bucket.
+Database triggers enforce allowed state transitions, active editor/reviewer
+roles, independent reviewer, immutable source/revision/history and no hard
+delete. It stores no raw question or conversation. Runtime web-search must stay
+disabled until 0005 is applied and distinct principals/role grants are
+provisioned according to `docs/WEB_SEARCH_REVIEW_RUNBOOK.md`.
+
 ## 3. Preflight
 
 1. Confirm the intended Sites project and environment. Treat IDs returned by
@@ -115,10 +123,11 @@ must fail closed until the ordered migration ledger applies 0004 before code.
    dist/.openai/drizzle/0002_reviewed_rag_bridge.sql
    dist/.openai/drizzle/0003_editorial_trust_primitives.sql
    dist/.openai/drizzle/0004_rate_limit_v1.sql
+   dist/.openai/drizzle/0005_web_search_candidate_workflow.sql
    dist/.openai/drizzle/meta/_journal.json
    ```
 
-6. Confirm journal order is `0000`, `0001`, `0002`, `0003`, `0004`; confirm
+6. Confirm journal order is `0000` through `0005`; confirm
    migration 0003 contains no principal/role/content seed and neither 0003 nor
    0004 is imported/auto-applied by `db/index.ts`.
 7. Through the Sites/D1 control plane, create or record a pre-migration backup,
@@ -132,7 +141,7 @@ not activate the application version until the control plane reports:
 
 - the artifact is associated with the intended Sites project;
 - D1 binding `DB` resolves to the intended environment database;
-- ordered migrations through `0004_rate_limit_v1` completed
+- ordered migrations through `0005_web_search_candidate_workflow` completed
   exactly once;
 - no migration is failed, pending or partially applied.
 
@@ -151,6 +160,7 @@ FROM sqlite_master
 WHERE name LIKE 'legal_%'
    OR name LIKE 'editorial_%'
    OR name LIKE 'rate_limit_%'
+   OR name LIKE 'web_search_%'
 ORDER BY type, name;
 
 PRAGMA foreign_key_check;
@@ -197,12 +207,15 @@ Expected:
 - all foundation and reviewed-bridge triggers exist;
 - `PRAGMA foreign_key_check` returns no rows;
 - `PRAGMA integrity_check` returns `ok`;
-- the control plane records migrations 0001, 0002, 0003 and 0004 exactly once, in
+- the control plane records migrations 0001 through 0005 exactly once, in
   journal order;
 - all seven `editorial_*` tables and 0003 integrity triggers exist, while every
   editorial table remains empty immediately after migration.
 - both `rate_limit_*` tables and expiry indexes exist and are empty immediately
   after migration.
+- all candidate/source/revision/event/budget tables and their triggers exist;
+  they are empty immediately after migration and no question/message column
+  exists.
 
 Constraint probes belong in a non-production D1 clone. They must prove:
 
@@ -244,6 +257,18 @@ For migration 0003, the non-production clone must additionally prove:
 - forged role, cross-subject audit, self-review, stale revision, duplicate
   operation and one-sided hash attempts fail;
 - revision, decision, audit and role-grant history cannot be updated/deleted.
+
+For migration 0005, also prove:
+
+- successful search creates exactly one draft, its official sources and one
+  `draft_persisted` event in one batch;
+- source, initial answer, revision and audit cannot be edited/deleted;
+- URL outside the immutable intake set cannot enter a reviewed snapshot;
+- editor cannot approve their own revision, disabled/ungranted actors fail and
+  stale optimistic versions do not partially mutate state;
+- `published` enters reviewed retrieval only while every citation is in force
+  and fresh; archive removes it immediately;
+- daily budget reservation is atomic and fails at the configured ceiling.
 
 ## 6. Activate and smoke test
 

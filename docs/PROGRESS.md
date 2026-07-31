@@ -21,12 +21,12 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Nhóm | Done | Partial | Todo | Blocked |
 |---|---:|---:|---:|---:|
 | Tra cứu và hiểu pháp luật | 3 | 2 | 0 | 0 |
-| Hỏi đáp có kiểm soát | 2 | 2 | 0 | 0 |
+| Hỏi đáp có kiểm soát | 2 | 3 | 0 | 0 |
 | Quản trị nội dung | 3 | 2 | 0 | 0 |
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
-| **Tổng** | **9** | **17** | **0** | **0** |
+| **Tổng** | **9** | **18** | **0** | **0** |
 
 ## Theo dõi theo user story
 
@@ -39,24 +39,26 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-005 — Showcase public đầy đủ | P1 | Done | Full-stack + Code review | Public projector + 503/no-store dependency contract; exact client DTO; UI render toàn bộ API order theo stable ID, đủ field/source, loading/empty/degraded và accessible detail dialog/focus recovery; focused 15/15, current full 198/198 pass | 2026-07-31 |
 | US-006 — Chat ưu tiên kho kiến thức | P0 | Partial | Full-stack | Rendered/chat suite 15/15 pass; vẫn chưa đủ bốn nhóm kiến thức nền theo AC | 2026-07-31 |
 | US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
-| US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Chat no-match vẫn trả `unavailable`; `lib/openai-evidence.ts` không cho model output citation/sanction/URL/chữ số và validate evidence ID. D1 citation/sanction assembly chưa triển khai | 2026-07-30 |
+| US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Adapter + curated-first route + warning/source UI, D1 global budget và provider telemetry đã có; full 230/230 + build pass. Còn production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
+| US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; focused 4/4, combined 24/24, full 230/230, type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
+| US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
 | US-010 — Auth khu vực quản trị | P0 | Done | Full-stack + Code review | Anonymous redirect, invalid credential, signed session và admin access regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
 | US-011 — CRUD law/showcase | P0 | Done | Full-stack | Admin UI, API và D1 schema đã có; còn thiếu integration test nhưng không nằm trong criteria của story này | 2026-07-29 |
 | US-012 — Chỉ public record published | P0 | Done | Full-stack | `app/api/content/route.ts`; `lib/legal-chat.ts`; `db/schema.ts` | 2026-07-29 |
-| US-013 — Workflow review và RBAC | P0 | Partial | Full-stack + PM + Code review | 0003 sidecar enforce active role, creator-only submit, independent reviewer, exact revision và state transitions; focused 13/13 pass. CMS vẫn chưa có authenticated actor/API hay graph activation transaction | 2026-07-31 |
-| US-014 — Audit/version history | P1 | Partial | Full-stack + Code review | 0003 có immutable revision/decision/audit, operation uniqueness và exact workflow binding; focused 13/13 pass. Chưa có CMS history, archive hoặc audit mọi mutation | 2026-07-31 |
+| US-013 — Workflow review và RBAC | P0 | Partial | Full-stack + PM + Code review | 0003 trust primitives + US-028 authenticated multi-account candidate API/CMS enforce D1 role và independent reviewer. Legacy law/showcase vẫn direct publish; generic graph activation còn mở | 2026-07-31 |
+| US-014 — Audit/version history | P1 | Partial | Full-stack + Code review | Candidate revision/event/history UI và archive append-only đã có; 0003 generic history vẫn chưa nối mọi mutation law/showcase | 2026-07-31 |
 | US-015 — Source/provision data model | P0 | Partial | Full-stack + PM | 0001–0002, allowlist/authority, four-eyes, immutable revision/checksum/effectivity metadata và runbook có evidence; 17/17 schema tests pass. API citation guard và seed/backfill execution còn mở | 2026-07-31 |
 | US-016 — Theo dõi hiệu lực nguồn | P0 | Partial | Full-stack + PM + Internal content reviewer | Source/provision effectivity, freshness gate và invalidation có schema/retriever evidence. Public/chat/index retrieval chưa tích hợp structured validity; production migration chưa chạy | 2026-07-31 |
 | US-017 — Deduplicate dữ liệu nền/CMS | P1 | Partial | Full-stack + Code review | Local `catalog-resolver-v1`: 3-state snapshot, key/override/managed-only, structural distinct actor labels + SHA integrity, non-eligible tombstone, collision/orphan/no-resurrection, scalar snapshot và failed-closed degraded factory; focused 20/20, full 198/198. Chưa có authenticated reviewed ledger/export signature, migration/backfill hoặc API/page/chat activation | 2026-07-31 |
 | US-018 — Password hash và env nhất quán | P0 | Done | Full-stack + Code review | PBKDF2 Web Crypto hash/version/salt, strict fail-closed config/parser, generator + rotation runbook; focused auth 6/6, rendered 15/15, build và typecheck pass | 2026-07-31 |
-| US-019 — Rate limit login/chat | P0 | Partial | Full-stack + Code review | Local `rate-limit-v1`: D1 atomic bucket/penalty, HMAC identity, route fail-closed và focused tests; còn production migration/header/concurrency/telemetry/threshold approval gate | 2026-07-31 |
-| US-020 — Logging/observability an toàn | P1 | Partial | Full-stack + PM + Code review | Local `telemetry-v1`, outer correlation, privacy tests và runbook có evidence; còn structured retrieval/provider metadata + D1/query correlation và production Workers Logs/access/retention/canary/alert gate | 2026-07-31 |
-| US-021 — Backend/workflow E2E tests | P0 | Partial | Full-stack + Code review | Full local suite hiện tại 212/212 pass, gồm offline AI shadow, editorial workflow, schema, local ingestion, retriever, AI adapter, rate limit, telemetry, image-intent, public showcase, catalog resolver và rendered/auth/chat. Chưa có authenticated editor→reviewer API E2E, CI hoặc production D1 smoke | 2026-07-31 |
-| US-022 — Runtime/deploy thống nhất | P0 | Partial | PM + Full-stack | Migration/runbook có local evidence, nhưng production **BLOCKED**: Sites `project_id` không resolve và migration control-plane behavior chưa xác minh; chưa smoke test | 2026-07-29 |
+| US-019 — Rate limit login/chat | P0 | Partial | Full-stack + Code review | `rate-limit-v1` + atomic global web token budget local đã có; còn production migration/header/concurrency/retention/threshold approval | 2026-07-31 |
+| US-020 — Logging/observability an toàn | P1 | Partial | Full-stack + PM + Code review | Web provider model/usage/outcome và candidate ID đã vào allowlisted telemetry; còn production Workers Logs/access/retention/canary/alert gate và structured legal graph IDs | 2026-07-31 |
+| US-021 — Backend/workflow E2E tests | P0 | Partial | Full-stack + Code review | Full local **230/230**; có authenticated editor→reviewer candidate API E2E, self-review/spoof/stale guards. Còn CI và production D1 smoke | 2026-07-31 |
+| US-022 — Runtime/deploy thống nhất | P0 | Partial | PM + Full-stack | Vinext build + Sites archive validation pass, artifact có server/hosting/journal/0005. Production **BLOCKED**: connector/source publish credential không khả dụng trong phiên này và migration-before-activation/D1 smoke chưa xác minh | 2026-07-31 |
 | US-023 — Đánh giá/đăng ký nguồn ngoài | P0 | Partial | PM + Internal content reviewer | Static registry, official sample, draft-only mapper, go/no-go và 8/8 tests có evidence. Mọi `green` fail-closed; còn thiếu authenticated durable PM+reviewer approval, approved terms/license và provider contract | 2026-07-31 |
 | US-024 — Ingestion vào staging/draft | P0 | Partial | Full-stack + Code review + Internal content reviewer | Local v2: exact four-field request, static committed-fixture manifest, snapshot-before-await, all-fixture-field canonical identity, draft-only frozen plan và 7/7 tests; current full 198/198 pass. Không có migration/connector/consumer/D1/R2/Queue/quarantine hay production activation | 2026-07-31 |
-| US-025 — Index/retrieval RAG | P0 | Partial | Full-stack + PM + Code review + Internal content reviewer | Migration 0002 + candidate foundation và 0003 trust primitives đã có nhưng approval chưa nối graph. Legacy corpus vẫn 0 eligible; chưa có authenticated promotion, FTS5/index jobs, validated bundle hay golden-set eval | 2026-07-31 |
+| US-025 — Index/retrieval RAG | P0 | Partial | Full-stack + PM + Code review + Internal content reviewer | US-028 published web candidate đã có authenticated promotion và deterministic effective/fresh retrieval trước live web. Structured legal graph/FTS5/validated bundle/golden-set vẫn mở | 2026-07-31 |
 | US-026 — Evidence-bound AI analysis | P0 | Partial | Full-stack + PM + Code review | Local AC đã check cho offline runner/model/fixture/isolation/no-persist/tests và adapter config/failure guards; 9/9 + 20/20, full 212/212, live technical 2/2. Không nối chat; production bundle, `waitUntil`, semantic/DB assembly, rate-limit/budget, ZDR/under-18 và direct AI vẫn mở | 2026-07-31 |
 
 ## Thứ tự triển khai đề xuất
@@ -74,6 +76,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-31 | DEC-007 | Admin credential chỉ dùng versioned salted PBKDF2 hash; plaintext bị bỏ qua, rotation invalidate session. | US-018 |
 | 2026-07-31 | DEC-008 | Catalog snapshot có `available_records|available_empty|unavailable`; success-empty là static overlay ready, unavailable mới degraded 200/no-store; reviewed suppression chặn static resurrection. | US-017 |
 | 2026-07-31 | DEC-009 | AI integration đầu tiên chỉ là offline/local shadow, không import chat/API; `AI_SHADOW_ENABLED=false`, exact allowlist `gpt-5.4-mini|gpt-5.4-mini-2026-03-17`, `store:false`, không web/tool/persist. Route shadow chờ production bundle + `waitUntil` seam. | US-026, US-004 |
+| 2026-07-31 | DEC-010 | RAG no-match có thể gọi direct web search có kiểm soát; chỉ final official citation qua exact URL guard được trả, Thư Viện Pháp Luật discovery-only, output gắn nhãn. Phần không persist được DEC-011 thay hẹp bằng draft-only persistence. | US-027 |
+| 2026-07-31 | DEC-011 | Web result qua official guard được persist thành immutable draft không chứa raw question; chỉ authenticated four-eyes approval mới đưa vào reviewed retrieval/RAG. | US-028, US-013, US-014, US-025 |
 
 ### Batch local tiếp theo — specification gate và implementation
 
@@ -198,7 +202,8 @@ promotion, archive, production migration và retriever/chat integration.
 - [x] CR-001: xác minh từ nguồn chính thức rằng Nghị định 131/2013/NĐ-CP hết
   hiệu lực toàn bộ từ 15/02/2026.
 - [x] Chốt Cloudflare Worker + D1 là production primary.
-- [x] Chốt AI chỉ diễn giải evidence đã truy xuất; ngoài kho trả `unavailable`.
+- [x] Chốt evidence composer chỉ diễn giải evidence đã truy xuất; DEC-010 cho
+  phép boundary web-search riêng sau no-match với official-citation guard.
 - [x] Chốt quy trình bốn mắt `editor != reviewer`.
 - [x] Chốt reviewer là internal content reviewer; không cần external legal
   reviewer.
@@ -275,6 +280,55 @@ này.
 - [ ] Provision AI budget/key/telemetry và chỉ bật feature flag sau shadow eval.
 
 ## Verification evidence
+
+### 2026-07-31 — US-028 reviewed web-candidate vertical slice
+
+- Spec/AC và DEC-011 được ghi trước code. Migration 0005 tạo immutable
+  candidate/source/revision/event cùng atomic UTC-day token budget; không có
+  raw-question/message field.
+- `/api/chat` retrieve reviewed candidate trước live search, reserve/settle
+  budget và chỉ trả web result sau khi candidate draft được lưu thành công.
+  Provider telemetry chỉ có stable outcome/model/token/candidate ID.
+- Session v2 hỗ trợ server-only multi-account registry, ký username +
+  `principalId`; candidate API luôn đọc active role grant từ D1 và từ chối
+  actor/role client tự khai.
+- CMS có biên tập citation/effectivity, submit, approve/reject/archive và
+  history. Database + API enforce independent reviewer, immutable history,
+  optimistic version và official intake-source binding.
+- Focused `tests/web-search-candidates.test.mjs`: **4/4**; combined
+  auth/web/candidate: **24/24**; full local: **230/230**. TypeScript no-emit,
+  ESLint và Vinext build 5/5: **pass**. Artifact có migration 0005 + journal.
+- Production chưa đánh xong: Sites/D1 migration-before-code, distinct principal
+  provisioning, actual header/concurrency/log smoke, Workers Logs retention,
+  data-control và under-18 review cần bằng chứng bên ngoài.
+
+### 2026-07-31 — US-027 allowed-source web fallback
+
+- DEC-010 và US-027 được ghi trước implementation: RAG/managed/curated luôn
+  chạy trước; web search là fallback riêng có rollback flag. DEC-011 sau đó cho
+  phép persist draft có kiểm soát nhưng vẫn cấm auto-publish.
+- `lib/openai-web-search.ts` dùng Responses API hosted `web_search`,
+  `tool_choice=required`, `store=false`, fixed domain filter, complete sources,
+  `search_context_size=low`, strict model/config/timeout/body parsing và
+  redaction câu hỏi cuối.
+- `lib/official-source-url.ts` là URL guard dùng chung cho server/UI: chỉ HTTPS
+  exact authority `vbpl.vn`, `vbpl.moj.gov.vn`, `chinhphu.vn` hoặc subdomain
+  Chính phủ; credentials/port/domain giả bị loại. `thuvienphapluat.vn` không có
+  trong direct domain list và chỉ dành cho backoffice discovery.
+- `/api/chat` trả `mode=web_search` chỉ sau no-match; UI hiển thị nhãn chưa
+  kiểm duyệt và link official mở an toàn. Flag mặc định vẫn false trong
+  `.env.example`.
+- Focused suite **12/12**, full suite **224/224**, typecheck, ESLint và Vinext
+  build 5 environment: **pass**.
+- Live technical smoke bằng câu hỏi giao thông không chứa dữ liệu người dùng:
+  **success**, requested alias `gpt-5.4-mini`, observed
+  `gpt-5.4-mini-2026-03-17`, hai official source host `vbpl.moj.gov.vn` và
+  `chinhphu.vn`, 8.631 input + 265 output = **8.896 tokens**. Smoke chỉ in
+  aggregate an toàn, không in key hoặc nội dung câu trả lời.
+- US-027 giữ `Partial`: production vẫn cần bật flag có kiểm soát và hoàn tất
+  data-control/under-18 disclosure, budget, rate-limit/telemetry và rollout
+  review. Thư Viện Pháp Luật chưa được phê duyệt terms/license để ingest hoặc
+  làm citation.
 
 ### 2026-07-31 — US-026 offline/local AI shadow implementation
 

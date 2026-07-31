@@ -1,9 +1,15 @@
+import { env } from "cloudflare:workers";
 import { NextResponse } from "next/server";
 import {
   classifyImageIntent,
   privacySafetyGuidance,
 } from "@/lib/image-intent";
 import { findCuratedAnswer, findManagedAnswer } from "@/lib/legal-chat";
+import {
+  readOpenAiWebSearchConfig,
+  searchAllowedLegalSources,
+  WEB_SEARCH_POLICY_VERSION,
+} from "@/lib/openai-web-search";
 import {
   createRuntimeRateLimiter,
   rateLimitErrorResponse,
@@ -18,6 +24,16 @@ import {
   type TelemetryMode,
   type TelemetryOutcome,
 } from "@/lib/telemetry";
+import {
+  findReviewedWebCandidate,
+  persistWebSearchCandidate,
+  reserveWebSearchBudget,
+  settleWebSearchBudget,
+  WEB_SEARCH_BUDGET_POLICY_VERSION,
+  WEB_SEARCH_CANDIDATE_POLICY_VERSION,
+  type ReviewedWebCandidateAnswer,
+  type WebSearchBudgetReservation,
+} from "@/lib/web-search-candidates";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -59,6 +75,14 @@ type ChatHandlerDependencies = {
   managedAnswer: typeof findManagedAnswer;
   curatedAnswer: typeof findCuratedAnswer;
   imageIntent: typeof classifyImageIntent;
+  webSearch: typeof searchAllowedLegalSources;
+  reviewedWebAnswer: typeof findReviewedWebCandidate;
+  reserveWebBudget: () => Promise<WebSearchBudgetReservation | null>;
+  settleWebBudget: (
+    reservation: WebSearchBudgetReservation,
+    actualTokens: number | null,
+  ) => Promise<boolean>;
+  persistWebCandidate: typeof persistWebSearchCandidate;
   telemetry: Telemetry;
   now: () => number;
 };
@@ -70,6 +94,15 @@ export function createChatHandler(
   const managedAnswer = dependencies.managedAnswer ?? findManagedAnswer;
   const curatedAnswer = dependencies.curatedAnswer ?? findCuratedAnswer;
   const imageIntent = dependencies.imageIntent ?? classifyImageIntent;
+  const webSearch = dependencies.webSearch ?? searchAllowedLegalSources;
+  const reviewedWebAnswer =
+    dependencies.reviewedWebAnswer ?? findReviewedWebCandidate;
+  const reserveWebBudget =
+    dependencies.reserveWebBudget ?? reserveWebSearchBudget;
+  const settleWebBudget =
+    dependencies.settleWebBudget ?? settleWebSearchBudget;
+  const persistWebCandidate =
+    dependencies.persistWebCandidate ?? persistWebSearchCandidate;
   const telemetry = dependencies.telemetry ?? createTelemetry();
   const now = dependencies.now ?? Date.now;
 
@@ -81,6 +114,13 @@ export function createChatHandler(
       outcome: TelemetryOutcome,
       mode?: TelemetryMode,
       policyVersion?: string,
+      metadata: {
+        candidateIds?: string[];
+        providerModel?: string;
+        providerInputTokens?: number;
+        providerOutputTokens?: number;
+        providerOutcome?: "success" | "timeout" | "error" | "refusal" | "invalid_output";
+      } = {},
     ) => {
       const result = withRequestId(response, requestId);
       telemetry.emit({
@@ -93,6 +133,7 @@ export function createChatHandler(
         durationMs: Math.max(0, now() - startedAt),
         mode,
         policyVersion,
+        ...metadata,
       });
       return result;
     };
@@ -150,13 +191,10 @@ export function createChatHandler(
           imageDecision.policyVersion,
         );
       }
-      if (
-        imageDecision.intent === "copyright" ||
-        imageDecision.reasons.includes("ambiguous")
-      ) {
+      if (imageDecision.reasons.includes("ambiguous")) {
         // No reviewed, intent-tagged copyright record exists yet. Recognized
-        // copyright and ambiguous image questions must not enter legacy weak
-        // matching or be mapped to the privacy guidance.
+        // ambiguous image questions must not enter legacy weak matching or be
+        // mapped to the privacy guidance.
         return complete(
           unavailableResponse(),
           "retrieval_no_match",
@@ -165,7 +203,12 @@ export function createChatHandler(
         );
       }
 
-      const knowledgeAnswer = (await managedAnswer(question)) ?? curatedAnswer(question);
+      // Copyright questions skip legacy weak matching, but may use the
+      // separately guarded official-source search fallback.
+      const knowledgeAnswer =
+        imageDecision.intent === "copyright"
+          ? null
+          : (await managedAnswer(question)) ?? curatedAnswer(question);
       if (knowledgeAnswer) {
         return complete(
           NextResponse.json({ answer: knowledgeAnswer, mode: "knowledge" }),
@@ -174,13 +217,124 @@ export function createChatHandler(
         );
       }
 
-      // DEC-002: AI may only rephrase an evidence bundle returned by retrieval.
-      // The current API has no evidence-bound composition/validation yet, so an
-      // unmatched question must fail closed even when provider credentials exist.
+      const reviewedCandidate: ReviewedWebCandidateAnswer | null =
+        await reviewedWebAnswer(question);
+      if (reviewedCandidate) {
+        return complete(
+          NextResponse.json({
+            answer: reviewedCandidate.answer,
+            mode: "knowledge",
+            sources: reviewedCandidate.sources,
+          }),
+          "knowledge",
+          "knowledge",
+          reviewedCandidate.policyVersion,
+          { candidateIds: [reviewedCandidate.candidateId] },
+        );
+      }
+
+      // DEC-010/DEC-011: reserve a global UTC-day token budget before the provider call.
+      // A successful result is returned only after its immutable D1 draft is
+      // persisted; it still is not reviewed RAG evidence until four-eyes publish.
+      const webSearchConfig = readOpenAiWebSearchConfig(env);
+      if (!webSearchConfig.enabled) {
+        return complete(
+          unavailableResponse(),
+          "retrieval_no_match",
+          "unavailable",
+          WEB_SEARCH_POLICY_VERSION,
+        );
+      }
+      const reservation = await reserveWebBudget();
+      if (!reservation) {
+        return complete(
+          unavailableResponse(),
+          "dependency_error",
+          "unavailable",
+          WEB_SEARCH_BUDGET_POLICY_VERSION,
+        );
+      }
+      const searched = await webSearch(
+        webSearchConfig,
+        question,
+      );
+      const settled = await settleWebBudget(
+        reservation,
+        searched.ok
+          ? searched.usage.totalTokens
+          : reservation.reservedTokens,
+      );
+      if (!settled) {
+        return complete(
+          unavailableResponse(),
+          "dependency_error",
+          "unavailable",
+          WEB_SEARCH_BUDGET_POLICY_VERSION,
+        );
+      }
+      if (searched.ok) {
+        const candidateId = await persistWebCandidate(
+          requestId,
+          searched,
+        );
+        if (!candidateId) {
+          return complete(
+            unavailableResponse(),
+            "dependency_error",
+            "unavailable",
+            WEB_SEARCH_CANDIDATE_POLICY_VERSION,
+            {
+              providerOutcome: "success",
+              providerModel: searched.model,
+              providerInputTokens: searched.usage.inputTokens ?? undefined,
+              providerOutputTokens: searched.usage.outputTokens ?? undefined,
+            },
+          );
+        }
+        return complete(
+          NextResponse.json(
+            {
+              answer: searched.answer,
+              mode: "web_search",
+              warning: searched.warning,
+              sources: searched.sources,
+            },
+            {
+              headers: {
+                "Cache-Control": "no-store",
+              },
+            },
+          ),
+          "web_search",
+          "web_search",
+          WEB_SEARCH_POLICY_VERSION,
+          {
+            candidateIds: [candidateId],
+            providerOutcome: "success",
+            providerModel: searched.model,
+            providerInputTokens: searched.usage.inputTokens ?? undefined,
+            providerOutputTokens: searched.usage.outputTokens ?? undefined,
+          },
+        );
+      }
+
       return complete(
         unavailableResponse(),
         "retrieval_no_match",
         "unavailable",
+        WEB_SEARCH_POLICY_VERSION,
+        {
+          providerOutcome:
+            searched.code === "PROVIDER_TIMEOUT"
+              ? "timeout"
+              : searched.code === "PROVIDER_REFUSAL"
+                ? "refusal"
+                : searched.code === "INVALID_OUTPUT" ||
+                    searched.code === "UNTRUSTED_CITATION" ||
+                    searched.code === "MISSING_OFFICIAL_CITATION"
+                  ? "invalid_output"
+                  : "error",
+        },
       );
     } catch {
       return complete(unavailableResponse(), "unavailable", "unavailable");

@@ -22,13 +22,14 @@ export type TelemetryOutcome =
   | "invalid_credentials"
   | "authenticated"
   | "knowledge"
+  | "web_search"
   | "retrieval_no_match"
   | "unavailable"
   | "rate_limited"
   | "dependency_error"
   | "internal_error";
 
-export type TelemetryMode = "knowledge" | "unavailable";
+export type TelemetryMode = "knowledge" | "web_search" | "unavailable";
 
 export type TelemetryInput = {
   event: TelemetryEventName;
@@ -44,6 +45,7 @@ export type TelemetryInput = {
   freshnessVersion?: string;
   retrievedRecordIds?: string[];
   citationIds?: string[];
+  candidateIds?: string[];
   providerOutcome?: "success" | "timeout" | "error" | "refusal" | "invalid_output";
   providerLatencyMs?: number;
   providerModel?: string;
@@ -79,13 +81,18 @@ const outcomes = new Set<TelemetryOutcome>([
   "invalid_credentials",
   "authenticated",
   "knowledge",
+  "web_search",
   "retrieval_no_match",
   "unavailable",
   "rate_limited",
   "dependency_error",
   "internal_error",
 ]);
-const modes = new Set<TelemetryMode>(["knowledge", "unavailable"]);
+const modes = new Set<TelemetryMode>([
+  "knowledge",
+  "web_search",
+  "unavailable",
+]);
 const methods = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
 const providerOutcomes = new Set([
   "success",
@@ -221,6 +228,7 @@ export function createTelemetry(dependencies: TelemetryDependencies = {}) {
       for (const [key, value] of [
         ["retrievedRecordIds", boundedIds(input.retrievedRecordIds)],
         ["citationIds", boundedIds(input.citationIds)],
+        ["candidateIds", boundedIds(input.candidateIds)],
       ] as const) {
         if (value !== undefined) event[key] = value;
       }

@@ -17,10 +17,16 @@ import {
   parsePublicShowcases,
   type PublicShowcase,
 } from "@/lib/public-showcase";
+import {
+  parseOfficialSourceLinks,
+  type OfficialSourceLink,
+} from "@/lib/official-source-url";
 
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
+  warning?: string;
+  sources?: OfficialSourceLink[];
 };
 
 type PublishedContent = {
@@ -135,12 +141,27 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: pendingMessages.slice(-8) }),
       });
-      const data = (await response.json()) as { answer?: string; error?: string };
+      const data = (await response.json()) as {
+        answer?: string;
+        error?: string;
+        mode?: string;
+        warning?: string;
+        sources?: unknown;
+      };
+      const searchedSources =
+        data.mode === "web_search" || data.mode === "knowledge"
+          ? parseOfficialSourceLinks(data.sources)
+          : [];
       setChatMessages((current) => [
         ...current,
         {
           role: "assistant",
           content: data.answer ?? data.error ?? "Mình chưa thể trả lời lúc này. Bạn thử lại sau nhé.",
+          warning:
+            data.mode === "web_search" && typeof data.warning === "string"
+              ? data.warning
+              : undefined,
+          sources: searchedSources.length > 0 ? searchedSources : undefined,
         },
       ]);
     } catch {
@@ -354,7 +375,25 @@ export default function Home() {
             <div className="chat-messages">
               {chatMessages.map((message, index) => (
                 <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
-                  {message.content}
+                  <p>{message.content}</p>
+                  {message.warning && (
+                    <p className="chat-warning">{message.warning}</p>
+                  )}
+                  {message.sources && (
+                    <ul className="chat-sources" aria-label="Nguồn Chính phủ">
+                      {message.sources.map((source) => (
+                        <li key={source.url}>
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {source.title || "Mở nguồn Chính phủ"}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
               {isChatLoading && <div className="chat-message assistant typing">Đang tìm hiểu<span>•••</span></div>}

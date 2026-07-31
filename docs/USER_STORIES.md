@@ -178,6 +178,112 @@ chưa đủ bốn nhóm kiến thức nền.
 `tests/rendered-html.test.mjs` chạy 15/15 pass, gồm ngoài phạm vi, empty request
 và malformed messages.
 
+### [ ] US-027 — Tìm nguồn được phép khi kho dữ liệu chưa có câu trả lời
+
+- **Priority:** P0
+- **Persona:** Học sinh
+- **Mô tả:** Là học sinh, khi kho dữ liệu chưa có câu trả lời, tôi muốn trợ lý
+  tìm trên các nguồn pháp luật được cho phép và cho tôi biết rõ đây là kết quả
+  tra cứu trực tuyến chưa qua quy trình kiểm duyệt nội dung.
+
+**Acceptance criteria**
+
+- [x] `/api/chat` chỉ gọi web search sau khi cả managed và curated retrieval
+  không match; safety intent vẫn chạy trước và không bị thay thế.
+- [x] Web search mặc định tắt, chỉ bật với exact
+  `AI_WEB_SEARCH_ENABLED=true`, có API key và model thuộc exact allowlist.
+- [x] Request dùng Responses API `web_search`, `tool_choice=required`,
+  `store=false`, domain filter cố định phía server và yêu cầu complete sources;
+  không nhận domain, instruction, tool hoặc provider URL từ client.
+- [x] Nguồn trả lời trực tiếp chỉ gồm HTTPS URL thuộc `vbpl.vn`,
+  `vbpl.moj.gov.vn`, `chinhphu.vn` hoặc subdomain chính thức. Kết quả không có
+  ít nhất một `url_citation` chính thức trong final answer phải trả
+  `unavailable`.
+- [x] `thuvienphapluat.vn` không nằm trong direct-search domain list; chỉ dành
+  cho backoffice discovery tên/số văn bản, không được hiển thị như căn cứ cuối
+  cùng và không đủ điều kiện trả lời nếu chưa tìm được nguồn Chính phủ.
+- [x] Chỉ gửi câu hỏi cuối đã normalize và redaction email/số điện thoại/URL;
+  không gửi lịch sử hội thoại, cookie, request ID hay dữ liệu quản trị.
+- [x] Response có `mode=web_search`, cảnh báo “tra cứu trực tuyến, chưa được
+  kiểm duyệt”, và danh sách nguồn Chính phủ có link bấm được. Không lưu kết quả
+  web vào corpus hoặc tự xuất bản.
+- [x] Timeout, HTTP lỗi, refusal, malformed/oversized output, model mismatch,
+  URL ngoài allowlist hoặc thiếu official citation đều fail closed về response
+  `unavailable` hiện có.
+- [x] Có adapter/route/UI tests cho flag off, missing key, success có official
+  citation, discovery-only citation, malicious URL, timeout và curated-first.
+- [ ] Trước production phải duyệt data-control/under-18 disclosure, budget,
+  rate limit, telemetry, Terms của nguồn discovery và rollback flag.
+
+**Decision (2026-07-31):** Chủ dự án cho phép live search khi retrieval không
+match. DEC-010 thay đổi riêng phần “không live-search” của DEC-002/DEC-006:
+direct fallback chỉ được trả với citation Chính phủ đã qua exact server-side
+URL guard; `thuvienphapluat.vn` là discovery-only; mọi failure tiếp tục
+`unavailable`. Kết quả không trở thành reviewed RAG evidence và không đi qua
+four-eyes cho đến khi được ingest thành draft riêng.
+
+**Evidence:** `lib/openai-web-search.ts` có strict flag/model/config, redaction,
+fixed hosted-tool request, bounded response parser và exact official citation
+guard. `app/api/chat/route.ts` nối curated-first fallback;
+`lib/official-source-url.ts` và `app/page.tsx` validate/render warning cùng
+official links; `.env.example` giữ rollback flag mặc định false.
+`tests/openai-web-search.test.mjs` chạy 12/12, typecheck, lint và build pass
+ngày 2026-07-31. Story giữ `Partial` vì production data-control,
+under-18 disclosure, budget/rate limit/telemetry và rollout review còn mở.
+
+### [ ] US-028 — Lưu, duyệt và tái sử dụng kết quả tra cứu trực tuyến
+
+- **Priority:** P0
+- **Persona:** Biên tập viên, người duyệt nội dung nội bộ, học sinh
+- **Mô tả:** Là đội nội dung, chúng tôi muốn kết quả tra cứu trực tuyến đủ nguồn
+  chính thức được lưu thành ứng viên bản nháp, qua quy trình bốn mắt và chỉ sau
+  đó mới trở thành dữ liệu RAG có thể tái sử dụng.
+
+**Acceptance criteria**
+
+- [x] Sau web-search thành công, backend lưu answer, model, usage và URL Chính
+  phủ đã canonicalize vào D1 trước khi trả response; persistence lỗi fail
+  closed.
+- [x] Không lưu raw question, message history, cookie, IP, email, số điện thoại
+  hoặc provider body; chỉ có request ID server-side và checksum nội dung.
+- [x] Candidate mặc định `draft`; answer/source gốc, revision và history không
+  thể sửa/xóa. Chỉ principal active có role `editor|admin` được tạo revision.
+- [x] Editor bổ sung topic/title/tags và citation metadata gồm số hiệu văn bản,
+  điều/khoản/điểm, hiệu lực và ngày kiểm chứng; URL phải khớp source ban đầu.
+- [x] Workflow là `draft → pending_review → published → archived` hoặc
+  `pending_review → rejected → draft`; reviewer active phải khác editor,
+  rejection có lý do và mọi mutation có immutable audit event.
+- [x] Session nội bộ resolve username thành stable `principalId`; role đọc từ
+  D1, không tin actor/role client gửi. Registry nhiều account chỉ ở server.
+- [x] Chỉ candidate `published`, citation còn hiệu lực và trong freshness
+  window được retrieval trước live web fallback; draft/rejected/archived không
+  được trả.
+- [x] CMS có danh sách candidate, form revision, gửi duyệt,
+  approve/reject/archive theo role và lịch sử.
+- [x] Web-search có global daily token budget fail-closed trong D1 và telemetry
+  allowlist cho provider model/usage/candidate ID; không log nội dung.
+- [x] Migration, workflow negative tests, persistence/retrieval, RBAC/API,
+  typecheck/lint/build chạy pass.
+- [ ] Production gate: apply migration trước code/flag, seed hai principal khác
+  nhau cùng role grant, cấu hình budget, Workers Logs và chạy D1 smoke; hoàn tất
+  data-control/under-18 review.
+
+**Decision (2026-07-31):** DEC-011 thay phần “không persist” của DEC-010 bằng
+quyền hẹp: chỉ persist server-validated web result thành immutable draft, không
+lưu raw question và không tự publish. Candidate chỉ vào reviewed RAG corpus sau
+authenticated four-eyes approval.
+
+**Evidence local:** `drizzle/0005_web_search_candidate_workflow.sql`,
+`db/schema.ts`, `lib/web-search-candidates.ts`,
+`app/admin/api/web-search-candidates/route.ts`,
+`app/admin/AdminDashboard.tsx`, `lib/admin-auth.ts`, `app/api/chat/route.ts`,
+`lib/telemetry.ts`, `.env.example` và
+`docs/WEB_SEARCH_REVIEW_RUNBOOK.md`. Focused candidate workflow **4/4**,
+combined auth/web/candidate **24/24**, full suite **230/230**, typecheck, ESLint
+và Vinext build 5/5 pass ngày 2026-07-31. Story giữ `Partial` vì production
+migration/principal/data-control/under-18/Workers Logs/D1 smoke chưa có
+evidence.
+
 ### [ ] US-008 — Không cho AI tạo căn cứ ngoài dữ liệu
 
 - **Priority:** P0
@@ -1045,8 +1151,10 @@ approval sau khi có authenticated session boundary và promotion transaction.
   execution-lifetime seam như Cloudflare `waitUntil`; `AI_SHADOW_ENABLED` không
   bao giờ tự cấp quyền route hoặc direct response.
 
-**Decision (2026-07-30):** API key không phải fallback kiến thức mở. Thay đổi
-điều này cần một quyết định mới sửa DEC-002/DEC-006 và không được khuyến nghị.
+**Decision (2026-07-30, cập nhật 2026-07-31):** Evidence composer vẫn không
+phải fallback kiến thức mở. DEC-010 đã cho phép một boundary web-search riêng,
+chỉ sau retrieval no-match và chỉ trả final official citation qua URL guard;
+quyết định này không nới evidence-composer gate.
 
 **Delivery slice hiện tại:** chỉ xây adapter Responses API evidence-only và unit
 tests, feature flag mặc định tắt. Không nối adapter vào `/api/chat`, không xây

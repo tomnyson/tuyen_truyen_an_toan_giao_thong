@@ -116,7 +116,7 @@ export function createLoginHandler(
           "rate-limit-v1",
         );
       }
-      const session = await createSession();
+      const session = await createSession(username);
       const secure = new URL(request.url).protocol === "https:";
       return complete(
         Response.json(

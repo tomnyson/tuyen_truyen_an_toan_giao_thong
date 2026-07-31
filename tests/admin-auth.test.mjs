@@ -24,7 +24,12 @@ registerHooks({
 });
 
 const { createAdminPasswordHash, verifyAdminPassword } = await import("../lib/password-hash.ts");
-const { createAdminSession, validateAdminCredentials, verifyAdminSession } =
+const {
+  createAdminSession,
+  validateAdminCredentials,
+  verifyAdminSession,
+  verifyAdminSessionActor,
+} =
   await import("../lib/admin-auth.ts");
 const { createLoginHandler } = await import("../app/admin/api/login/route.ts");
 const allowedDecision = {
@@ -130,4 +135,45 @@ test("session verification regresses closed after session-secret rotation", asyn
 
   workerEnv.ADMIN_SESSION_SECRET = "rotated-session-secret-at-least-32-characters";
   assert.equal(await verifyAdminSession(session.token), false);
+});
+
+test("multi-account registry binds a signed session to a stable principal", async () => {
+  const reviewerHash = await createAdminPasswordHash(
+    "reviewer-password-strong",
+    Uint8Array.from({ length: 16 }, (_, index) => 16 - index),
+  );
+  setWorkerEnv({
+    ADMIN_ACCOUNTS_JSON: JSON.stringify([
+      {
+        username: "editor",
+        passwordHash: validHash,
+        principalId: "editor-a",
+      },
+      {
+        username: "reviewer",
+        passwordHash: reviewerHash,
+        principalId: "reviewer-a",
+      },
+    ]),
+    ADMIN_SESSION_SECRET: validConfig.ADMIN_SESSION_SECRET,
+  });
+  assert.equal(await validateAdminCredentials("editor", password), true);
+  assert.equal(
+    await validateAdminCredentials("reviewer", "reviewer-password-strong"),
+    true,
+  );
+  const session = await createAdminSession("reviewer");
+  assert.deepEqual(await verifyAdminSessionActor(session.token), {
+    username: "reviewer",
+    principalId: "reviewer-a",
+  });
+
+  workerEnv.ADMIN_ACCOUNTS_JSON = JSON.stringify([
+    {
+      username: "editor",
+      passwordHash: validHash,
+      principalId: "editor-a",
+    },
+  ]);
+  assert.equal(await verifyAdminSessionActor(session.token), null);
 });

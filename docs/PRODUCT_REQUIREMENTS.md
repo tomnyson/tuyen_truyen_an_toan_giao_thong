@@ -216,7 +216,19 @@ Mỗi kết quả phải hiển thị:
 
 - Nhận tối đa 8 message gần nhất, tối đa 600 ký tự/message trong MVP hiện tại.
 - Ưu tiên nội dung đã xuất bản trước nhánh AI.
-- Phân biệt rõ `curated`, `ai_assisted` và `unavailable`.
+- Legacy `/api/chat` phân biệt `knowledge`, `web_search` và `unavailable`;
+  contract v1 mục tiêu tiếp tục phân biệt `curated`, `ai_assisted` và
+  `unavailable` cho đến khi web-search structured contract được review riêng.
+- Khi managed/curated retrieval không match và feature flag được bật, có thể
+  dùng `web_search` trong danh sách nguồn cố định. Kết quả phải có citation
+  Chính phủ đã được server kiểm tra URL, gắn nhãn chưa kiểm duyệt và dùng mode
+  `web_search`; nếu thiếu nguồn chính thức thì vẫn `unavailable`.
+- Kết quả web đủ điều kiện phải được lưu thành candidate `draft` không chứa raw
+  question trước khi trả response. Candidate không trở thành corpus RAG cho tới
+  khi editor và reviewer độc lập hoàn tất quy trình bốn mắt.
+- `thuvienphapluat.vn` không nằm trong direct-search allowlist; chỉ là nguồn
+  backoffice discovery để tìm văn bản, không được dùng làm citation cuối cùng
+  hoặc tự động đưa vào corpus.
 - Intent ảnh riêng tư/nhạy cảm phải ưu tiên safety guidance; intent bản quyền
   chỉ match dấu hiệu tác giả/tác phẩm/giấy phép/ghi nguồn. Từ chung “hình ảnh”
   hoặc câu mơ hồ không được tự chọn một nhánh.
@@ -426,8 +438,8 @@ type LegalAnswerResponse = {
   được tạm loại khỏi read path.
 - Danh sách hai URL nguồn chính thức còn được phép hiển thị.
 - Chat kiểm tra message, ưu tiên dữ liệu quản trị đã publish rồi dữ liệu nền;
-  câu không match trả `unavailable` và không còn gọi provider AI khi chưa có
-  evidence bundle.
+  câu không match chỉ gọi allowed-source web fallback khi flag bật, còn flag
+  tắt hoặc thiếu official citation thì trả `unavailable`.
 - CMS CRUD cho `legal_entries` và `showcases`, trạng thái `draft/published`.
 - Cookie session ký HMAC, hết hạn sau 8 giờ, kiểm tra origin cho mutation.
 - Public API chỉ lấy record `published`.
@@ -451,8 +463,9 @@ type LegalAnswerResponse = {
 - Đã có AI composer adapter cô lập với strict evidence/four-eyes/freshness
   gate và contract tests, nhưng chưa có retriever production, DB citation
   assembly, semantic claim-span validation hoặc production rate-limit/telemetry
-  verification; chưa có `/api/chat` integration. API key không làm chat dùng
-  kiến thức mở.
+  verification; evidence composer chưa có `/api/chat` integration. Direct
+  allowed-source web fallback của US-027 là boundary riêng, không biến kết quả
+  web thành reviewed RAG evidence.
 - Đã có candidate retriever foundation cô lập: join relational graph, kiểm
   policy/effectivity/four-eyes/checksum và deterministic lexical top-k. Một
   reviewed migration fixture tạo được internal candidate; corpus legacy vẫn
@@ -546,28 +559,28 @@ activation; do đó production deployment vẫn bị chặn.
 | Ngày | ID | Quyết định | Hệ quả |
 |---|---|---|---|
 | 2026-07-29 | DEC-001 | Cloudflare Worker + D1 là production primary. | Không giả định Vercel có feature parity; runbook, migration và smoke test production phải ưu tiên Cloudflare. |
-| 2026-07-29 | DEC-002 | Câu hỏi ngoài kho đã duyệt phải trả `unavailable`; AI chỉ được diễn giải evidence đã truy xuất. | Không dùng AI kiến thức mở; backend không được gửi câu hỏi ngoài retrieval sang provider để tạo câu trả lời pháp lý. |
+| 2026-07-29 | DEC-002 | Câu hỏi ngoài kho đã duyệt phải trả `unavailable`; AI chỉ được diễn giải evidence đã truy xuất. | Giữ nguyên cho evidence composer; phần cấm mọi direct search được DEC-010 thay đổi hẹp cho official-citation web fallback. |
 | 2026-07-29 | DEC-003 | Bắt buộc quy trình bốn mắt `editor != reviewer`. | Backend phải tách vai trò và chặn người tạo tự duyệt/xuất bản nội dung của mình. |
 | 2026-07-29 | DEC-004 | Chỉ publish nguồn Chính phủ thuộc allowlist mặc định: `vbpl.vn`, `vbpl.moj.gov.vn`, `chinhphu.vn` và subdomain chính thức. | Nguồn ngoài allowlist bị từ chối; reviewer là người duyệt nội dung nội bộ, không bắt buộc là external legal reviewer. |
 | 2026-07-30 | DEC-005 | Sản phẩm là RAG-first; MVP retrieve corpus đã reviewed/published/effective trước khi dùng model compose và không bắt buộc vector database. | Structured search/alias/FTS5 là baseline; không có evidence hợp lệ thì trả `unavailable`. |
-| 2026-07-30 | DEC-006 | Dữ liệu ngoài chỉ được ingest vào staging/draft có provenance và qua bốn mắt; AI không auto-publish hoặc làm nguồn xác minh. | API key chỉ dùng cho discovery/extraction draft hoặc evidence-bound composer; end-user query không live-search và không dùng kiến thức mở làm fallback. |
+| 2026-07-30 | DEC-006 | Dữ liệu ngoài chỉ được ingest vào staging/draft có provenance và qua bốn mắt; AI không auto-publish hoặc làm nguồn xác minh. | Quy tắc ingest/auto-publish giữ nguyên; DEC-010 cho direct search và DEC-011 chỉ cấp draft persistence, không cấp auto-promotion. |
 | 2026-07-31 | DEC-007 | Credential admin chỉ lưu dạng hash versioned `PBKDF2-HMAC-SHA256`, không hỗ trợ plaintext. | Cấu hình thiếu/malformed fail closed; rotation đổi cả password hash và session secret; benchmark Worker là rollout gate. |
 | 2026-07-31 | DEC-008 | Catalog phân biệt managed success-empty với dependency unavailable; static baseline là normal overlay, còn unavailable dùng degraded fallback. | Degraded trả HTTP 200 + `dataState=degraded` + no-store; reviewed suppression áp dụng cả fallback, managed-only key hợp lệ không phải orphan và local slice không đóng production migration gate. |
 | 2026-07-31 | DEC-009 | AI integration đầu tiên chỉ là offline/local shadow, không import vào chat/API route; dùng `AI_SHADOW_ENABLED=false` mặc định và `OPENAI_API_KEY` server-only hiện có. Exact model allowlist là `gpt-5.4-mini` + snapshot `gpt-5.4-mini-2026-03-17`. | Chỉ non-user technical fixture được gửi với `store:false`, không web/tool/persist. `store:false` không phải ZDR; dữ liệu học sinh cần data-control + under-18 privacy/safety gate. Route shadow còn chờ production bundle + `waitUntil`; direct `ai_assisted` cần gate riêng. |
+| 2026-07-31 | DEC-010 | Khi RAG không match, chủ dự án cho phép direct web-search fallback có kiểm soát. | Chỉ final answer có ít nhất một official `url_citation` qua exact HTTPS authority guard mới được trả với nhãn chưa kiểm duyệt; Thư Viện Pháp Luật discovery-only; flag off hoặc mọi validation/provider failure vẫn `unavailable`. Quyết định này không biến web result thành reviewed corpus và không nới gate của evidence-bound `ai_assisted`. |
+| 2026-07-31 | DEC-011 | Kết quả web qua official guard được lưu thành immutable draft không chứa raw question. | D1 persistence là điều kiện trước khi trả web result; chỉ stable principal + independent reviewer mới publish candidate vào reviewed retrieval. |
 
 ## 16. Open questions cần chủ dự án xác nhận
 
-1. Có lưu câu hỏi ẩn danh để đo coverage không; nếu có, lưu bao lâu và áp dụng
-   quy tắc redaction nào?
-2. PM và internal content reviewer sẽ duyệt freshness policy nào cho từng loại
+1. PM và internal content reviewer sẽ duyệt freshness policy nào cho từng loại
    nguồn; trước khi có policy, source bị loại khỏi RAG.
-3. MVP cần mô hình applicability theo độ tuổi/chủ thể chi tiết đến mức nào trước
+2. MVP cần mô hình applicability theo độ tuổi/chủ thể chi tiết đến mức nào trước
    khi hiển thị sanction?
-4. Provider T3 cụ thể là đơn vị nào; API/export docs, sample, auth, quota,
+3. Provider T3 cụ thể là đơn vị nào; API/export docs, sample, auth, quota,
    terms/license và update/delete semantics ở đâu?
-5. Retention cho immutable raw snapshots theo terms của từng nguồn là bao lâu?
-6. Ngân sách, model allowlist và quota AI production do ai sở hữu?
-7. Có duyệt **PROP-001**: giữ public/admin/query trong Next/Vinext Worker và
+4. Retention cho immutable raw snapshots theo terms của từng nguồn là bao lâu?
+5. Ngân sách, model allowlist và quota AI production do ai sở hữu?
+6. Có duyệt **PROP-001**: giữ public/admin/query trong Next/Vinext Worker và
    tách scheduled/batch ingestion thành Worker riêng có R2/Queue/source
    credentials không?
 

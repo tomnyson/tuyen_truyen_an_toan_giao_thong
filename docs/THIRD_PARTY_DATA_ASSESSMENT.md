@@ -1,6 +1,6 @@
 # Đánh giá nguồn dữ liệu ngoài cho RAG
 
-> Ngày đánh giá: 2026-07-30
+> Ngày đánh giá: 2026-07-30; cập nhật direct fallback 2026-07-31
 > Phạm vi: nguồn văn bản pháp luật Chính phủ có thể dùng cho MVP
 > Trạng thái: đánh giá khả thi; chưa triển khai connector hoặc nhập production
 
@@ -15,11 +15,14 @@ RAG, nhưng hiện chưa có bằng chứng về một API công khai, có versi
 3. lưu dữ liệu vào staging/draft cùng provenance và checksum;
 4. dùng AI để trích xuất, phân loại và gợi ý bản nháp;
 5. chỉ đưa vào corpus sau khi qua quy trình bốn mắt;
-6. người dùng cuối chỉ hỏi trên corpus đã duyệt, không live-search web.
+6. người dùng cuối ưu tiên corpus đã duyệt; DEC-010 cho phép direct search
+   riêng chỉ trên official domain khi corpus không match, có nhãn chưa kiểm
+   duyệt và không persist kết quả.
 
-API key của model không thay thế nguồn dữ liệu. Model chỉ được nhận câu hỏi đã
-sanitize và evidence bundle đã truy xuất; nếu không có evidence hợp lệ, hệ thống
-trả `unavailable`.
+API key của model không thay thế nguồn dữ liệu. Evidence composer chỉ nhận câu
+hỏi đã sanitize và evidence bundle đã truy xuất. Direct-search boundary của
+US-027 chỉ nhận câu hỏi cuối đã redact, chỉ tìm nguồn Chính phủ; thiếu final
+official citation thì trả `unavailable`.
 
 ## 2. Kết quả kiểm tra nguồn chính thức
 
@@ -202,9 +205,14 @@ Tài liệu chính thức:
 - Server validate ID rồi gắn citation/URL/mức xử lý từ D1.
 - Missing key, timeout, malformed output hoặc citation ID lạ → curated response
   nếu đủ dữ liệu, nếu không → `unavailable`.
-
-Không dùng `OPENAI_API_KEY` để hỏi model bằng kiến thức mở khi retrieval không
-match.
+- Nếu retrieval không match và exact `AI_WEB_SEARCH_ENABLED=true`, direct
+  fallback dùng hosted `web_search`, `tool_choice=required`,
+  `search_context_size=low` và official-only domain filter.
+- Final answer phải có ít nhất một HTTPS `url_citation` qua exact authority
+  guard. `thuvienphapluat.vn` không nằm trong direct allowlist; chỉ dành cho
+  backoffice discovery riêng.
+- Direct result gắn nhãn chưa kiểm duyệt, trả link Chính phủ, `no-store` và
+  không tự nhập vào database/RAG.
 
 ## 7. Env/binding cần có
 

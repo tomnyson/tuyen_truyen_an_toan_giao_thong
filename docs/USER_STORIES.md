@@ -217,7 +217,7 @@ chưa đủ bốn nhóm kiến thức nền.
 `tests/rendered-html.test.mjs` chạy 15/15 pass, gồm ngoài phạm vi, empty request
 và malformed messages.
 
-### [x] US-029 — Giới hạn trợ lý đúng ba chủ đề MVP
+### [ ] US-029 — Giới hạn trợ lý đúng ba chủ đề MVP
 
 - **Priority:** P0
 - **Persona:** Học sinh
@@ -246,13 +246,12 @@ và malformed messages.
   match cùng topic đã phân loại, URL qua exact official guard và presentation
   hợp lệ. Tiêu đề nguồn không được dùng để hợp thức hóa answer chung chung;
   output/reference sai loại hoặc không đủ điều kiện phải fail closed.
-- [x] Kết quả reference chỉ hiển thị bản rút gọn gồm tóm tắt, thông tin tham
-  khảo, cách xử lý an toàn và giới hạn; không có căn cứ pháp lý, mức phạt hoặc
-  biện pháp pháp lý, luôn có cảnh báo không chính thống/cần xác minh và không
-  persist.
-- [x] Có regression test cho cả ba topic, câu ngoài phạm vi, no-match, zero
-  provider/persistence call, official persistence guard và reference reduced
-  form.
+- [ ] Kết quả reference được giữ chi tiết pháp lý để tham khảo theo DEC-017,
+  luôn có cảnh báo không chính thống/chưa kiểm chứng và không persist. Source
+  link vẫn phải qua exact authority guard.
+- [ ] Có regression test cho cả ba topic, câu ngoài phạm vi, no-match, zero
+  provider/persistence call, official persistence guard và reference
+  unreviewed-details form.
 
 **Decision (2026-07-31):** Chủ dự án chốt thông điệp “Tra cứu nhanh các quy
 định gần gũi với trường học — từ giao thông, mạng xã hội đến bản quyền”, đồng ý
@@ -260,7 +259,9 @@ reference reduced form và thông báo ngoài phạm vi nêu trên. DEC-013 quy 
 topic gate chạy trước mọi retrieval/search; chỉ official result hợp lệ mới được
 lưu draft.
 
-**Status:** Done. `lib/chat-topic-scope.ts` triển khai classifier versioned;
+**Status:** Partial sau DEC-017. Topic gate và persistence guard vẫn Done;
+reference presentation/tests cần đổi từ reduced form sang unreviewed-details.
+`lib/chat-topic-scope.ts` triển khai classifier versioned;
 `app/api/chat/route.ts`, `lib/legal-chat.ts` và
 `lib/web-search-candidates.ts` đặt topic/trust-tier guard trước retrieval,
 search và persistence; `lib/chat-answer-presentation.ts` tạo reference reduced
@@ -362,19 +363,18 @@ duyệt bốn mắt và public retrieval gate.
   trong phần diễn giải. Link duy nhất người dùng bấm được phải lấy từ danh sách
   `sources` đã qua exact URL guard tương ứng với `sourceKind`; client không
   render HTML từ answer và có plain-text fallback khi DTO trình bày sai.
-- [x] Direct `web_search` không công khai số tiền, điều-khoản-điểm hoặc ngày
-  pháp lý do model sinh chỉ vì có official URL. Các field này chỉ xuất hiện sau
-  khi được map vào source/provision/sanction record đã review; output trực tiếp
-  có legal numeric/article/date claim phải fail closed.
+- [ ] Direct `web_search` được công khai số tiền, số hiệu văn bản,
+  điều-khoản-điểm và ngày pháp lý dưới nhãn “Mức phạt tham khảo — chưa kiểm
+  chứng”. Cảnh báo phải đứng trước nội dung, không được gọi là căn cứ đã xác
+  minh và không được tự đưa vào reviewed RAG.
 - [x] Kết quả từ reference allowlist phải có `sourceKind=reference`, cảnh báo
   luôn thấy “không phải nguồn chính thống, cần xác minh”, link đã qua exact
   HTTPS authority guard và không được persist thành candidate, evidence hoặc
   corpus RAG.
-- [x] Câu hỏi đời thường có chữ số như “đi xe máy tống 3” không bị chặn chỉ vì
-  có số `3`; nhưng output nguồn tham khảo có số tiền, số hiệu văn bản,
-  điều-khoản-điểm, ngày/tuổi hoặc ngưỡng pháp lý không được public: provider
-  text bị bỏ toàn bộ và thay bằng safe fallback cố định, hoặc fail closed nếu
-  source/DTO không hợp lệ.
+- [ ] Câu hỏi đời thường có chữ số như “đi xe máy tống 3” không bị chặn chỉ vì
+  có số `3`. Output official/reference có chi tiết pháp lý định lượng được giữ
+  để tham khảo khi có ít nhất một source link qua exact authority guard; thiếu
+  source hợp lệ hoặc DTO sai vẫn fail closed.
 - [x] Có regression test cho chuỗi tìm kiếm “đi xe máy tống 3”, thứ tự
   official-first/reference-second, nhãn UI, exact-domain guard và không persist
   nguồn tham khảo.
@@ -394,9 +394,15 @@ URL guard; `thuvienphapluat.vn` là discovery-only; mọi failure tiếp tục
 four-eyes cho đến khi được ingest thành draft riêng.
 
 **Decision bổ sung (2026-07-31):** DEC-012 cho phép lượt reference search thứ
-hai khi lượt official không có kết quả đủ điều kiện. Reference result phải ghi
-rõ không chính thống/cần xác minh, chỉ trả hướng dẫn chung không có chi tiết
-pháp lý định lượng, không persist và không tham gia RAG.
+hai khi lượt official không có kết quả đủ điều kiện. Hạn chế ban đầu chỉ trả
+hướng dẫn chung không có chi tiết định lượng đã được DEC-017 thay đổi; quy tắc
+không chính thống/cần xác minh, không persist và không tham gia RAG vẫn giữ.
+
+**Decision bổ sung (2026-07-31):** DEC-017 thay hẹp giới hạn định lượng của
+DEC-010/DEC-012 cho MVP: official/reference web result được hiển thị mức phạt
+và chi tiết pháp lý dưới nhãn chưa kiểm chứng/chỉ tham khảo khi source link đã
+qua authority guard. Kết quả không trở thành reviewed evidence và reference
+vẫn không được persist.
 
 **Evidence:** `lib/openai-web-search.ts` có strict flag/model/config, redaction,
 fixed hosted-tool request, bounded response parser và exact official citation

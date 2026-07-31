@@ -21,12 +21,12 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Nhóm | Done | Partial | Todo | Blocked |
 |---|---:|---:|---:|---:|
 | Tra cứu và hiểu pháp luật | 3 | 2 | 0 | 0 |
-| Hỏi đáp có kiểm soát | 3 | 4 | 0 | 0 |
+| Hỏi đáp có kiểm soát | 2 | 5 | 0 | 0 |
 | Quản trị nội dung | 3 | 2 | 0 | 0 |
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
-| **Tổng** | **10** | **18** | **0** | **0** |
+| **Tổng** | **9** | **19** | **0** | **0** |
 
 ## Theo dõi theo user story
 
@@ -39,7 +39,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-005 — Showcase public đầy đủ | P1 | Done | Full-stack + Code review | Public projector + 503/no-store dependency contract; exact client DTO; UI render toàn bộ API order theo stable ID, đủ field/source, loading/empty/degraded và accessible detail dialog/focus recovery; focused 15/15, current full 198/198 pass | 2026-07-31 |
 | US-006 — Chat ưu tiên kho kiến thức | P0 | Partial | Full-stack | Rendered/chat suite 15/15 pass; vẫn chưa đủ bốn nhóm kiến thức nền theo AC | 2026-07-31 |
 | US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
-| US-029 — Topic gate ba chủ đề MVP | P0 | Done | Full-stack + PM + Code review | Topic/trust-tier gate trước retrieval/search/persist; copyright legacy subtype guard; exact off-topic + short no-match; official-only persistence; reference reduced/no-persist + server-origin fallback discriminant. Focused 152/152, type/lint/build/diff-check pass; full 296/299 chỉ còn 3 migration-ledger failure cũ; PM và code review PASS | 2026-07-31 |
+| US-029 — Topic gate ba chủ đề MVP | P0 | Partial | Full-stack + PM + Code review | Topic/persistence gate vẫn verified; DEC-017 đổi reference presentation từ reduced sang unreviewed-details nên 2 AC và regression test mới đang mở | 2026-07-31 |
 | US-030 — Nạp official corpus draft | P0 | Partial | Full-stack + PM + Code review | 7 intent/11 official sources đã nạp D1 local ở draft; full-record audit binding, alias tags, safety/legal discriminant và MVP account guidance đã verified. Còn production Sites/D1 và final review sau MVP | 2026-07-31 |
 | US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Official-first/reference-second, warning/source UI, no-persist reference và direct-claim guard đã verified: focused 28/28, type/lint/build và live browser pass. Full suite 243/246; 3 failure cũ do migration 0006 và ledger expectations. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
 | US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; new revision requires issuedAt while legacy snapshot stays retrievable; focused 5/5, combined 26/26, current full 236/239 (3 migration-ledger failures cũ), type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
@@ -85,6 +85,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-31 | DEC-014 | Official corpus seed là review packet versioned, import idempotent vào draft-only; không tạo revision/review/publish và không lưu câu hỏi thật. NĐ 174/2026 thay căn cứ NĐ 15 cho hành vi mạng xã hội mới từ 01/07/2026. | US-030, US-013, US-025 |
 | 2026-07-31 | DEC-015 | Cho MVP dùng ngay official safety guidance không có kết luận pháp lý; record này bị chặn khỏi legal workflow. Legal citation/sanction vẫn giữ bốn mắt. | US-030, US-006, US-013 |
 | 2026-07-31 | DEC-016 | Direct web-search nhận mọi model ID server-side có định dạng an toàn; provider/capability lỗi vẫn fail closed. Offline evidence/shadow tiếp tục exact allowlist. | US-027, US-026 |
+| 2026-07-31 | DEC-017 | Cho phép web-search hiển thị mức phạt/chi tiết pháp lý chưa kiểm chứng dưới nhãn tham khảo và source guard; không biến thành reviewed RAG. | US-027, US-004 |
 
 ### 2026-07-31 — US-004 chat presentation specification
 
@@ -818,6 +819,15 @@ này.
 - Live smoke bằng fixture kỹ thuật không có dữ liệu người dùng: **pass** với
   requested/observed model `gpt-5.6-luna`, 1 source `vbpl.vn`, usage 15.069
   input + 491 output = 15.560 tokens.
+
+### 2026-07-31 — DEC-017 unreviewed reference-fine policy
+
+- Chủ dự án đã thay đổi working agreement: MVP cho phép web-search hiển thị
+  mức phạt và chi tiết pháp lý chưa kiểm chứng nếu có cảnh báo nổi bật, source
+  link qua authority guard và không quảng bá thành reviewed RAG evidence.
+- `AGENTS.md`, PRD, US-027 và technical decision log đã cập nhật. Hai AC hành
+  vi mới của US-027 giữ unchecked vì route/provider presentation và regression
+  tests chưa được sửa trong thay đổi nguyên tắc này.
 
 ## Cách cập nhật tracker
 

@@ -2343,8 +2343,9 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
 - **DEC-012:** nếu official direct search không có kết quả đủ điều kiện, route
   được chạy thêm một lượt reference search trên exact allowlist
   `thuvienphapluat.vn`. Kết quả phải có `sourceKind=reference`, cảnh báo không
-  chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist
-  thành candidate/evidence/RAG. Official search luôn chạy trước.
+  chính thống/cần xác minh và không persist thành candidate/evidence/RAG.
+  Hạn chế chi tiết định lượng ban đầu được DEC-017 thay đổi. Official search
+  luôn chạy trước.
 - **DEC-013:** `/api/chat` chạy topic gate deterministic trước mọi retrieval,
   provider và persistence. Phạm vi chỉ gồm giao thông, an toàn/ứng xử trên mạng
   và bản quyền học đường. Off-topic/no-match trả message ngắn không có legal
@@ -2378,6 +2379,14 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   nhận khi trả model ID cùng định dạng; capability/HTTP/refusal/output lỗi tiếp
   tục fail closed. Exact allowlist/pinned model tại DEC-009 vẫn giữ nguyên cho
   offline evaluation và evidence composer.
+- **DEC-017:** Product owner chấp nhận rủi ro MVP và cho phép direct
+  official/reference web-search giữ số tiền, số hiệu văn bản, điều-khoản-điểm,
+  ngày hiệu lực và biện pháp pháp lý do provider trả về. Public response phải
+  có warning trước nội dung, dùng nhãn “tham khảo — chưa kiểm chứng”, chỉ render
+  source URL qua exact authority guard và không mô tả output là reviewed
+  application evidence. Official result chỉ persist immutable draft;
+  reference result live/no-store, không candidate/RAG. Thiếu source hợp lệ,
+  malformed/active content hoặc sai topic vẫn fail closed.
 
 ### Điểm còn mở
 

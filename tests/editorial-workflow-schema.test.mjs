@@ -181,10 +181,10 @@ test("Drizzle and journal retain 0003 without runtime bootstrap activation", () 
     journal.entries[3]?.tag,
     "0003_editorial_trust_primitives",
   );
-  assert.equal(journal.entries.at(-1)?.idx, 5);
+  assert.equal(journal.entries.at(-1)?.idx, 6);
   assert.equal(
     journal.entries.at(-1)?.tag,
-    "0005_web_search_candidate_workflow",
+    "0006_petite_lady_deathstrike",
   );
   assert.doesNotMatch(bootstrap, /0003_editorial_trust_primitives|editorialTrust/);
   for (const table of editorialTables) {

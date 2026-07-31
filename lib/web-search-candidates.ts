@@ -50,6 +50,7 @@ export type ReviewedCandidateCitation = {
   issuedAt?: string;
   effectiveFrom: string;
   effectiveTo?: string;
+  effectivityNote?: string;
   lastVerifiedAt: string;
 };
 
@@ -374,6 +375,8 @@ export function normalizeReviewedCandidateSnapshot(
       if (field) normalized[key] = field;
     }
     if (effectiveTo) normalized.effectiveTo = effectiveTo;
+    const effectivityNote = boundedText(citation.effectivityNote, 500);
+    if (effectivityNote) normalized.effectivityNote = effectivityNote;
     citations.push(normalized);
   }
   if (citations.length < 1) return null;

@@ -74,6 +74,7 @@ export type ReviewedCitationPresentationInput = {
   point?: string;
   effectiveFrom: string;
   effectiveTo?: string;
+  effectivityNote?: string;
   lastVerifiedAt: string;
 };
 
@@ -336,9 +337,11 @@ export function reviewedCitationsToLegalBasisSection(
       citation.clause ? `khoản ${citation.clause}` : "",
       citation.article ? `Điều ${citation.article}` : "",
     ].filter(Boolean);
-    const effectivity = citation.effectiveTo
-      ? `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)} đến ${formatIsoDate(citation.effectiveTo)}.`
-      : `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)}.`;
+    const effectivity = citation.effectivityNote
+      ? citation.effectivityNote
+      : citation.effectiveTo
+        ? `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)} đến ${formatIsoDate(citation.effectiveTo)}.`
+        : `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)}.`;
     return [
       `${citation.documentNumber} — ${citation.title}.`,
       provision.length > 0 ? `${provision.join(", ")}.` : "",

@@ -608,6 +608,8 @@ activation; do đó production deployment vẫn bị chặn.
 | 2026-07-31 | DEC-010 | Khi RAG không match, chủ dự án cho phép direct web-search fallback có kiểm soát. | Chỉ final answer có ít nhất một official `url_citation` qua exact HTTPS authority guard mới được trả với nhãn chưa kiểm duyệt; Thư Viện Pháp Luật discovery-only; flag off hoặc mọi validation/provider failure vẫn `unavailable`. Quyết định này không biến web result thành reviewed corpus và không nới gate của evidence-bound `ai_assisted`. |
 | 2026-07-31 | DEC-012 | Khi official web search không có câu trả lời đủ điều kiện, cho phép thêm một lượt reference search có kiểm soát. | Reference allowlist ban đầu chỉ có `thuvienphapluat.vn`; output phải ghi rõ không chính thống/cần xác minh, không có chi tiết pháp lý định lượng, không persist/candidate/RAG và không được gọi là căn cứ pháp lý. |
 | 2026-07-31 | DEC-011 | Kết quả web qua official guard được lưu thành immutable draft không chứa raw question. | D1 persistence là điều kiện trước khi trả web result; chỉ stable principal + independent reviewer mới publish candidate vào reviewed retrieval. |
+| 2026-07-31 | DEC-014 | Official corpus seed là review packet versioned, import idempotent vào draft-only và bind full-record hash vào audit metadata. | Không auto-publish; legal record đi tiếp qua workflow hiện có, còn canonical question không được lưu vào D1. |
+| 2026-07-31 | DEC-015 | MVP được trả ngay official safety guidance không đưa ra căn cứ, tội danh hoặc mức phạt; không nới gate cho legal candidate. | Hướng dẫn tài khoản bị chiếm có source Chính phủ và form ngắn; API/CMS chặn record này đi vào legal RAG. Quy trình bốn mắt vẫn giữ cho mọi legal citation/sanction. |
 
 ## 16. Open questions cần chủ dự án xác nhận
 

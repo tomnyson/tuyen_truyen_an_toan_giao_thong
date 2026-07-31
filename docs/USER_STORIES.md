@@ -273,6 +273,51 @@ lại là ledger/schema test cũ đang kỳ vọng migration cuối `0005` trong
 đã có `0006`, không thuộc US-029. PM và code reviewer độc lập đều PASS sau vòng
 sửa cuối.
 
+### [ ] US-030 — Nạp gói dữ liệu pháp luật chính thống vào kho draft
+
+- **Priority:** P0
+- **Persona:** Biên tập viên nội dung
+- **Mô tả:** Là biên tập viên, tôi muốn có một gói câu hỏi thường gặp đã đối
+  chiếu nguồn Chính phủ và được nạp vào kho draft, để tiếp tục biên tập và gửi
+  một người khác duyệt trước khi người dùng có thể tra cứu.
+
+**Acceptance criteria**
+
+- [x] Gói dữ liệu chỉ chứa URL HTTPS qua official-source allowlist hiện hành.
+  Legal candidate có số văn bản, điều/khoản/điểm, ngày ban hành, ngày hiệu lực
+  và ngày kiểm tra; official safety guidance có đơn vị phát hành, ngày đăng và
+  ngày kiểm tra, không bị giả thành citation pháp luật.
+- [x] Bao phủ tối thiểu các intent: xe máy “tống 3/chở ba”, vượt đèn đỏ, thông
+  tin sai sự thật/xúc phạm trên mạng, an toàn khi tài khoản bị chiếm đoạt, trích
+  dẫn học đường, dùng ảnh học đường và remix nhạc.
+- [x] Quy định về mạng xã hội dùng Nghị định 174/2026/NĐ-CP có hiệu lực từ
+  01/07/2026; không nạp Điều 101 Nghị định 15/2020 hoặc mức 5–10 triệu như căn
+  cứ hiện hành cho hành vi mới.
+- [x] Mỗi record có ID/request ID cố định; full-record hash bao phủ intent,
+  topic, loại record, canonical question, alias, snapshot/citation và review
+  note. Chạy import nhiều lần không tạo bản ghi trùng; cùng ID nhưng khác nội
+  dung hoặc thiếu audit binding phải fail closed.
+- [x] Import chỉ tạo `web_search_candidates.lifecycle_status='draft'`, source
+  và audit event `draft_persisted`; không tạo revision, principal, review,
+  `pending_review` hoặc `published`.
+- [x] Không lưu câu hỏi thật, hội thoại hoặc dữ liệu cá nhân của người dùng.
+  Canonical question chỉ tồn tại trong fixture biên tập; alias đã commit được
+  đưa vào editorial tags để RAG có thể match cách hỏi ngắn.
+- [x] Có test cho exact schema fixture, URL/host chính thống, topic/tags, ngày hiệu
+  lực, cấm căn cứ cũ, idempotency, conflict và draft-only.
+- [x] Gói đã được nạp và đếm lại trên D1 local.
+- [ ] Production chỉ được nạp sau khi resolve đúng Sites project/D1 binding;
+  không dùng database ID suy đoán.
+- [ ] PM/source review và code review độc lập không còn blocker/high trong
+  phạm vi gói draft.
+
+**Decision (2026-07-31):** DEC-014 quy định đây là review packet draft-only,
+không phải nội dung pháp luật đã publish. Theo DEC-015, “tài khoản bị chiếm
+đoạt” được phục vụ ngay trong MVP như hướng dẫn an toàn có nguồn Chính phủ,
+không tự động kết luận tội danh/chế tài và không thể đi qua workflow publish
+legal RAG. Mọi câu trả lời có mức phạt vẫn chỉ xuất hiện từ corpus sau biên tập,
+duyệt bốn mắt và public retrieval gate.
+
 ### [ ] US-027 — Tìm nguồn được phép khi kho dữ liệu chưa có câu trả lời
 
 - **Priority:** P0

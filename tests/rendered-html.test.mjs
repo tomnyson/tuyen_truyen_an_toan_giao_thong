@@ -374,6 +374,28 @@ test("fails closed when a question is outside published knowledge", async () => 
   );
 });
 
+test("returns official safety guidance for a compromised account without legal claims", async () => {
+  const response = await chatRequest("Tài khoản Facebook của em bị hack thì làm gì?");
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.mode, "knowledge");
+  assert.ok(
+    body.sections.some((section) => section.kind === "next_steps"),
+  );
+  assert.equal(
+    body.sections.some(
+      (section) =>
+        section.kind === "legal_basis" || section.kind === "sanctions",
+    ),
+    false,
+  );
+  assert.equal(body.sources.length, 1);
+  assert.match(body.sources[0].url, /^https:\/\/tphcm\.chinhphu\.vn\//);
+  assert.match(body.answer, /đổi mật khẩu|mật khẩu/i);
+  assert.doesNotMatch(body.answer, /triệu đồng|Điều \d+|Nghị định/i);
+});
+
 test("rejects an empty chat request", async () => {
   const response = await request("/api/chat", {
     method: "POST",

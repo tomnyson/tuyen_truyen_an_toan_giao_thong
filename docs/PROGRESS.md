@@ -40,6 +40,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-006 — Chat ưu tiên kho kiến thức | P0 | Partial | Full-stack | Rendered/chat suite 15/15 pass; vẫn chưa đủ bốn nhóm kiến thức nền theo AC | 2026-07-31 |
 | US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
 | US-029 — Topic gate ba chủ đề MVP | P0 | Done | Full-stack + PM + Code review | Topic/trust-tier gate trước retrieval/search/persist; copyright legacy subtype guard; exact off-topic + short no-match; official-only persistence; reference reduced/no-persist + server-origin fallback discriminant. Focused 152/152, type/lint/build/diff-check pass; full 296/299 chỉ còn 3 migration-ledger failure cũ; PM và code review PASS | 2026-07-31 |
+| US-030 — Nạp official corpus draft | P0 | Partial | Full-stack + PM + Code review | 7 intent/11 official sources đã nạp D1 local ở draft; full-record audit binding, alias tags, safety/legal discriminant và MVP account guidance đã verified. Còn production Sites/D1 và final review sau MVP | 2026-07-31 |
 | US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Official-first/reference-second, warning/source UI, no-persist reference và direct-claim guard đã verified: focused 28/28, type/lint/build và live browser pass. Full suite 243/246; 3 failure cũ do migration 0006 và ledger expectations. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
 | US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; new revision requires issuedAt while legacy snapshot stays retrievable; focused 5/5, combined 26/26, current full 236/239 (3 migration-ledger failures cũ), type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
@@ -81,6 +82,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-31 | DEC-011 | Web result qua official guard được persist thành immutable draft không chứa raw question; chỉ authenticated four-eyes approval mới đưa vào reviewed retrieval/RAG. | US-028, US-013, US-014, US-025 |
 | 2026-07-31 | DEC-012 | Official web search luôn chạy trước; official no-result được phép chạy reference search trên exact allowlist `thuvienphapluat.vn`. Reference phải ghi rõ không chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist/RAG. | US-027 |
 | 2026-07-31 | DEC-013 | Topic gate deterministic chạy trước retrieval/search/persist; chỉ ba topic MVP được đi tiếp. Off-topic/no-match trả ngắn, reference reduced form/no-persist, chỉ official hợp lệ mới lưu draft. | US-029, US-027, US-028 |
+| 2026-07-31 | DEC-014 | Official corpus seed là review packet versioned, import idempotent vào draft-only; không tạo revision/review/publish và không lưu câu hỏi thật. NĐ 174/2026 thay căn cứ NĐ 15 cho hành vi mạng xã hội mới từ 01/07/2026. | US-030, US-013, US-025 |
+| 2026-07-31 | DEC-015 | Cho MVP dùng ngay official safety guidance không có kết luận pháp lý; record này bị chặn khỏi legal workflow. Legal citation/sanction vẫn giữ bốn mắt. | US-030, US-006, US-013 |
 
 ### 2026-07-31 — US-004 chat presentation specification
 
@@ -773,6 +776,34 @@ này.
   có `0006_petite_lady_deathstrike`.
 - PM review và code review độc lập đều **PASS** sau khi code reviewer phát hiện
   và full-stack sửa đường provenance của reference safe fallback.
+
+### 2026-07-31 — US-030 official corpus MVP slice
+
+- `fixtures/rag/official-corpus-drafts.v1.json` có 7 intent và 11 source Chính
+  phủ cho giao thông, an toàn/ứng xử trên mạng và bản quyền học đường. Legal
+  citation và official safety guidance dùng hai schema riêng; Nghị định
+  15/2020/Điều 101/mức 5–10 triệu bị từ chối cho hành vi mạng xã hội mới.
+- `lib/official-corpus-drafts.ts` validate exact keys, intent↔topic↔record-kind,
+  full-record hash, official host/date/provision và immutable audit binding.
+  Import chỉ tạo draft/source/system event; legacy local intake chỉ được nâng
+  cấp khi khớp exact hash đã biết, chưa có revision và audit cũ hợp lệ.
+- `app/admin/api/web-search-candidates/route.ts` khôi phục structured intake
+  draft từ audit metadata cho CMS. `official_guidance` có
+  `publicationEligible=false`, bị API từ chối mutation và UI không hiện nút
+  legal review/publish.
+- `lib/legal-chat.ts` trả ngay hướng dẫn an toàn tài khoản cho MVP với source
+  Công an TP.HCM/Báo Điện tử Chính phủ, không có card căn cứ hoặc mức phạt.
+- Focused corpus suite **9/9 pass**; combined official corpus/web candidate/web
+  presentation suite **44/44 pass**; rendered/API integration **16/16 pass**;
+  typecheck, ESLint và Vinext build pass.
+- D1 local: lần nâng cấp `created=0, skipped=7, bound=7`; lần chạy lại
+  `created=0, skipped=7, bound=0`. Readback có 7 draft, 11 source, 0 revision,
+  14 audit event, 7 full-record binding và đúng 1 safety-only record.
+- **Còn mở:** production import/deploy vì exact Sites project hiện không resolve;
+  final PM/source + code review được hoãn sau MVP theo quyết định chủ dự án.
+  Full suite hiện **306/309 pass**; 3 failure là migration-ledger regression đã
+  tồn tại do commit `0006_petite_lady_deathstrike` nhưng test nền còn khóa
+  migration cuối ở `0005`, không phát sinh từ US-030.
 
 ## Cách cập nhật tracker
 

@@ -37,6 +37,7 @@ type CandidateCitation = {
   issuedAt?: string;
   effectiveFrom: string;
   effectiveTo?: string;
+  effectivityNote?: string;
   lastVerifiedAt: string;
 };
 type CandidateSnapshot = {
@@ -59,6 +60,10 @@ type CandidateRow = {
   createdAt: string;
   updatedAt: string;
   snapshot: CandidateSnapshot | null;
+  draftSnapshot: CandidateSnapshot | null;
+  intakeTitle: string;
+  intakeAnswer: string;
+  publicationEligible: boolean;
   sources: Array<{ title: string; url: string }>;
   history: Array<{
     action: string;
@@ -301,7 +306,7 @@ function CandidatePanel() {
     const today = new Date().toISOString().slice(0, 10);
     setEditing(candidate);
     setDraft(
-      candidate.snapshot ?? {
+      candidate.snapshot ?? candidate.draftSnapshot ?? {
         topic: "Giao thông",
         title: "",
         answer: candidate.initialAnswer,
@@ -407,6 +412,7 @@ function CandidatePanel() {
                 <label>Ngày ban hành<input type="date" required value={citation.issuedAt ?? ""} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, issuedAt: event.target.value } : item) })} /></label>
                 <label>Ngày hiệu lực<input type="date" required value={citation.effectiveFrom} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, effectiveFrom: event.target.value } : item) })} /></label>
                 <label>Ngày hết hiệu lực<input type="date" value={citation.effectiveTo ?? ""} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, effectiveTo: event.target.value || undefined } : item) })} /></label>
+                <label>Ghi chú hiệu lực<input value={citation.effectivityNote ?? ""} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, effectivityNote: event.target.value || undefined } : item) })} /></label>
                 <label>Ngày kiểm chứng<input type="date" required value={citation.lastVerifiedAt} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, lastVerifiedAt: event.target.value } : item) })} /></label>
                 <label>Điều<input value={citation.article ?? ""} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, article: event.target.value } : item) })} /></label>
                 <label>Khoản / điểm<input value={[citation.clause, citation.point].filter(Boolean).join(" / ")} onChange={(event) => { const [clause, point] = event.target.value.split("/").map((value) => value.trim()); setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, clause, point } : item) }); }} /></label>
@@ -422,15 +428,16 @@ function CandidatePanel() {
             <span className={`admin-status ${candidate.status}`}>{candidate.status}</span>
             <small>{candidate.providerModel} · {candidate.totalTokens ?? "?"} tokens</small>
           </div>
-          <h3>{candidate.snapshot?.title || "Bản nháp chưa được biên tập"}</h3>
-          <p>{candidate.snapshot?.answer || candidate.initialAnswer}</p>
+          <h3>{candidate.snapshot?.title || candidate.intakeTitle || "Bản nháp chưa được biên tập"}</h3>
+          <p>{candidate.snapshot?.answer || candidate.intakeAnswer || candidate.initialAnswer}</p>
+          {!candidate.publicationEligible && <p><strong>Hướng dẫn an toàn MVP:</strong> nội dung này không đi vào kho căn cứ pháp lý.</p>}
           {candidate.reviewReason && <p><strong>Lý do từ chối:</strong> {candidate.reviewReason}</p>}
           <div className="admin-actions">
-            {canEdit && (candidate.status === "draft" || candidate.status === "rejected") && <button onClick={() => startEdit(candidate)}>Biên tập</button>}
-            {canEdit && candidate.status === "draft" && candidate.snapshot && candidate.editorPrincipalId === principalId && <button onClick={() => void action(candidate, "submit")}>Gửi duyệt</button>}
-            {canReview && candidate.status === "pending_review" && candidate.editorPrincipalId !== principalId && <button onClick={() => void action(candidate, "approve")}>Duyệt & đưa vào RAG</button>}
-            {canReview && candidate.status === "pending_review" && candidate.editorPrincipalId !== principalId && <button className="danger" onClick={() => void action(candidate, "reject")}>Từ chối</button>}
-            {canReview && candidate.status === "published" && <button onClick={() => void action(candidate, "archive")}>Lưu trữ</button>}
+            {candidate.publicationEligible && canEdit && (candidate.status === "draft" || candidate.status === "rejected") && <button onClick={() => startEdit(candidate)}>Biên tập</button>}
+            {candidate.publicationEligible && canEdit && candidate.status === "draft" && candidate.snapshot && candidate.editorPrincipalId === principalId && <button onClick={() => void action(candidate, "submit")}>Gửi duyệt</button>}
+            {candidate.publicationEligible && canReview && candidate.status === "pending_review" && candidate.editorPrincipalId !== principalId && <button onClick={() => void action(candidate, "approve")}>Duyệt & đưa vào RAG</button>}
+            {candidate.publicationEligible && canReview && candidate.status === "pending_review" && candidate.editorPrincipalId !== principalId && <button className="danger" onClick={() => void action(candidate, "reject")}>Từ chối</button>}
+            {candidate.publicationEligible && canReview && candidate.status === "published" && <button onClick={() => void action(candidate, "archive")}>Lưu trữ</button>}
           </div>
           <details>
             <summary>Lịch sử ({candidate.history.length})</summary>

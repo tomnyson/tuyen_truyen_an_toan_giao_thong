@@ -84,6 +84,36 @@ export async function GET(request: Request) {
           snapshot = null;
         }
       }
+      let intakeDraft: unknown = null;
+      let publicationEligible = true;
+      let intakeTitle = "";
+      let intakeAnswer = "";
+      for (const event of eventsByCandidate.get(id) ?? []) {
+        if (typeof event.metadata_json !== "string") continue;
+        try {
+          const metadata = JSON.parse(event.metadata_json) as Record<
+            string,
+            unknown
+          >;
+          if (
+            metadata.intakeDraft &&
+            typeof metadata.intakeDraft === "object" &&
+            !Array.isArray(metadata.intakeDraft)
+          ) {
+            intakeDraft = metadata.intakeDraft;
+            const draft = metadata.intakeDraft as Record<string, unknown>;
+            intakeTitle =
+              typeof draft.title === "string" ? draft.title : intakeTitle;
+            intakeAnswer =
+              typeof draft.answer === "string" ? draft.answer : intakeAnswer;
+          }
+          if (metadata.publicationEligible === false) {
+            publicationEligible = false;
+          }
+        } catch {
+          // Invalid historical metadata is ignored by this read-only projection.
+        }
+      }
       return {
         id,
         initialAnswer: candidate.initial_answer_text,
@@ -99,6 +129,10 @@ export async function GET(request: Request) {
         createdAt: candidate.created_at,
         updatedAt: candidate.updated_at,
         snapshot,
+        draftSnapshot: publicationEligible ? intakeDraft : null,
+        intakeTitle,
+        intakeAnswer,
+        publicationEligible,
         sources: (sourcesByCandidate.get(id) ?? []).map((source) => ({
           title: source.title,
           url: source.official_url,
@@ -151,6 +185,33 @@ export async function PATCH(request: Request) {
     return noStoreJson({ error: "Candidate hoặc version không hợp lệ." }, 400);
   }
   try {
+    const workflow = await listWebSearchCandidates();
+    const publicationBlocked = workflow.events.some((event) => {
+      if (
+        event.candidate_id !== candidateId ||
+        typeof event.metadata_json !== "string"
+      ) {
+        return false;
+      }
+      try {
+        const metadata = JSON.parse(event.metadata_json) as Record<
+          string,
+          unknown
+        >;
+        return metadata.publicationEligible === false;
+      } catch {
+        return false;
+      }
+    });
+    if (publicationBlocked) {
+      return noStoreJson(
+        {
+          error:
+            "Đây là hướng dẫn an toàn cho MVP, không được đưa vào kho căn cứ pháp lý.",
+        },
+        409,
+      );
+    }
     const result =
       action === "save_revision"
         ? await saveWebSearchCandidateRevision(

@@ -220,6 +220,27 @@ test("builds reviewed legal-basis cards from canonical citation metadata", () =>
     bullets: [],
   });
   assert.deepEqual(parseChatAnswerSections([section]), [section]);
+
+  const consolidated = reviewedCitationsToLegalBasisSection([
+    {
+      title: "Văn bản hợp nhất Luật Sở hữu trí tuệ",
+      documentNumber: "155/VBHN-VPQH",
+      issuedAt: "2025-09-09",
+      article: "25",
+      effectiveFrom: "2023-01-01",
+      effectivityNote:
+        "Văn bản hợp nhất được xác lập ngày 09/09/2025; ngày 01/01/2023 là hiệu lực của các sửa đổi liên quan.",
+      lastVerifiedAt: "2026-07-31",
+    },
+  ]);
+  assert.match(
+    consolidated.paragraphs[0],
+    /Văn bản hợp nhất được xác lập ngày 09\/09\/2025/,
+  );
+  assert.doesNotMatch(
+    consolidated.paragraphs[0],
+    /Có hiệu lực từ 01\/01\/2023/,
+  );
 });
 
 test("detects legal amounts, provisions, document numbers, dates and ages in direct web prose", () => {

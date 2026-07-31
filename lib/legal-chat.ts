@@ -110,6 +110,51 @@ ${laws.length + 2}. Tình huống trên website là minh họa giáo dục, khô
 export function findCuratedAnswer(question: string): KnowledgeChatAnswer | null {
   const normalized = normalizeVietnamese(question);
 
+  if (
+    (normalized.includes("tai khoan") &&
+      (normalized.includes("hack") ||
+        normalized.includes("chiem") ||
+        normalized.includes("mat"))) ||
+    normalized.includes("lo mat khau")
+  ) {
+    const sections: ChatAnswerSection[] = [
+      {
+        kind: "summary",
+        paragraphs: [
+          "Hãy coi đây là sự cố an toàn tài khoản và xử lý ngay, chưa nên tự kết luận có tội danh hay mức phạt.",
+        ],
+        bullets: [],
+      },
+      {
+        kind: "next_steps",
+        paragraphs: ["Các việc nên làm theo thứ tự:"],
+        bullets: [
+          "Đổi mật khẩu bằng thiết bị tin cậy; không đưa mật khẩu hoặc mã OTP cho người khác.",
+          "Thông báo cho bạn bè, người thân biết tài khoản có thể bị chiếm để tránh bị lừa.",
+          "Không bấm liên kết lạ; lưu ảnh chụp và bằng chứng liên quan.",
+          "Nếu đã mất tài sản, nhanh chóng trình báo cơ quan công an gần nhất.",
+        ],
+      },
+      {
+        kind: "limitations",
+        paragraphs: [
+          "Đây là hướng dẫn an toàn từ nguồn Chính phủ, không phải kết luận pháp lý cho một vụ việc cụ thể.",
+        ],
+        bullets: [],
+      },
+    ];
+    return {
+      answer: flattenChatAnswerSections(sections),
+      sections,
+      sources: [
+        {
+          title:
+            "Công an TP.HCM cảnh báo thủ đoạn chiếm quyền tài khoản",
+          url: "https://tphcm.chinhphu.vn/cong-an-tphcm-canh-bao-thu-doan-lua-dao-ho-tro-cai-dat-sinh-trac-hoc-101240703150617949.htm",
+        },
+      ],
+    };
+  }
   if (normalized.includes("mu bao hiem")) {
     return curatedPresentation(
       helmetLaw,

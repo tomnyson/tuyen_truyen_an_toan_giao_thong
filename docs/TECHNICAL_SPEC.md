@@ -2353,6 +2353,24 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   safe-fallback có `answerOrigin=server_safe_fallback` do adapter tự gắn có thể
   không chứa topic signal; ngoại lệ này không áp dụng cho provider prose, không
   được suy ra bằng so sánh text và không mở đường persistence.
+- **DEC-014:** Gói official corpus đầu tiên được commit dưới dạng review packet
+  versioned và chỉ import vào `web_search_candidates` ở trạng thái `draft`.
+  Import không tạo revision/actor/review và không có quyền publish. ID/request
+  ID cố định cộng full-record hash trong immutable audit metadata cho phép chạy
+  lặp an toàn; cùng ID nhưng khác intent/topic/kind/question/alias/snapshot/
+  citation/review note phải fail closed. Canonical question không được ghi vào
+  D1; alias biên tập đã commit được merge vào draft tags để retrieval dùng,
+  nhưng không có đường lưu raw user question. Quy định mạng xã hội
+  hiện hành từ 01/07/2026 dùng Nghị định 174/2026/NĐ-CP; Điều 101 Nghị định
+  15/2020 bị đánh dấu superseded cho hành vi mới và bị fixture validator từ
+  chối. Production import chờ exact Sites project/D1 binding resolve được.
+- **DEC-015:** Để chạy MVP sớm, `official_guidance` được tách khỏi
+  `legal_candidate`. Hướng dẫn an toàn có thể được trả trực tiếp khi có nguồn
+  Chính phủ và không chứa căn cứ/tội danh/mức phạt; metadata bắt buộc
+  `publicationEligible=false`, admin API từ chối mọi mutation workflow và UI
+  không hiện nút legal review/publish. Việc này không thay đổi DEC-003:
+  `legal_candidate` và mọi citation/sanction vẫn bắt buộc bốn mắt trước khi vào
+  reviewed RAG.
 
 ### Điểm còn mở
 

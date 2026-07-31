@@ -1,6 +1,6 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { getInitializedDb } from "@/db";
-import { legalEntries, showcases } from "@/db/schema";
+import { legalEntries, showcases } from "@/db/pg-schema";
 import { hasTrustedOrigin, isAdminRequest } from "@/lib/admin-auth";
 import { hasBlockedLegalBasis } from "@/lib/legal-content";
 

@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { getInitializedDb } from "@/db";
-import { legalEntries, showcases } from "@/db/schema";
+import { legalEntries, showcases } from "@/db/pg-schema";
 import { createPublicContentHandler } from "@/lib/public-showcase";
 
 export const GET = createPublicContentHandler(async () => {

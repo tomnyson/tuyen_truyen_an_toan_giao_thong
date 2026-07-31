@@ -32,6 +32,7 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "drizzle-orm": "0.45.2",
     "next": "^16.2.10",
     "react": "19.2.6",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.44.0",
+    "@electric-sql/pglite": "^0.5.4",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",

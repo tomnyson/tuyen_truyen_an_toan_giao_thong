@@ -587,7 +587,7 @@ test("reference search can expose exact-guarded consulted sources with safe pros
   ]);
 });
 
-test("reference search rejects deceptive domains and replaces unverified legal details", async () => {
+test("reference search rejects deceptive domains and keeps warned reference fines", async () => {
   const deceptive = await searchReferenceLegalSources(
     { enabled: true, apiKey: "fake-secret" },
     "đi xe máy tống 3",
@@ -608,14 +608,17 @@ test("reference search rejects deceptive domains and replaces unverified legal d
       fetch: async () =>
         providerResponse({
           url: "https://thuvienphapluat.vn/van-ban/giao-thong",
-          text: "Kết luận: Mức phạt là 400.000 đồng.",
+          text: "Kết luận: Đây là tình huống giao thông xe máy.\nMức phạt tham khảo: Mức phạt là 400.000 đồng.",
         }),
     },
   );
   assert.equal(legalDetail.ok, true);
-  assert.equal(legalDetail.answerOrigin, "server_safe_fallback");
-  assert.doesNotMatch(legalDetail.answer, /400|đồng|mức phạt/i);
-  assert.match(legalDetail.answer, /không hiển thị chi tiết pháp lý/i);
+  assert.equal(legalDetail.answerOrigin, "provider");
+  assert.match(legalDetail.answer, /400\.000 đồng/i);
+  assert.deepEqual(
+    legalDetail.sections.map(({ kind }) => kind),
+    ["summary", "sanctions"],
+  );
   assert.match(legalDetail.warning, /không phải nguồn chính thống/i);
 
   const missingCitation = await searchReferenceLegalSources(
@@ -662,7 +665,7 @@ test("fails closed when the final answer has no official citation", async () => 
   assertFailureCode(result, "MISSING_OFFICIAL_CITATION");
 });
 
-test("fails closed when direct web prose contains unreviewed legal claims", async () => {
+test("official web result keeps unreviewed legal details behind its warning", async () => {
   for (const text of [
     "Kết luận: Mức phạt tham khảo là 400.000 đồng.",
     "Giải thích: Áp dụng theo khoản 2 Điều 7.",
@@ -677,8 +680,52 @@ test("fails closed when direct web prose contains unreviewed legal claims", asyn
       "Quy định này là gì?",
       { fetch: async () => providerResponse({ text }) },
     );
-    assertFailureCode(result, "UNVERIFIED_LEGAL_CLAIM");
+    assert.equal(result.ok, true, text);
+    assert.match(result.warning, /chưa được kiểm chứng/i);
   }
+});
+
+test("penalty section appears only when the searched answer contains a penalty", async () => {
+  const withPenalty = await searchAllowedLegalSources(
+    { enabled: true, apiKey: "fake-secret" },
+    "Xe máy vượt đèn đỏ bị phạt bao nhiêu?",
+    {
+      fetch: async () =>
+        providerResponse({
+          text: [
+            "Kết luận: Đây là hành vi giao thông bằng xe máy.",
+            "Mức phạt tham khảo: Mức tiền tham khảo là 4–6 triệu đồng.",
+            "Lưu ý: Cần kiểm tra lại nguồn Chính phủ trước khi áp dụng.",
+          ].join("\n"),
+        }),
+    },
+  );
+  assert.equal(withPenalty.ok, true);
+  assert.deepEqual(
+    withPenalty.sections.map(({ kind }) => kind),
+    ["summary", "sanctions", "limitations"],
+  );
+  assert.match(withPenalty.answer, /4–6 triệu đồng/);
+
+  const withoutPenalty = await searchAllowedLegalSources(
+    { enabled: true, apiKey: "fake-secret" },
+    "Cách đi bộ qua đường an toàn?",
+    {
+      fetch: async () =>
+        providerResponse({
+          text: [
+            "Kết luận: Đây là hướng dẫn an toàn giao thông cho người đi bộ.",
+            "Bạn nên làm gì: Quan sát tín hiệu và chỉ qua đường ở nơi phù hợp.",
+          ].join("\n"),
+        }),
+    },
+  );
+  assert.equal(withoutPenalty.ok, true);
+  assert.equal(
+    withoutPenalty.sections.some(({ kind }) => kind === "sanctions"),
+    false,
+  );
+  assert.doesNotMatch(withoutPenalty.answer, /Mức phạt tham khảo/);
 });
 
 test("flag-off, missing key and malformed model ID do not call the provider", async () => {

@@ -1169,19 +1169,18 @@ Presentation chia theo trust tier:
    được persist khi kết quả khai báo `sourceKind=official`, answer tự chứa
    signal đúng topic, có official URL và presentation hợp lệ. Tiêu đề source
    không được dùng để làm một answer chung chung trở thành đúng topic.
-3. Reference live search là reduced form. Server chỉ giữ section
-   `summary|details|next_steps|limitations`, loại mọi
-   `legal_basis|sanctions|legal_remedies|examples`, luôn cảnh báo không chính
-   thống/cần xác minh và không gọi persistence. Chỉ answer mang discriminant
-   `answerOrigin=server_safe_fallback` do adapter tự gắn được phép không chứa
-   topic signal; mọi `answerOrigin=provider` vẫn phải tự match topic đã phân
-   loại trước khi hiển thị. Không suy ra nguồn gốc từ việc so sánh nội dung.
+3. Reference live search giữ section
+   `summary|details|sanctions|next_steps|limitations`, loại
+   `legal_basis|legal_remedies|examples`, luôn cảnh báo không chính thống/chưa
+   kiểm chứng và không gọi persistence. Provider answer phải tự match topic đã
+   phân loại trước khi hiển thị. Section `sanctions` chỉ có khi kết quả search
+   chứa mức phạt; không có mức phạt thì section bị bỏ hoàn toàn.
 4. Out-of-scope/no-match/provider-invalid không dùng form trả lời pháp lý và
    không lưu.
 
 Regression gate phải chứng minh: ba topic được đi tiếp; off-topic dừng trước
 mọi dependency; Vietnamese có/không dấu; generic-token false positive; no-match
-không có structured legal fields; reference projection không có legal section;
+không có structured legal fields; reference sanctions có warning và no-persist;
 official result sai `sourceKind` không được lưu; reference không persist.
 
 ## 7. Retrieval và answer composition (To-be)
@@ -2349,11 +2348,9 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
 - **DEC-013:** `/api/chat` chạy topic gate deterministic trước mọi retrieval,
   provider và persistence. Phạm vi chỉ gồm giao thông, an toàn/ứng xử trên mạng
   và bản quyền học đường. Off-topic/no-match trả message ngắn không có legal
-  form; reference chỉ dùng reduced form và không lưu; chỉ official result đúng
-  loại, đúng URL guard và presentation hợp lệ mới được lưu draft. Reference
-  safe-fallback có `answerOrigin=server_safe_fallback` do adapter tự gắn có thể
-  không chứa topic signal; ngoại lệ này không áp dụng cho provider prose, không
-  được suy ra bằng so sánh text và không mở đường persistence.
+  form; reference giữ sanctions tham khảo nhưng không lưu; chỉ official result
+  đúng loại, đúng URL guard và presentation hợp lệ mới được lưu draft. Mọi
+  provider prose vẫn phải tự match topic; không có ngoại lệ topic-neutral.
 - **DEC-014:** Gói official corpus đầu tiên được commit dưới dạng review packet
   versioned và chỉ import vào `web_search_candidates` ở trạng thái `draft`.
   Import không tạo revision/actor/review và không có quyền publish. ID/request

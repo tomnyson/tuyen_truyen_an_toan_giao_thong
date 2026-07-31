@@ -417,7 +417,7 @@ test("official patent answer cannot be persisted for a copyright question", asyn
   }
 });
 
-test("reference result is reduced, warned and never persisted", async () => {
+test("reference result keeps a warned reference fine and is never persisted", async () => {
   let persisted = 0;
   Object.assign(globalThis.__topicScopeWorkerEnv, {
     AI_WEB_SEARCH_ENABLED: "true",
@@ -449,7 +449,7 @@ test("reference result is reduced, warned and never persisted", async () => {
         "Kết luận: Có thông tin tham khảo về việc chở người bằng xe máy.",
         "Giải thích: Nội dung giao thông này chưa được nguồn chính thức xác minh.",
         "Căn cứ pháp lý: PHẢI BỊ LOẠI.",
-        "Mức phạt tham khảo: PHẢI BỊ LOẠI.",
+        "Mức phạt tham khảo: Mức tiền tham khảo là 400.000–600.000 đồng.",
         "Biện pháp khắc phục theo văn bản: PHẢI BỊ LOẠI.",
         "Bạn nên làm gì: Mở nguồn và hỏi giáo viên hoặc cơ quan phù hợp.",
         "Lưu ý: Cần xác minh lại bằng văn bản chính thức.",
@@ -475,9 +475,10 @@ test("reference result is reduced, warned and never persisted", async () => {
   assert.equal(body.sourceKind, "reference");
   assert.deepEqual(
     body.sections.map(({ kind }) => kind),
-    ["summary", "details", "next_steps", "limitations"],
+    ["summary", "details", "sanctions", "next_steps", "limitations"],
   );
-  assert.doesNotMatch(body.answer, /PHẢI BỊ LOẠI/);
+  assert.match(body.answer, /400\.000–600\.000 đồng/);
+  assert.doesNotMatch(body.answer, /Căn cứ pháp lý|Biện pháp khắc phục/);
   assert.match(body.warning, /không phải nguồn chính thống/i);
   assert.match(body.warning, /xác minh/i);
   assert.equal(persisted, 0);
@@ -534,7 +535,7 @@ test("invalid successful reference response is recorded as invalid output", asyn
   }
 });
 
-test("server-owned topic-neutral reference fallback remains displayable and non-persisted", async () => {
+test("provider reference fine remains displayable and non-persisted", async () => {
   let persisted = 0;
   const adapterResult = await searchReferenceLegalSources(
     { enabled: true, apiKey: "test-key", model: "gpt-5.4-mini" },
@@ -554,7 +555,7 @@ test("server-owned topic-neutral reference fallback remains displayable and non-
                 content: [
                   {
                     type: "output_text",
-                    text: "Kết luận: Mức phạt là 400.000 đồng.",
+                    text: "Kết luận: Đây là tình huống giao thông xe máy.\nMức phạt tham khảo: Mức phạt là 400.000 đồng.",
                     annotations: [
                       {
                         type: "url_citation",
@@ -582,7 +583,7 @@ test("server-owned topic-neutral reference fallback remains displayable and non-
     },
   );
   assert.equal(adapterResult.ok, true);
-  assert.equal(adapterResult.answerOrigin, "server_safe_fallback");
+  assert.equal(adapterResult.answerOrigin, "provider");
   Object.assign(globalThis.__topicScopeWorkerEnv, {
     AI_WEB_SEARCH_ENABLED: "true",
     OPENAI_API_KEY: "test-key",
@@ -614,6 +615,8 @@ test("server-owned topic-neutral reference fallback remains displayable and non-
   ).json();
   assert.equal(body.mode, "web_search");
   assert.equal(body.sourceKind, "reference");
+  assert.match(body.answer, /400\.000 đồng/);
+  assert.ok(body.sections.some(({ kind }) => kind === "sanctions"));
   assert.equal(persisted, 0);
   for (const key of Object.keys(globalThis.__topicScopeWorkerEnv)) {
     delete globalThis.__topicScopeWorkerEnv[key];

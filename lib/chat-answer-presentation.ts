@@ -259,6 +259,7 @@ export function flattenChatAnswerSections(sections: ChatAnswerSection[]) {
 const referenceSectionKinds = new Set<ChatAnswerSectionKind>([
   "summary",
   "details",
+  "sanctions",
   "next_steps",
   "limitations",
 ]);

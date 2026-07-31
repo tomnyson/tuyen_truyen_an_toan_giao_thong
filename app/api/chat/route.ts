@@ -476,10 +476,7 @@ export function createChatHandler(
             referenceResult.answer,
           );
           if (referenceSources.length > 0 && referencePresentation) {
-            const isServerSafeReferenceFallback =
-              referenceResult.answerOrigin === "server_safe_fallback";
             if (
-              !isServerSafeReferenceFallback &&
               !matchesChatTopic(
                 scopeDecision.topic,
                 referencePresentation.answer,

@@ -217,7 +217,7 @@ chưa đủ bốn nhóm kiến thức nền.
 `tests/rendered-html.test.mjs` chạy 15/15 pass, gồm ngoài phạm vi, empty request
 và malformed messages.
 
-### [ ] US-029 — Giới hạn trợ lý đúng ba chủ đề MVP
+### [x] US-029 — Giới hạn trợ lý đúng ba chủ đề MVP
 
 - **Priority:** P0
 - **Persona:** Học sinh
@@ -246,27 +246,27 @@ và malformed messages.
   match cùng topic đã phân loại, URL qua exact official guard và presentation
   hợp lệ. Tiêu đề nguồn không được dùng để hợp thức hóa answer chung chung;
   output/reference sai loại hoặc không đủ điều kiện phải fail closed.
-- [ ] Kết quả reference được giữ chi tiết pháp lý để tham khảo theo DEC-017,
+- [x] Kết quả reference được giữ chi tiết pháp lý để tham khảo theo DEC-017,
   luôn có cảnh báo không chính thống/chưa kiểm chứng và không persist. Source
   link vẫn phải qua exact authority guard.
-- [ ] Có regression test cho cả ba topic, câu ngoài phạm vi, no-match, zero
+- [x] Có regression test cho cả ba topic, câu ngoài phạm vi, no-match, zero
   provider/persistence call, official persistence guard và reference
   unreviewed-details form.
 
 **Decision (2026-07-31):** Chủ dự án chốt thông điệp “Tra cứu nhanh các quy
-định gần gũi với trường học — từ giao thông, mạng xã hội đến bản quyền”, đồng ý
-reference reduced form và thông báo ngoài phạm vi nêu trên. DEC-013 quy định
-topic gate chạy trước mọi retrieval/search; chỉ official result hợp lệ mới được
-lưu draft.
+định gần gũi với trường học — từ giao thông, mạng xã hội đến bản quyền” và
+thông báo ngoài phạm vi nêu trên. Reference reduced form ban đầu được DEC-017
+thay bằng form tham khảo có sanctions; DEC-013 vẫn yêu cầu topic gate chạy trước
+mọi retrieval/search và chỉ official result hợp lệ mới được lưu draft.
 
-**Status:** Partial sau DEC-017. Topic gate và persistence guard vẫn Done;
-reference presentation/tests cần đổi từ reduced form sang unreviewed-details.
+**Status:** Done sau DEC-017. Topic/persistence guard vẫn giữ nguyên; reference
+presentation giữ sanctions tham khảo, warning và no-persist đã có regression.
 `lib/chat-topic-scope.ts` triển khai classifier versioned;
 `app/api/chat/route.ts`, `lib/legal-chat.ts` và
 `lib/web-search-candidates.ts` đặt topic/trust-tier guard trước retrieval,
-search và persistence; `lib/chat-answer-presentation.ts` tạo reference reduced
-form; `lib/openai-web-search.ts` dùng discriminant nguồn gốc do server gắn cho
-safe fallback; `app/page.tsx` nêu đúng ba phạm vi. Focused suite
+search và persistence; `lib/chat-answer-presentation.ts` tạo reference form có
+`sanctions` khi search tìm thấy mức phạt; `lib/openai-web-search.ts` giữ output
+provider sau source/presentation guard; `app/page.tsx` nêu đúng ba phạm vi. Focused suite
 `chat-topic-scope`, `image-intent`, `openai-web-search`,
 `web-search-candidates`, `rendered-html`, `telemetry` đạt 152/152; typecheck,
 lint, build và `git diff --check` pass. Full suite đạt 296/299; ba failure còn
@@ -363,7 +363,7 @@ duyệt bốn mắt và public retrieval gate.
   trong phần diễn giải. Link duy nhất người dùng bấm được phải lấy từ danh sách
   `sources` đã qua exact URL guard tương ứng với `sourceKind`; client không
   render HTML từ answer và có plain-text fallback khi DTO trình bày sai.
-- [ ] Direct `web_search` được công khai số tiền, số hiệu văn bản,
+- [x] Direct `web_search` được công khai số tiền, số hiệu văn bản,
   điều-khoản-điểm và ngày pháp lý dưới nhãn “Mức phạt tham khảo — chưa kiểm
   chứng”. Cảnh báo phải đứng trước nội dung, không được gọi là căn cứ đã xác
   minh và không được tự đưa vào reviewed RAG.
@@ -371,7 +371,7 @@ duyệt bốn mắt và public retrieval gate.
   luôn thấy “không phải nguồn chính thống, cần xác minh”, link đã qua exact
   HTTPS authority guard và không được persist thành candidate, evidence hoặc
   corpus RAG.
-- [ ] Câu hỏi đời thường có chữ số như “đi xe máy tống 3” không bị chặn chỉ vì
+- [x] Câu hỏi đời thường có chữ số như “đi xe máy tống 3” không bị chặn chỉ vì
   có số `3`. Output official/reference có chi tiết pháp lý định lượng được giữ
   để tham khảo khi có ít nhất một source link qua exact authority guard; thiếu
   source hợp lệ hoặc DTO sai vẫn fail closed.
@@ -426,6 +426,11 @@ Safety/presentation/reference increment cùng ngày nâng focused suite lên
 direct web có amount/article/document/date/age claim hoặc section pháp lý
 canonical bị từ chối `UNVERIFIED_LEGAL_CLAIM`; source Chính phủ đơn thuần không
 được coi là claim validation.
+
+DEC-017 supersede phần fail-closed định lượng nói trên cho MVP. Adapter giờ yêu
+cầu provider dùng section `Mức phạt tham khảo` khi nguồn có mức tiền, giữ
+sanctions cho official/reference dưới warning chưa kiểm chứng và bỏ section khi
+nguồn không có mức phạt. Focused web-search + topic suite đạt **81/81 pass**.
 
 ### [ ] US-028 — Lưu, duyệt và tái sử dụng kết quả tra cứu trực tuyến
 

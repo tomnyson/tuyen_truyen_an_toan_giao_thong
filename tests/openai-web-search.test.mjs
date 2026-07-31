@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import test from "node:test";
 
@@ -41,6 +42,10 @@ const {
   sanitizeWebSearchQuestion,
   searchAllowedLegalSources,
 } = await import("../lib/openai-web-search.ts");
+const {
+  parseChatAnswerSections,
+  projectPublicWebSearchAnswer,
+} = await import("../lib/chat-answer-presentation.ts");
 const { parseOfficialSourceLinks } = await import(
   "../lib/official-source-url.ts"
 );
@@ -143,6 +148,95 @@ test("redacts contact details and URLs before provider search", () => {
   assert.doesNotMatch(sanitized, /example\.com|0912|evil\.test/i);
 });
 
+test("projects provider Markdown and long inline citations into readable public sections", () => {
+  const raw = [
+    "## Kết luận",
+    "Nếu **không đội mũ bảo hiểm**, bạn có thể bị xử lý. ([xaydungchinhphu.vn](https://xaydungchinhsach.chinhphu.vn/duong-dan-rat-dai.htm?utm_source=openai))",
+    "",
+    "### Giải thích:",
+    "Mức áp dụng còn phụ thuộc độ tuổi và loại xe.",
+    "",
+    "### Bạn nên làm gì:",
+    "- Đội mũ đạt chuẩn và cài quai đúng cách.",
+    "- Mở [văn bản chính thức](https://vbpl.vn/document?utm_source=openai) để kiểm tra.",
+  ].join("\n");
+
+  const presentation = projectPublicWebSearchAnswer(raw);
+  assert.ok(presentation);
+  assert.deepEqual(
+    presentation.sections.map((section) => section.kind),
+    ["summary", "details", "next_steps"],
+  );
+  assert.doesNotMatch(
+    presentation.answer,
+    /\*\*|#{1,6}|\[[^\]]+\]\(|https?:\/\/|chinhphu\.vn|vbpl\.vn/i,
+  );
+  assert.match(presentation.answer, /không đội mũ bảo hiểm/i);
+  assert.match(presentation.answer, /Đội mũ đạt chuẩn/i);
+  assert.deepEqual(
+    parseChatAnswerSections(presentation.sections),
+    presentation.sections,
+  );
+  assert.deepEqual(
+    projectPublicWebSearchAnswer(presentation.answer),
+    presentation,
+  );
+});
+
+test("public answer projector rejects active content and section parser fails closed", () => {
+  for (const value of [
+    "Kết luận: an toàn <script>alert('x')</script>",
+    'Kết luận: {"answer":"Đội mũ"}',
+    "---\nKết luận: Đội mũ",
+    "> Kết luận: Đội mũ",
+    "```json\n{\"answer\":\"Đội mũ\"}\n```",
+    "| Kết luận | Căn cứ |\n|---|---|",
+  ]) {
+    assert.equal(projectPublicWebSearchAnswer(value), null);
+  }
+  assert.equal(
+    parseChatAnswerSections([
+      {
+        kind: "summary",
+        paragraphs: ["Nội dung"],
+        bullets: [],
+        href: "https://evil.example",
+      },
+    ]),
+    null,
+  );
+});
+
+test("chat UI keeps warning, structured text and canonical source actions in safe DOM order", async () => {
+  const [pageSource, cssSource] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const warningIndex = pageSource.indexOf(
+    '{message.warning && (',
+  );
+  const sectionsIndex = pageSource.indexOf(
+    "{message.sections ? (",
+  );
+  const sourcesIndex = pageSource.indexOf(
+    "{message.sources && (",
+  );
+  assert.ok(warningIndex >= 0);
+  assert.ok(warningIndex < sectionsIndex);
+  assert.ok(sectionsIndex < sourcesIndex);
+  assert.match(pageSource, /parseChatAnswerSections\(data\.sections\)/);
+  assert.match(pageSource, /parseOfficialSourceLinks\(data\.sources\)/);
+  assert.match(pageSource, /Nguồn chính thức đã tra cứu/);
+  assert.match(pageSource, /Mở nguồn chính thức ↗/);
+  assert.match(pageSource, /target="_blank"/);
+  assert.match(pageSource, /rel="noopener noreferrer"/);
+  assert.match(pageSource, /role="note"/);
+  assert.doesNotMatch(pageSource, /dangerouslySetInnerHTML/);
+  assert.match(cssSource, /@media \(max-width: 420px\)/);
+  assert.match(cssSource, /\.chat-message \{[^}]*overflow-wrap: anywhere;/);
+  assert.match(cssSource, /\.chat-panel \{[^}]*width: calc\(100vw - 24px\)/);
+});
+
 test("accepts and canonicalizes only exact official HTTPS authorities", () => {
   assert.equal(
     canonicalOfficialSourceUrl(
@@ -229,6 +323,16 @@ test("sends a required, store-false, server-allowlisted search and returns offic
       url: "https://vanban.chinhphu.vn/?pageid=27160&docid=123",
     },
   ]);
+  assert.deepEqual(result.sections, [
+    {
+      kind: "summary",
+      paragraphs: [
+        "Theo nguồn Chính phủ, quy định này cần được kiểm tra theo trường hợp cụ thể.",
+      ],
+      bullets: [],
+    },
+  ]);
+  assert.doesNotMatch(result.answer, /\*\*|\[[^\]]+\]\(|https?:\/\//);
   assert.equal(result.usage.totalTokens, 120);
 });
 
@@ -398,6 +502,7 @@ test("chat remains curated-first and does not search on a local match", async ()
 test("chat uses guarded web search only after retrieval no-match", async () => {
   let webCalls = 0;
   let persisted = 0;
+  let persistedResult;
   Object.assign(globalThis.__webSearchWorkerEnv, {
     AI_WEB_SEARCH_ENABLED: "true",
     OPENAI_API_KEY: "test-key",
@@ -414,8 +519,9 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
       reservedTokens: 12_000,
     }),
     settleWebBudget: async () => true,
-    persistWebCandidate: async () => {
+    persistWebCandidate: async (_requestId, result) => {
       persisted += 1;
+      persistedResult = result;
       return "33333333-3333-4333-8333-333333333333";
     },
     webSearch: async (_config, question) => {
@@ -444,7 +550,14 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(await response.json(), {
-    answer: "Kết quả tra cứu có căn cứ Chính phủ.",
+    answer: "Trả lời ngắn\nKết quả tra cứu có căn cứ Chính phủ.",
+    sections: [
+      {
+        kind: "summary",
+        paragraphs: ["Kết quả tra cứu có căn cứ Chính phủ."],
+        bullets: [],
+      },
+    ],
     mode: "web_search",
     warning: "Chưa kiểm duyệt.",
     sources: [
@@ -456,6 +569,17 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
   });
   assert.equal(webCalls, 1);
   assert.equal(persisted, 1);
+  assert.equal(
+    persistedResult.answer,
+    "Trả lời ngắn\nKết quả tra cứu có căn cứ Chính phủ.",
+  );
+  assert.deepEqual(persistedResult.sections, [
+    {
+      kind: "summary",
+      paragraphs: ["Kết quả tra cứu có căn cứ Chính phủ."],
+      bullets: [],
+    },
+  ]);
   for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
     delete globalThis.__webSearchWorkerEnv[key];
   }

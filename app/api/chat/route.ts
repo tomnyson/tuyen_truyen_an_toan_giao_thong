@@ -4,12 +4,14 @@ import {
   classifyImageIntent,
   privacySafetyGuidance,
 } from "@/lib/image-intent";
+import { projectPublicWebSearchAnswer } from "@/lib/chat-answer-presentation";
 import { findCuratedAnswer, findManagedAnswer } from "@/lib/legal-chat";
 import {
   readOpenAiWebSearchConfig,
   searchAllowedLegalSources,
   WEB_SEARCH_POLICY_VERSION,
 } from "@/lib/openai-web-search";
+import { parseOfficialSourceLinks } from "@/lib/official-source-url";
 import {
   createRuntimeRateLimiter,
   rateLimitErrorResponse,
@@ -220,17 +222,26 @@ export function createChatHandler(
       const reviewedCandidate: ReviewedWebCandidateAnswer | null =
         await reviewedWebAnswer(question);
       if (reviewedCandidate) {
-        return complete(
-          NextResponse.json({
-            answer: reviewedCandidate.answer,
-            mode: "knowledge",
-            sources: reviewedCandidate.sources,
-          }),
-          "knowledge",
-          "knowledge",
-          reviewedCandidate.policyVersion,
-          { candidateIds: [reviewedCandidate.candidateId] },
+        const presentation = projectPublicWebSearchAnswer(
+          reviewedCandidate.answer,
         );
+        const publicSources = parseOfficialSourceLinks(
+          reviewedCandidate.sources,
+        );
+        if (presentation && publicSources.length > 0) {
+          return complete(
+            NextResponse.json({
+              answer: presentation.answer,
+              sections: presentation.sections,
+              mode: "knowledge",
+              sources: publicSources,
+            }),
+            "knowledge",
+            "knowledge",
+            reviewedCandidate.policyVersion,
+            { candidateIds: [reviewedCandidate.candidateId] },
+          );
+        }
       }
 
       // DEC-010/DEC-011: reserve a global UTC-day token budget before the provider call.
@@ -273,9 +284,33 @@ export function createChatHandler(
         );
       }
       if (searched.ok) {
+        const publicSources = parseOfficialSourceLinks(searched.sources);
+        const publicPresentation = projectPublicWebSearchAnswer(
+          searched.answer,
+        );
+        if (publicSources.length === 0 || !publicPresentation) {
+          return complete(
+            unavailableResponse(),
+            "retrieval_no_match",
+            "unavailable",
+            WEB_SEARCH_POLICY_VERSION,
+            {
+              providerOutcome: "invalid_output",
+              providerModel: searched.model,
+              providerInputTokens: searched.usage.inputTokens ?? undefined,
+              providerOutputTokens: searched.usage.outputTokens ?? undefined,
+            },
+          );
+        }
+        const publicResult = {
+          ...searched,
+          answer: publicPresentation.answer,
+          sections: publicPresentation.sections,
+          sources: publicSources,
+        };
         const candidateId = await persistWebCandidate(
           requestId,
-          searched,
+          publicResult,
         );
         if (!candidateId) {
           return complete(
@@ -294,10 +329,11 @@ export function createChatHandler(
         return complete(
           NextResponse.json(
             {
-              answer: searched.answer,
+              answer: publicResult.answer,
+              sections: publicResult.sections,
               mode: "web_search",
-              warning: searched.warning,
-              sources: searched.sources,
+              warning: publicResult.warning,
+              sources: publicSources,
             },
             {
               headers: {

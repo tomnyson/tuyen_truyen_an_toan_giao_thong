@@ -5,6 +5,10 @@ import {
   SUPPORTED_OPENAI_MODELS,
   type SupportedOpenAiModel,
 } from "./openai-evidence";
+import {
+  projectPublicWebSearchAnswer,
+  type ChatAnswerSection,
+} from "./chat-answer-presentation";
 import { canonicalOfficialSourceUrl } from "./official-source-url";
 
 export { canonicalOfficialSourceUrl } from "./official-source-url";
@@ -46,8 +50,13 @@ Quy tắc bắt buộc:
   cho backoffice discovery riêng và không được làm căn cứ trong final answer.
 - Nếu không tìm được nguồn Chính phủ hỗ trợ câu trả lời, hãy nói chưa đủ nguồn
   để trả lời; không suy đoán điều, khoản, ngày, độ tuổi hay mức tiền.
-- Trả lời ngắn, dễ hiểu, nêu giới hạn áp dụng và không kết luận thay cơ quan có
-  thẩm quyền. Không yêu cầu hoặc nhắc lại dữ liệu cá nhân của người dùng.
+- Trả lời tối đa bốn phần theo đúng thứ tự và nhãn: "Kết luận:",
+  "Giải thích:", "Bạn nên làm gì:", "Lưu ý:". Chỉ thêm phần có nội dung.
+- Viết plain text, câu và đoạn ngắn. Không dùng Markdown, HTML, JSON, code,
+  tiêu đề #, dấu **, link hoặc URL trong phần trả lời. Nguồn sẽ được hệ thống
+  hiển thị riêng.
+- Nêu giới hạn áp dụng và không kết luận thay cơ quan có thẩm quyền. Không yêu
+  cầu hoặc nhắc lại dữ liệu cá nhân của người dùng.
 `.trim();
 
 export type OpenAiWebSearchConfig = {
@@ -78,6 +87,7 @@ export type OpenAiWebSearchResult =
   | {
       ok: true;
       answer: string;
+      sections: ChatAnswerSection[];
       sources: OfficialWebSource[];
       warning: string;
       model: string;
@@ -394,11 +404,14 @@ export async function searchAllowedLegalSources(
     }
   }
   if (sourceMap.size === 0) return failure("MISSING_OFFICIAL_CITATION");
+  const presentation = projectPublicWebSearchAnswer(final.text);
+  if (!presentation) return failure("INVALID_OUTPUT");
 
   const usage = isPlainObject(payload.usage) ? payload.usage : {};
   return {
     ok: true,
-    answer: final.text,
+    answer: presentation.answer,
+    sections: presentation.sections,
     sources: [...sourceMap.values()],
     warning: WEB_SEARCH_WARNING,
     model: providerModel,

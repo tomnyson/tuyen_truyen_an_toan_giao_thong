@@ -997,6 +997,95 @@ reviewed graph và provider fixture inject. Tuy nhiên fixture riêng hoặc tex
 legacy không đủ để check AC integration; contract, API, frontend và negative
 paths phải cùng pass.
 
+### 6.5 Presentation contract cho câu trả lời chat
+
+US-004 sở hữu presentation contract; US-003 sở hữu citation label/link và
+US-027 sở hữu nhãn rủi ro của `web_search`. UI không được coi chuỗi
+`/api/chat.answer` legacy là Markdown, HTML hay nguồn để suy ra citation.
+Presentation model đích được dựng từ response có cấu trúc:
+
+```ts
+type ChatPresentation =
+  | {
+      state: "answered";
+      mode: "curated" | "ai_assisted";
+      warnings: string[];
+      conclusion: string;
+      explanation: string;
+      examples: Array<{ title: string; scenario: string; outcome: string }>;
+      recommendedActions: string[];
+      citations: LegalCitation[];
+    }
+  | {
+      state: "web_search";
+      mode: "web_search";
+      warning: string;
+      conclusion: string;
+      explanation: string;
+      sources: OfficialSourceLink[];
+    }
+  | {
+      state: "unavailable";
+      mode: "unavailable";
+      title: string;
+      message: string;
+      nextActions: string[];
+    }
+  | {
+      state: "error";
+      title: string;
+      retryable: boolean;
+      requestId?: string;
+    };
+```
+
+`web_search` chỉ được thêm vào structured/v1 contract sau review riêng như
+FR-04; type trên ghi presentation boundary cần đạt, không tự ý đổi public v1
+mode trước review. Trong deprecation window, adapter legacy chỉ được map các
+field tách riêng do server trả (`answer`, `warning`, `sources`, `mode`) sang
+state tương ứng. Adapter không parse Markdown, không regex URL/căn cứ từ
+`answer`, và không biến `429`/`503` hoặc `{error}` thành assistant message.
+
+Quy tắc render:
+
+1. Mode badge/cảnh báo bắt buộc xuất hiện trước nội dung. Với `web_search`, dùng
+   nguyên semantic “Kết quả tra cứu tự động, chưa được kiểm duyệt nội dung” và
+   không dùng từ “đã duyệt”, “đã xác minh” hoặc “RAG” cho kết quả đó.
+2. Trong phần answer, thứ tự là `Kết luận`, `Giải thích`, `Ví dụ`, `Bạn nên làm
+   gì`, `Căn cứ`. Kết luận là answer section đầu tiên và giới hạn 1–2 câu.
+   Section optional rỗng không render.
+3. Mọi text field được React/text renderer escape mặc định. Không dùng
+   `dangerouslySetInnerHTML`; không để lộ literal Markdown/HTML/JSON. Nếu cần
+   rich text về sau phải dùng schema component allowlist, không dùng arbitrary
+   model Markdown.
+4. Citation/source link chỉ lấy từ structured DTO đã qua server URL guard.
+   Visible label ưu tiên `{tên hoặc số hiệu văn bản} — {điều/khoản/điểm}`;
+   action name là “Mở nguồn chính thức”, đồng thời hiển thị official host.
+   Link mở tab mới với `rel="noopener noreferrer"` và accessible name phải đủ
+   để phân biệt nhiều nguồn.
+5. `unavailable` không render các section citation/sanction/conclusion pháp lý.
+   Title/message nói rõ chưa đủ thông tin đã duyệt; `nextActions` có 1–2 lựa
+   chọn an toàn như thu hẹp câu hỏi hoặc mở nguồn chính thức. Không lộ
+   stack/provider/config. `error`, `loading` và `unavailable` là ba state DOM
+   khác nhau.
+6. Heading/landmark và thứ tự DOM phải theo đúng thứ tự đọc; warning có semantic
+   note/status phù hợp, link và action điều khiển được bằng bàn phím. Nội dung
+   phải wrap ở viewport 320 px mà không buộc cuộn ngang.
+
+Test gate trước cutover:
+
+- component test xác nhận conclusion là answer section đầu tiên, thứ tự section
+  ổn định và section optional rỗng bị bỏ;
+- fixture chứa `**bold**`, heading, code fence, Markdown link, raw HTML và JSON
+  không được tạo HTML thực thi hoặc lộ cú pháp thô trong nội dung người đọc;
+- test 0/1/nhiều citation kiểm tra source DTO, label phân biệt được, URL HTTPS
+  official, `target`/`rel` và không extract link từ answer;
+- test `web_search` kiểm tra warning nằm trước answer, source-list label và
+  không có reviewed badge; test `unavailable`, `{error}`, `429`, `503` kiểm tra
+  bốn trạng thái không bị nhập làm một;
+- accessibility test kiểm tra heading order, accessible link names, keyboard
+  focus; responsive test kiểm tra nội dung tiếng Việt dài tại 320 px.
+
 ## 7. Retrieval và answer composition (To-be)
 
 ### 7.1 Pipeline
@@ -1366,6 +1455,17 @@ failure/quarantine/DLQ và gắn owner xử lý.
   conversation history. Output có nhãn chưa kiểm duyệt; theo DEC-011 chỉ được
   persist thành intake draft không chứa raw question và không được tự promote
   vào RAG.
+- Provider được yêu cầu trả plain text ngắn theo các nhãn cố định, nhưng server
+  không tin định dạng đó. Trước persistence/public response, projector thuần
+  phải loại Markdown/HTML/code marker và mọi URL/domain khỏi prose, chuẩn hóa
+  thành bounded section DTO và tạo lại `answer` plain text để tương thích client
+  cũ. Annotation chỉ dùng xác minh/canonicalize `sources`, không dùng để xóa
+  mù theo index vì span có thể bao gồm từ có nghĩa.
+- `/api/chat` có thể trả thêm `sections` cho `mode=web_search`; đây là additive
+  presentation contract, chưa phải canonical legal-answer v1 của US-004.
+  Frontend validate exact DTO, render bằng React text nodes, không dùng raw HTML
+  hoặc Markdown parser. Mọi link public chỉ được dựng từ `sources` đã qua
+  `parseOfficialSourceLinks`; DTO sai thì fallback về `answer` plain text.
 - Timeout, non-2xx, refusal, incomplete/malformed/oversized response, model
   mismatch hoặc thiếu official final citation fail closed về `unavailable`.
 

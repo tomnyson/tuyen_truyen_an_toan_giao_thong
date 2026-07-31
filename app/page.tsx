@@ -6,6 +6,11 @@ import {
   type ShowcaseDataState,
 } from "@/components/ShowcaseGallery";
 import {
+  chatAnswerSectionTitle,
+  parseChatAnswerSections,
+  type ChatAnswerSection,
+} from "@/lib/chat-answer-presentation";
+import {
   laws,
   normalizeVietnamese,
   sources,
@@ -26,6 +31,7 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   warning?: string;
+  sections?: ChatAnswerSection[];
   sources?: OfficialSourceLink[];
 };
 
@@ -146,12 +152,17 @@ export default function Home() {
         error?: string;
         mode?: string;
         warning?: string;
+        sections?: unknown;
         sources?: unknown;
       };
       const searchedSources =
         data.mode === "web_search" || data.mode === "knowledge"
           ? parseOfficialSourceLinks(data.sources)
           : [];
+      const answerSections =
+        data.mode === "web_search" || data.mode === "knowledge"
+          ? parseChatAnswerSections(data.sections)
+          : null;
       setChatMessages((current) => [
         ...current,
         {
@@ -161,6 +172,7 @@ export default function Home() {
             data.mode === "web_search" && typeof data.warning === "string"
               ? data.warning
               : undefined,
+          sections: answerSections ?? undefined,
           sources: searchedSources.length > 0 ? searchedSources : undefined,
         },
       ]);
@@ -375,24 +387,57 @@ export default function Home() {
             <div className="chat-messages">
               {chatMessages.map((message, index) => (
                 <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
-                  <p>{message.content}</p>
                   {message.warning && (
-                    <p className="chat-warning">{message.warning}</p>
+                    <p className="chat-warning" role="note">
+                      <strong>Kết quả tra cứu tự động</strong>
+                      <span>{message.warning}</span>
+                    </p>
+                  )}
+                  {message.sections ? (
+                    <div className="chat-answer-sections">
+                      {message.sections.map((section) => (
+                        <section key={section.kind}>
+                          <h3>{chatAnswerSectionTitle(section.kind)}</h3>
+                          {section.paragraphs.map((paragraph, paragraphIndex) => (
+                            <p key={`${section.kind}-p-${paragraphIndex}`}>
+                              {paragraph}
+                            </p>
+                          ))}
+                          {section.bullets.length > 0 && (
+                            <ul>
+                              {section.bullets.map((bullet, bulletIndex) => (
+                                <li key={`${section.kind}-b-${bulletIndex}`}>
+                                  {bullet}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </section>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>{message.content}</p>
                   )}
                   {message.sources && (
-                    <ul className="chat-sources" aria-label="Nguồn Chính phủ">
-                      {message.sources.map((source) => (
-                        <li key={source.url}>
-                          <a
-                            href={source.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {source.title || "Mở nguồn Chính phủ"}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="chat-source-group">
+                      <h3>Nguồn chính thức đã tra cứu</h3>
+                      <ul className="chat-sources">
+                        {message.sources.map((source) => (
+                          <li key={source.url}>
+                            <span>{source.title || "Văn bản Chính phủ"}</span>
+                            <small>{new URL(source.url).hostname}</small>
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Mở nguồn chính thức: ${source.title || "Văn bản Chính phủ"}`}
+                            >
+                              Mở nguồn chính thức ↗
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
               ))}

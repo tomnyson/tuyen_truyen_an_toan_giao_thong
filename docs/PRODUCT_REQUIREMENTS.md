@@ -197,6 +197,12 @@ Mỗi kết quả phải hiển thị:
 - Hành động an toàn hoặc cách khắc phục.
 - Cảnh báo về độ tuổi, chủ thể, thời điểm hiệu lực hoặc giới hạn áp dụng khi phù
   hợp.
+- Trong phần nội dung trả lời, kết luận là section đầu tiên; các section sau có
+  nhãn tiếng Việt rõ ràng và section optional không có dữ liệu thì được bỏ,
+  không hiển thị tiêu đề rỗng.
+- Nội dung dành cho người đọc không được lộ cú pháp Markdown/HTML/JSON thô.
+  Frontend phải render từ field có cấu trúc, không suy diễn cấu trúc hoặc
+  citation bằng cách parse chuỗi do model sinh.
 
 ### FR-03 — Dẫn chứng và nguồn
 
@@ -209,6 +215,9 @@ Mỗi kết quả phải hiển thị:
   domain allowlist chỉ xuất hiện trong path, query hoặc fragment.
 - Provision record có điều, khoản, điểm và phần trích/diễn giải đã được duyệt.
 - Frontend mở được URL chính thức từ từng citation.
+- Citation hiển thị bằng tên/số hiệu văn bản và điều/khoản/điểm nếu có; link có
+  nhãn hành động dễ hiểu như “Mở nguồn chính thức” và cho người đọc nhận biết
+  host Chính phủ, thay vì dùng URL dài làm nội dung chính.
 - Không xuất bản câu trả lời không có căn cứ, trừ nội dung hướng dẫn an toàn
   không đưa ra kết luận pháp lý; trường hợp này phải có nhãn rõ ràng.
 
@@ -223,6 +232,13 @@ Mỗi kết quả phải hiển thị:
   dùng `web_search` trong danh sách nguồn cố định. Kết quả phải có citation
   Chính phủ đã được server kiểm tra URL, gắn nhãn chưa kiểm duyệt và dùng mode
   `web_search`; nếu thiếu nguồn chính thức thì vẫn `unavailable`.
+- Với `web_search`, cảnh báo “kết quả tra cứu tự động, chưa được kiểm duyệt nội
+  dung” phải xuất hiện trước phần nội dung trả lời, luôn nhìn thấy và đọc được
+  bằng công nghệ hỗ trợ; danh sách link dùng nhãn “Nguồn chính thức đã tra cứu”.
+- `unavailable`, lỗi kết nối và lỗi hệ thống là các trạng thái trình bày khác
+  nhau. `unavailable` phải nói rõ chưa đủ thông tin đã duyệt và gợi ý bước tiếp
+  theo an toàn, không hiển thị như một kết luận pháp lý và không lộ lỗi/provider
+  nội bộ.
 - Kết quả web đủ điều kiện phải được lưu thành candidate `draft` không chứa raw
   question trước khi trả response. Candidate không trở thành corpus RAG cho tới
   khi editor và reviewer độc lập hoàn tất quy trình bốn mắt.

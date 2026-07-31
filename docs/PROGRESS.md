@@ -34,12 +34,12 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 |---|---|---|---|---|---|
 | US-001 — Tra cứu theo từ khóa và chủ đề | P0 | Done | Full-stack | `app/page.tsx`; `lib/legal-content.ts` | 2026-07-29 |
 | US-002 — Xem căn cứ, mức xử lý và ví dụ | P0 | Done | Full-stack | `app/page.tsx`; `lib/legal-content.ts` | 2026-07-29 |
-| US-003 — Nguồn chính thức theo từng citation | P0 | Partial | Full-stack + PM | Có source list ở `lib/legal-content.ts`; thiếu mapping source/provision/answer | 2026-07-29 |
-| US-004 — Câu trả lời đầy đủ có cấu trúc | P0 | Partial | Full-stack + PM | AC/spec v1 và direct-AI gate đã refine; shadow không được đổi response. Còn citation graph/validated bundle, API/UI structured contract, validation/eval và negative tests; API hiện vẫn trả text `{answer, mode}` | 2026-07-31 |
+| US-003 — Nguồn chính thức theo từng citation | P0 | Partial | Full-stack + PM | Đã khóa UX label nguồn thân thiện + link chỉ từ structured validated DTO; hiện có source list nhưng thiếu mapping source/provision/answer | 2026-07-31 |
+| US-004 — Câu trả lời đầy đủ có cấu trúc | P0 | Partial | Full-stack + PM | Đã khóa presentation contract: conclusion-first, section order, no raw Markdown, citation UX, web warning và unavailable/error tách biệt. API/UI hiện vẫn dùng text `{answer, mode}`; implementation/component/a11y/responsive tests chưa có | 2026-07-31 |
 | US-005 — Showcase public đầy đủ | P1 | Done | Full-stack + Code review | Public projector + 503/no-store dependency contract; exact client DTO; UI render toàn bộ API order theo stable ID, đủ field/source, loading/empty/degraded và accessible detail dialog/focus recovery; focused 15/15, current full 198/198 pass | 2026-07-31 |
 | US-006 — Chat ưu tiên kho kiến thức | P0 | Partial | Full-stack | Rendered/chat suite 15/15 pass; vẫn chưa đủ bốn nhóm kiến thức nền theo AC | 2026-07-31 |
 | US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
-| US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Adapter + curated-first route + warning/source UI, D1 global budget và provider telemetry đã có; full 230/230 + build pass. Còn production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
+| US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Public section projector + warning-first UI + friendly canonical source links đã verified: focused 16/16, type/lint/build và live browser/320px pass. Full suite 229/232 do migration 0006 làm ledger tests cũ fail; còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
 | US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; focused 4/4, combined 24/24, full 230/230, type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
@@ -78,6 +78,20 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-31 | DEC-009 | AI integration đầu tiên chỉ là offline/local shadow, không import chat/API; `AI_SHADOW_ENABLED=false`, exact allowlist `gpt-5.4-mini|gpt-5.4-mini-2026-03-17`, `store:false`, không web/tool/persist. Route shadow chờ production bundle + `waitUntil` seam. | US-026, US-004 |
 | 2026-07-31 | DEC-010 | RAG no-match có thể gọi direct web search có kiểm soát; chỉ final official citation qua exact URL guard được trả, Thư Viện Pháp Luật discovery-only, output gắn nhãn. Phần không persist được DEC-011 thay hẹp bằng draft-only persistence. | US-027 |
 | 2026-07-31 | DEC-011 | Web result qua official guard được persist thành immutable draft không chứa raw question; chỉ authenticated four-eyes approval mới đưa vào reviewed retrieval/RAG. | US-028, US-013, US-014, US-025 |
+
+### 2026-07-31 — US-004 chat presentation specification
+
+- PM review khóa presentation contract ở US-004, citation presentation ở
+  US-003 và warning trực tuyến ở US-027; không tạo story ID mới.
+- Evidence hiện tại cho thấy `app/page.tsx` render `message.content` như một
+  paragraph text, warning sau answer và `unavailable` như assistant message
+  thông thường. Vì vậy các AC UX mới đều giữ unchecked.
+- Spec đích yêu cầu warning mode trước nội dung, conclusion là answer section
+  đầu tiên, section order deterministic, citation link thân thiện chỉ từ
+  structured DTO, không lộ Markdown/HTML/JSON và tách loading/error/unavailable.
+- Implementation chỉ được check sau component/contract/accessibility/responsive
+  tests nêu tại `TECHNICAL_SPEC.md` mục 6.5; review tài liệu này không phải
+  completion evidence.
 
 ### Batch local tiếp theo — specification gate và implementation
 
@@ -301,6 +315,31 @@ này.
 - Production chưa đánh xong: Sites/D1 migration-before-code, distinct principal
   provisioning, actual header/concurrency/log smoke, Workers Logs retention,
   data-control và under-18 review cần bằng chứng bên ngoài.
+
+### 2026-07-31 — US-027 readable web-search answer UI
+
+- `lib/chat-answer-presentation.ts` là pure bounded projector/parser: loại
+  provider Markdown/HTML/URL/domain khỏi prose, chuẩn hóa section deterministic
+  và fail closed với active content/DTO thừa field. Flattened `answer` plain
+  text giữ tương thích client cũ.
+- `lib/openai-web-search.ts` yêu cầu plain text có nhãn ngắn và projector output
+  trước persistence/response. `app/api/chat/route.ts` chiếu cả reviewed
+  candidate cũ, revalidate canonical source ở API boundary và trả additive
+  `sections`. `app/page.tsx` chỉ render React text nodes/fixed tags; warning
+  đứng trước answer và link chỉ đến từ structured source list.
+- Focused web-search suite **16/16**, typecheck, focused ESLint và Vinext build:
+  **pass**. Live browser smoke có 4 section, 1 warning, 1 official source,
+  không raw markup/URL; viewport 320px có panel 296px, không horizontal
+  overflow bên trong chat.
+- Four-eyes vòng đầu ghi hai Medium về block Markdown/JSON và UI regression.
+  Projector sau đó fail closed với JSON/code fence/blockquote/horizontal
+  rule/table; focused suite thêm source-level UI contract cho warning order,
+  exact DTO/source parser, safe link attributes, no raw HTML và mobile CSS.
+  Rerun 16/16 đóng hai finding; không còn Blocker/High/Medium trong slice.
+- Full suite **229/232**: ba failure là ledger expectation đã có từ commit
+  `3523f23` thêm migration `0006_petite_lady_deathstrike`, không do UI slice;
+  migration tests vẫn kỳ vọng `0005` là cuối. Không tự sửa/xóa migration ngoài
+  scope. Hai AC UX hẹp của US-027 đã check; story vẫn `Partial`.
 
 ### 2026-07-31 — US-027 allowed-source web fallback
 

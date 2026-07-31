@@ -49,8 +49,13 @@
 
 - [x] Trang public có danh sách URL nguồn tham khảo chính thức.
 - [ ] Mỗi căn cứ được lưu thành record có liên kết đến source record.
-- [ ] Mỗi câu trả lời hiển thị link chính thức ngay cạnh citation tương ứng.
-- [ ] Citation hiển thị điều/khoản/điểm, hiệu lực và ngày kiểm chứng gần nhất.
+- [ ] Mỗi câu trả lời hiển thị link chính thức ngay cạnh citation tương ứng;
+  label nêu tên/số hiệu văn bản và điều/khoản/điểm nếu có, action là “Mở nguồn
+  chính thức” và host Chính phủ có thể nhận biết mà không dùng URL dài làm nội
+  dung chính.
+- [ ] Citation hiển thị điều/khoản/điểm, hiệu lực và ngày kiểm chứng gần nhất;
+  link chỉ lấy từ structured citation/source DTO đã được server validate, không
+  trích từ chuỗi answer.
 
 **Evidence hiện có:** `lib/legal-content.ts`, `app/page.tsx`
 
@@ -76,15 +81,36 @@
   answer revision; thiếu bất kỳ phần bắt buộc nào trả contract `unavailable`
   ổn định với mảng rỗng.
 - [ ] Frontend render từng phần với nhãn rõ ràng.
+- [ ] Trong nội dung trả lời, frontend render theo thứ tự deterministic `Kết
+  luận` → `Giải thích` → `Ví dụ` → `Bạn nên làm gì` → `Căn cứ`; cảnh báo bắt
+  buộc của mode được đặt trước nội dung, section optional rỗng bị bỏ và không
+  có heading rỗng. Kết luận là 1–2 câu dễ hiểu, không buộc học sinh phải biết
+  thuật ngữ pháp lý.
+- [ ] Không hiển thị literal Markdown/HTML/JSON như `**`, heading `#`, code
+  fence, `[nhãn](url)` hoặc object JSON trong nội dung người dùng. Frontend dùng
+  text-escaped structured fields/constrained renderer, không dùng
+  `dangerouslySetInnerHTML`, không parse text tự do để dựng section/citation.
 - [ ] Frontend không render HTML từ answer, link nguồn chỉ lấy từ citation
   HTTPS đã validate, mở an toàn và hiển thị loading/error/unavailable rõ ràng;
   keyboard/screen-reader đọc được từng section.
+- [ ] `web_search` hiển thị cảnh báo luôn thấy “Kết quả tra cứu tự động, chưa
+  được kiểm duyệt nội dung” trước phần trả lời và danh sách “Nguồn chính thức
+  đã tra cứu”; không dùng nhãn khiến người đọc hiểu nhầm kết quả đã được duyệt
+  hoặc đã là corpus RAG.
+- [ ] `unavailable` có presentation riêng: nói ngay là chưa đủ thông tin đã
+  duyệt, không có citation/mức phạt/kết luận pháp lý giả, có 1–2 bước tiếp theo
+  an toàn và không lộ provider/stack trace. Lỗi HTTP/network/rate-limit không
+  được biến thành `unavailable` hay answer bình thường.
 - [ ] `/api/chat` legacy chạy song song trong deprecation window; frontend chỉ
   cutover sang v1 sau contract/integration/telemetry tests và có rollback flag.
 - [ ] Contract tests bao phủ curated, ai-assisted fixture, unavailable,
   malformed input, missing example/citation, unknown/duplicate evidence ID,
   canonical numeric/date/article mapping, schema field thừa/thiếu và
   `429`/`503` không bị render thành answer.
+- [ ] UI/component tests bao phủ thứ tự section và mode label, section optional
+  rỗng, literal Markdown/HTML/JSON, 0/1/nhiều citation, link accessible/an toàn,
+  cảnh báo `web_search`, `unavailable` khác error, nội dung tiếng Việt dài trên
+  màn hình nhỏ và thứ tự focus/heading bằng bàn phím.
 - [ ] Shadow result không được dùng để dựng hoặc thay đổi response v1/current.
   `mode=ai_assisted` chỉ được trả trực tiếp sau khi US-025 có
   `validatedEvidenceBundle` từ production graph và US-026 có server-side
@@ -207,6 +233,15 @@ và malformed messages.
 - [x] Response có `mode=web_search`, cảnh báo “tra cứu trực tuyến, chưa được
   kiểm duyệt”, và danh sách nguồn Chính phủ có link bấm được. Không lưu kết quả
   web vào corpus hoặc tự xuất bản.
+- [x] UI đặt cảnh báo chưa kiểm duyệt trước nội dung trả lời, luôn nhìn thấy và
+  đọc được bằng công nghệ hỗ trợ; source list có nhãn “Nguồn chính thức đã tra
+  cứu”, link thân thiện và không trình bày candidate draft như reviewed RAG
+  evidence.
+- [x] Câu trả lời tra cứu trực tuyến được chiếu thành các phần ngắn, có nhãn dễ
+  hiểu; không hiển thị cú pháp Markdown, HTML, URL dài hoặc domain citation
+  trong phần diễn giải. Link duy nhất người dùng bấm được phải lấy từ danh sách
+  `sources` đã qua exact official-URL guard; client không render HTML từ answer
+  và có plain-text fallback khi DTO trình bày sai.
 - [x] Timeout, HTTP lỗi, refusal, malformed/oversized output, model mismatch,
   URL ngoài allowlist hoặc thiếu official citation đều fail closed về response
   `unavailable` hiện có.
@@ -227,8 +262,15 @@ fixed hosted-tool request, bounded response parser và exact official citation
 guard. `app/api/chat/route.ts` nối curated-first fallback;
 `lib/official-source-url.ts` và `app/page.tsx` validate/render warning cùng
 official links; `.env.example` giữ rollback flag mặc định false.
-`tests/openai-web-search.test.mjs` chạy 12/12, typecheck, lint và build pass
-ngày 2026-07-31. Story giữ `Partial` vì production data-control,
+`lib/chat-answer-presentation.ts` chiếu provider/reviewed answer thành bounded
+section DTO, loại markup/URL khỏi prose và chỉ để structured `sources` tạo link.
+`tests/openai-web-search.test.mjs` chạy 16/16; typecheck, focused lint và build
+pass ngày 2026-07-31. Browser smoke với live web-search xác nhận warning đứng
+trước 4 section, source link thân thiện, không có raw Markdown/URL; viewport
+320px có chat panel 296px và không tràn ngang. Full suite 229/232; ba failure
+không thuộc thay đổi này do commit migration `0006_petite_lady_deathstrike` làm
+test ledger cũ vẫn kỳ vọng `0005` là migration cuối. Story giữ `Partial` vì
+canonical US-004 và production data-control,
 under-18 disclosure, budget/rate limit/telemetry và rollout review còn mở.
 
 ### [ ] US-028 — Lưu, duyệt và tái sử dụng kết quả tra cứu trực tuyến

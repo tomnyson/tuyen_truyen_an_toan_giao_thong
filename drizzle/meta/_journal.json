@@ -43,6 +43,13 @@
       "when": 1785747600000,
       "tag": "0005_web_search_candidate_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1785471274330,
+      "tag": "0006_petite_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

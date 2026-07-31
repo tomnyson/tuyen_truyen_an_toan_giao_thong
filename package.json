@@ -26,8 +26,8 @@
     "smoke:web-search": "node --env-file=.env.local --experimental-strip-types scripts/smoke-openai-web-search.mjs",
     "shadow:ai": "node --env-file=.env.local --experimental-strip-types scripts/shadow-openai-evidence.mjs",
     "auth:hash": "node --experimental-strip-types scripts/generate-admin-password-hash.mjs",
-    "seed": "node --experimental-strip-types scripts/seed-d1.mjs",
-    "test:seed": "node --experimental-strip-types --test tests/seed-d1.test.mjs",
+    "seed": "node --env-file=.env.local --experimental-strip-types scripts/seed-db.mjs",
+    "test:seed": "node --experimental-strip-types --test tests/seed-db.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

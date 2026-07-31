@@ -5,6 +5,11 @@
 > Trạng thái: feasibility only; không nguồn nào được phép tự động publish hoặc
 > trở thành citation.
 
+DEC-012 cho phép `thuvienphapluat.vn` xuất hiện ở live reference fallback sau
+official no-result, nhưng chỉ với nhãn “không chính thống, cần xác minh”. Ngoại
+lệ trình bày này không thay đổi readiness: nguồn không được persist, ingest,
+promote hoặc dùng làm căn cứ pháp lý/citation của RAG.
+
 Tài liệu này là registry có thể review của US-023. Contract máy đọc và
 validation tương ứng nằm tại `lib/source-registry.ts`; sample kỹ thuật nằm tại
 `fixtures/source-registry/vbpl-nd168.sample.json`.

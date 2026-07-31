@@ -1485,13 +1485,17 @@ failure/quarantine/DLQ và gắn owner xử lý.
   `AI_WEB_SEARCH_ENABLED=true`. Request dùng `store:false`,
   `tool_choice:"required"`, `include:["web_search_call.action.sources"]` và
   domain list hard-code phía server.
-- Direct search chỉ cho phép `vbpl.vn`, `vbpl.moj.gov.vn`, `chinhphu.vn` hoặc
-  subdomain chính thức và dùng `search_context_size=low`.
-  `thuvienphapluat.vn` chỉ dành cho backoffice discovery riêng. Ít nhất một
-  final official `url_citation` là bắt buộc; source consulted nhưng không
-  annotate final answer không đủ điều kiện. Server deduplicate URL, loại
+- Lượt direct search đầu chỉ cho phép `vbpl.vn`, `vbpl.moj.gov.vn`,
+  `chinhphu.vn` hoặc subdomain chính thức và dùng `search_context_size=low`.
+  Ít nhất một final official `url_citation` là bắt buộc; source consulted nhưng
+  không annotate final answer không đủ điều kiện. Server deduplicate URL, loại
   credentials/fragment, giữ query hợp lệ trên đúng official authority và không
   tin title/URL ngoài exact parser.
+- Theo DEC-012, chỉ khi lượt official trả no-result đủ điều kiện, route mới
+  reserve budget và chạy lượt reference thứ hai. Exact allowlist ban đầu chỉ
+  gồm `thuvienphapluat.vn`; URL phải là HTTPS exact authority/subdomain, không
+  có userinfo hoặc port. Response dùng `sourceKind:"reference"` và cảnh báo
+  không chính thống/cần xác minh.
 - Client không được truyền domain/tool/instruction/model/base URL. Provider chỉ
   nhận câu hỏi cuối đã normalize và redact email/số điện thoại/URL; không nhận
   conversation history. Output có nhãn chưa kiểm duyệt; theo DEC-011 chỉ được
@@ -1503,13 +1507,22 @@ failure/quarantine/DLQ và gắn owner xử lý.
   thành bounded section DTO và tạo lại `answer` plain text để tương thích client
   cũ. Annotation chỉ dùng xác minh/canonicalize `sources`, không dùng để xóa
   mù theo index vì span có thể bao gồm từ có nghĩa.
-- `/api/chat` có thể trả thêm `sections` cho `mode=web_search`; đây là additive
+- `/api/chat` có thể trả thêm `sections` và `sourceKind` cho
+  `mode=web_search`; đây là additive
   presentation contract, chưa phải canonical legal-answer v1 của US-004.
   Frontend validate exact DTO, render bằng React text nodes, không dùng raw HTML
-  hoặc Markdown parser. Mọi link public chỉ được dựng từ `sources` đã qua
-  `parseOfficialSourceLinks`; DTO sai thì fallback về `answer` plain text.
-- Timeout, non-2xx, refusal, incomplete/malformed/oversized response, model
-  mismatch hoặc thiếu official final citation fail closed về `unavailable`.
+  hoặc Markdown parser. Link official phải qua `parseOfficialSourceLinks`; link
+  reference phải qua `parseReferenceSourceLinks`. DTO sai thì fallback về
+  `answer` plain text.
+- Reference output chỉ được trình bày hướng dẫn chung. Guard phải cho phép số
+  mô tả tình huống đời thường như “chở 3 người”, nhưng vẫn từ chối số tiền, số
+  hiệu văn bản, điều/khoản/điểm, ngày/tuổi và ngưỡng pháp lý. Reference result
+  là live/no-store: không gọi candidate persistence và không tham gia evidence
+  graph hoặc RAG.
+- Timeout, non-2xx, refusal, incomplete/malformed/oversized response hoặc model
+  mismatch fail closed về `unavailable`. Thiếu official final citation chỉ mở
+  lượt reference theo DEC-012; reference validation/provider failure vẫn
+  `unavailable`.
 
 #### 7.2.1 Web-search candidate persistence và reviewed promotion
 
@@ -2254,6 +2267,11 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   và không persist. `thuvienphapluat.vn` bị loại khỏi direct domain list và chỉ
   dành cho backoffice discovery; thiếu official citation hoặc mọi lỗi đều
   `unavailable`. Feature flag là rollback boundary.
+- **DEC-012:** nếu official direct search không có kết quả đủ điều kiện, route
+  được chạy thêm một lượt reference search trên exact allowlist
+  `thuvienphapluat.vn`. Kết quả phải có `sourceKind=reference`, cảnh báo không
+  chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist
+  thành candidate/evidence/RAG. Official search luôn chạy trước.
 
 ### Điểm còn mở
 

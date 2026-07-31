@@ -13,9 +13,14 @@ import { findCuratedAnswer, findManagedAnswer } from "@/lib/legal-chat";
 import {
   readOpenAiWebSearchConfig,
   searchAllowedLegalSources,
+  searchReferenceLegalSources,
+  REFERENCE_SEARCH_POLICY_VERSION,
   WEB_SEARCH_POLICY_VERSION,
 } from "@/lib/openai-web-search";
-import { parseOfficialSourceLinks } from "@/lib/official-source-url";
+import {
+  parseOfficialSourceLinks,
+  parseReferenceSourceLinks,
+} from "@/lib/official-source-url";
 import {
   createRuntimeRateLimiter,
   rateLimitErrorResponse,
@@ -82,6 +87,7 @@ type ChatHandlerDependencies = {
   curatedAnswer: typeof findCuratedAnswer;
   imageIntent: typeof classifyImageIntent;
   webSearch: typeof searchAllowedLegalSources;
+  referenceWebSearch: typeof searchReferenceLegalSources;
   reviewedWebAnswer: typeof findReviewedWebCandidate;
   reserveWebBudget: () => Promise<WebSearchBudgetReservation | null>;
   settleWebBudget: (
@@ -101,6 +107,8 @@ export function createChatHandler(
   const curatedAnswer = dependencies.curatedAnswer ?? findCuratedAnswer;
   const imageIntent = dependencies.imageIntent ?? classifyImageIntent;
   const webSearch = dependencies.webSearch ?? searchAllowedLegalSources;
+  const referenceWebSearch =
+    dependencies.referenceWebSearch ?? searchReferenceLegalSources;
   const reviewedWebAnswer =
     dependencies.reviewedWebAnswer ?? findReviewedWebCandidate;
   const reserveWebBudget =
@@ -360,6 +368,7 @@ export function createChatHandler(
               answer: publicResult.answer,
               sections: publicResult.sections,
               mode: "web_search",
+              sourceKind: "official",
               warning: publicResult.warning,
               sources: publicSources,
             },
@@ -378,6 +387,110 @@ export function createChatHandler(
             providerModel: searched.model,
             providerInputTokens: searched.usage.inputTokens ?? undefined,
             providerOutputTokens: searched.usage.outputTokens ?? undefined,
+          },
+        );
+      }
+
+      const canUseReferenceFallback =
+        searched.code === "MISSING_OFFICIAL_CITATION";
+      if (canUseReferenceFallback) {
+        // DEC-012: reference search has its own reservation because it is a
+        // second provider request. Its result is live-only and never enters
+        // candidate persistence or reviewed RAG.
+        const referenceReservation = await reserveWebBudget();
+        if (!referenceReservation) {
+          return complete(
+            unavailableResponse(),
+            "dependency_error",
+            "unavailable",
+            WEB_SEARCH_BUDGET_POLICY_VERSION,
+          );
+        }
+        const referenceResult = await referenceWebSearch(
+          webSearchConfig,
+          question,
+        );
+        const referenceSettled = await settleWebBudget(
+          referenceReservation,
+          referenceResult.ok
+            ? referenceResult.usage.totalTokens
+            : referenceReservation.reservedTokens,
+        );
+        if (!referenceSettled) {
+          return complete(
+            unavailableResponse(),
+            "dependency_error",
+            "unavailable",
+            WEB_SEARCH_BUDGET_POLICY_VERSION,
+          );
+        }
+        if (referenceResult.ok) {
+          const referenceSources = parseReferenceSourceLinks(
+            referenceResult.sources,
+          );
+          const referencePresentation = projectPublicWebSearchAnswer(
+            referenceResult.answer,
+          );
+          if (referenceSources.length > 0 && referencePresentation) {
+            return complete(
+              NextResponse.json(
+                {
+                  answer: referencePresentation.answer,
+                  sections: referencePresentation.sections,
+                  mode: "web_search",
+                  sourceKind: "reference",
+                  warning: referenceResult.warning,
+                  sources: referenceSources,
+                },
+                {
+                  headers: {
+                    "Cache-Control": "no-store",
+                  },
+                },
+              ),
+              "web_search",
+              "web_search",
+              REFERENCE_SEARCH_POLICY_VERSION,
+              {
+                providerOutcome: "success",
+                providerModel: referenceResult.model,
+                providerInputTokens:
+                  referenceResult.usage.inputTokens ?? undefined,
+                providerOutputTokens:
+                  referenceResult.usage.outputTokens ?? undefined,
+              },
+            );
+          }
+        }
+        return complete(
+          unavailableResponse(),
+          "retrieval_no_match",
+          "unavailable",
+          REFERENCE_SEARCH_POLICY_VERSION,
+          {
+            providerOutcome:
+              !referenceResult.ok &&
+              referenceResult.code === "PROVIDER_TIMEOUT"
+                ? "timeout"
+                : !referenceResult.ok &&
+                    referenceResult.code === "PROVIDER_REFUSAL"
+                  ? "refusal"
+                  : !referenceResult.ok &&
+                      (referenceResult.code === "INVALID_OUTPUT" ||
+                        referenceResult.code === "UNVERIFIED_LEGAL_CLAIM" ||
+                        referenceResult.code === "UNTRUSTED_CITATION" ||
+                        referenceResult.code === "MISSING_REFERENCE_CITATION")
+                    ? "invalid_output"
+                    : "error",
+            ...(!referenceResult.ok
+              ? {}
+              : {
+                  providerModel: referenceResult.model,
+                  providerInputTokens:
+                    referenceResult.usage.inputTokens ?? undefined,
+                  providerOutputTokens:
+                    referenceResult.usage.outputTokens ?? undefined,
+                }),
           },
         );
       }

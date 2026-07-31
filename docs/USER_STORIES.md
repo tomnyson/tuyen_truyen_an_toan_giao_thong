@@ -236,32 +236,46 @@ và malformed messages.
   không nhận domain, instruction, tool hoặc provider URL từ client.
 - [x] Nguồn trả lời trực tiếp chỉ gồm HTTPS URL thuộc `vbpl.vn`,
   `vbpl.moj.gov.vn`, `chinhphu.vn` hoặc subdomain chính thức. Kết quả không có
-  ít nhất một `url_citation` chính thức trong final answer phải trả
+  ít nhất một `url_citation` chính thức trong final answer chỉ được mở lượt
+  reference theo DEC-012; nếu reference cũng không đủ điều kiện thì trả
   `unavailable`.
-- [x] `thuvienphapluat.vn` không nằm trong direct-search domain list; chỉ dành
-  cho backoffice discovery tên/số văn bản, không được hiển thị như căn cứ cuối
-  cùng và không đủ điều kiện trả lời nếu chưa tìm được nguồn Chính phủ.
+- [x] Nếu lượt tìm nguồn Chính phủ không có câu trả lời đủ điều kiện, hệ thống
+  được phép thực hiện lượt tìm thứ hai trên exact reference allowlist ban đầu
+  chỉ gồm `thuvienphapluat.vn`. Kết quả này chỉ là tham khảo ngoài, không được
+  gọi là căn cứ pháp lý hoặc nguồn chính thức.
 - [x] Chỉ gửi câu hỏi cuối đã normalize và redaction email/số điện thoại/URL;
   không gửi lịch sử hội thoại, cookie, request ID hay dữ liệu quản trị.
 - [x] Response có `mode=web_search`, cảnh báo “tra cứu trực tuyến, chưa được
-  kiểm duyệt”, và danh sách nguồn Chính phủ có link bấm được. Không lưu kết quả
-  web vào corpus hoặc tự xuất bản.
+  kiểm duyệt”, và danh sách nguồn có link bấm được. Official result dùng
+  `sourceKind=official`; reference result dùng `sourceKind=reference`. Không tự
+  xuất bản kết quả web.
 - [x] UI đặt cảnh báo chưa kiểm duyệt trước nội dung trả lời, luôn nhìn thấy và
-  đọc được bằng công nghệ hỗ trợ; source list có nhãn “Nguồn chính thức đã tra
-  cứu”, link thân thiện và không trình bày candidate draft như reviewed RAG
+  đọc được bằng công nghệ hỗ trợ. Official result có nhãn “Nguồn chính thức đã
+  tra cứu”; reference result có nhãn “Nguồn tham khảo ngoài — cần xác minh”.
+  Link thân thiện và candidate draft không được trình bày như reviewed RAG
   evidence.
 - [x] Câu trả lời tra cứu trực tuyến được chiếu thành các phần ngắn, có nhãn dễ
   hiểu; không hiển thị cú pháp Markdown, HTML, URL dài hoặc domain citation
   trong phần diễn giải. Link duy nhất người dùng bấm được phải lấy từ danh sách
-  `sources` đã qua exact official-URL guard; client không render HTML từ answer
-  và có plain-text fallback khi DTO trình bày sai.
+  `sources` đã qua exact URL guard tương ứng với `sourceKind`; client không
+  render HTML từ answer và có plain-text fallback khi DTO trình bày sai.
 - [x] Direct `web_search` không công khai số tiền, điều-khoản-điểm hoặc ngày
   pháp lý do model sinh chỉ vì có official URL. Các field này chỉ xuất hiện sau
   khi được map vào source/provision/sanction record đã review; output trực tiếp
   có legal numeric/article/date claim phải fail closed.
-- [x] Timeout, HTTP lỗi, refusal, malformed/oversized output, model mismatch,
-  URL ngoài allowlist hoặc thiếu official citation đều fail closed về response
-  `unavailable` hiện có.
+- [x] Kết quả từ reference allowlist phải có `sourceKind=reference`, cảnh báo
+  luôn thấy “không phải nguồn chính thống, cần xác minh”, link đã qua exact
+  HTTPS authority guard và không được persist thành candidate, evidence hoặc
+  corpus RAG.
+- [x] Câu hỏi đời thường có chữ số như “đi xe máy tống 3” không bị chặn chỉ vì
+  có số `3`; nhưng output nguồn tham khảo có số tiền, số hiệu văn bản,
+  điều-khoản-điểm, ngày/tuổi hoặc ngưỡng pháp lý vẫn fail closed.
+- [x] Có regression test cho chuỗi tìm kiếm “đi xe máy tống 3”, thứ tự
+  official-first/reference-second, nhãn UI, exact-domain guard và không persist
+  nguồn tham khảo.
+- [x] Timeout, HTTP lỗi, refusal, malformed/oversized output, model mismatch
+  hoặc URL ngoài allowlist đều fail closed. Thiếu official citation chỉ mở lượt
+  reference theo DEC-012; lượt reference không hợp lệ vẫn trả `unavailable`.
 - [x] Có adapter/route/UI tests cho flag off, missing key, success có official
   citation, discovery-only citation, malicious URL, timeout và curated-first.
 - [ ] Trước production phải duyệt data-control/under-18 disclosure, budget,
@@ -274,6 +288,11 @@ URL guard; `thuvienphapluat.vn` là discovery-only; mọi failure tiếp tục
 `unavailable`. Kết quả không trở thành reviewed RAG evidence và không đi qua
 four-eyes cho đến khi được ingest thành draft riêng.
 
+**Decision bổ sung (2026-07-31):** DEC-012 cho phép lượt reference search thứ
+hai khi lượt official không có kết quả đủ điều kiện. Reference result phải ghi
+rõ không chính thống/cần xác minh, chỉ trả hướng dẫn chung không có chi tiết
+pháp lý định lượng, không persist và không tham gia RAG.
+
 **Evidence:** `lib/openai-web-search.ts` có strict flag/model/config, redaction,
 fixed hosted-tool request, bounded response parser và exact official citation
 guard. `app/api/chat/route.ts` nối curated-first fallback;
@@ -281,10 +300,12 @@ guard. `app/api/chat/route.ts` nối curated-first fallback;
 official links; `.env.example` giữ rollback flag mặc định false.
 `lib/chat-answer-presentation.ts` chiếu provider/reviewed answer thành bounded
 section DTO, loại markup/URL khỏi prose và chỉ để structured `sources` tạo link.
-`tests/openai-web-search.test.mjs` chạy 16/16; typecheck, focused lint và build
+`tests/openai-web-search.test.mjs` có regression official-first/reference-second,
+exact reference guard, không persist và câu “đi xe máy tống 3”; typecheck, lint
+và build
 pass ngày 2026-07-31. Browser smoke với live web-search xác nhận warning đứng
 trước 4 section, source link thân thiện, không có raw Markdown/URL; viewport
-320px có chat panel 296px và không tràn ngang. Full suite 229/232; ba failure
+320px có chat panel 296px và không tràn ngang. Full suite 240/243; ba failure
 không thuộc thay đổi này do commit migration `0006_petite_lady_deathstrike` làm
 test ledger cũ vẫn kỳ vọng `0005` là migration cuối. Story giữ `Partial` vì
 canonical US-004 và production data-control,

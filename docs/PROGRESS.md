@@ -77,6 +77,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | 2026-07-31 | DEC-008 | Catalog snapshot có `available_records|available_empty|unavailable`; success-empty là static overlay ready, unavailable mới degraded 200/no-store; reviewed suppression chặn static resurrection. | US-017 |
 | 2026-07-31 | DEC-009 | AI integration đầu tiên chỉ là offline/local shadow, không import chat/API; `AI_SHADOW_ENABLED=false`, exact allowlist `gpt-5.4-mini|gpt-5.4-mini-2026-03-17`, `store:false`, không web/tool/persist. Route shadow chờ production bundle + `waitUntil` seam. | US-026, US-004 |
 | 2026-07-31 | DEC-010 | RAG no-match có thể gọi direct web search có kiểm soát; chỉ final official citation qua exact URL guard được trả, Thư Viện Pháp Luật discovery-only, output gắn nhãn. Phần không persist được DEC-011 thay hẹp bằng draft-only persistence. | US-027 |
+| 2026-07-31 | DEC-012 | Official web search luôn chạy trước; official no-result được phép chạy reference search trên exact allowlist `thuvienphapluat.vn`. Reference phải ghi rõ không chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist/RAG. | US-027 |
 | 2026-07-31 | DEC-011 | Web result qua official guard được persist thành immutable draft không chứa raw question; chỉ authenticated four-eyes approval mới đưa vào reviewed retrieval/RAG. | US-028, US-013, US-014, US-025 |
 
 ### 2026-07-31 — US-004 chat presentation specification
@@ -384,6 +385,28 @@ này.
   `3523f23` thêm migration `0006_petite_lady_deathstrike`, không do UI slice;
   migration tests vẫn kỳ vọng `0005` là cuối. Không tự sửa/xóa migration ngoài
   scope. Hai AC UX hẹp của US-027 đã check; story vẫn `Partial`.
+
+### 2026-07-31 — US-027 reference fallback
+
+- Acceptance criteria được mở rộng trước implementation theo DEC-012: tìm
+  official trước, chỉ fallback reference khi official no-result.
+- Reference result không phải căn cứ pháp lý: dùng trust label riêng, exact
+  HTTPS host guard, fail closed với chi tiết pháp lý định lượng và không gọi
+  candidate persistence.
+- `lib/openai-web-search.ts` tách official/reference policy và không còn chặn
+  mọi chữ số; số mô tả tình huống được phép nhưng số tiền, văn bản,
+  điều-khoản, ngày/tuổi và ngưỡng pháp lý vẫn fail closed.
+- `/api/chat` reserve/settle budget riêng cho lượt reference, trả
+  `sourceKind=reference`, không gọi persistence; UI hiển thị “Thông tin tham
+  khảo — chưa xác minh” và “Nguồn tham khảo ngoài — cần xác minh”.
+- Focused test xác nhận official-first/reference-second, exact HTTPS authority,
+  domain giả, output pháp lý định lượng, không persist và câu “đi xe máy tống
+  3”. Live API smoke với key hiện có: official adapter no-result thì reference
+  thành công trên `thuvienphapluat.vn`, warning có mặt, không có legal detail.
+- Live UI `/api/chat` với đúng câu trên trả HTTP 200 bằng nguồn official
+  `vbpl.vn` trong 4,2 giây; giao diện hiển thị section ngắn, warning trước nội
+  dung và link nguồn chính thức. `/api/content` local vẫn 503 do dependency
+  riêng, không chặn chat.
 
 ### 2026-07-31 — US-027 allowed-source web fallback
 

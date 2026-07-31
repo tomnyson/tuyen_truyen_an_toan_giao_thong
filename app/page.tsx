@@ -24,7 +24,9 @@ import {
 } from "@/lib/public-showcase";
 import {
   parseOfficialSourceLinks,
+  parseReferenceSourceLinks,
   type OfficialSourceLink,
+  type PublicSourceKind,
 } from "@/lib/official-source-url";
 
 type ChatMessage = {
@@ -33,6 +35,7 @@ type ChatMessage = {
   warning?: string;
   sections?: ChatAnswerSection[];
   sources?: OfficialSourceLink[];
+  sourceKind?: PublicSourceKind;
 };
 
 type PublishedContent = {
@@ -168,12 +171,19 @@ export default function Home() {
         error?: string;
         mode?: string;
         warning?: string;
+        sourceKind?: string;
         sections?: unknown;
         sources?: unknown;
       };
+      const sourceKind: PublicSourceKind =
+        data.mode === "web_search" && data.sourceKind === "reference"
+          ? "reference"
+          : "official";
       const searchedSources =
         data.mode === "web_search" || data.mode === "knowledge"
-          ? parseOfficialSourceLinks(data.sources)
+          ? sourceKind === "reference"
+            ? parseReferenceSourceLinks(data.sources)
+            : parseOfficialSourceLinks(data.sources)
           : [];
       const answerSections =
         data.mode === "web_search" || data.mode === "knowledge"
@@ -190,6 +200,8 @@ export default function Home() {
               : undefined,
           sections: answerSections ?? undefined,
           sources: searchedSources.length > 0 ? searchedSources : undefined,
+          sourceKind:
+            searchedSources.length > 0 ? sourceKind : undefined,
         },
       ]);
     } catch {
@@ -417,7 +429,11 @@ export default function Home() {
                 <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
                   {message.warning && (
                     <p className="chat-warning" role="note">
-                      <strong>Kết quả tra cứu tự động</strong>
+                      <strong>
+                        {message.sourceKind === "reference"
+                          ? "Thông tin tham khảo — chưa xác minh"
+                          : "Kết quả tra cứu tự động"}
+                      </strong>
                       <span>{message.warning}</span>
                     </p>
                   )}
@@ -453,22 +469,35 @@ export default function Home() {
                   {message.sources && (
                     <div className="chat-source-group">
                       <h3>
-                        {message.warning
+                        {message.sourceKind === "reference"
+                          ? "Nguồn tham khảo ngoài — cần xác minh"
+                          : message.warning
                           ? "Nguồn chính thức đã tra cứu"
                           : "Nguồn chính thức"}
                       </h3>
                       <ul className="chat-sources">
                         {message.sources.map((source) => (
                           <li key={source.url}>
-                            <span>{source.title || "Văn bản Chính phủ"}</span>
+                            <span>
+                              {source.title ||
+                                (message.sourceKind === "reference"
+                                  ? "Nguồn tham khảo"
+                                  : "Văn bản Chính phủ")}
+                            </span>
                             <small>{new URL(source.url).hostname}</small>
                             <a
                               href={source.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              aria-label={`Mở nguồn chính thức: ${source.title || "Văn bản Chính phủ"}`}
+                              aria-label={
+                                message.sourceKind === "reference"
+                                  ? `Mở nguồn tham khảo cần xác minh: ${source.title || "Nguồn tham khảo"}`
+                                  : `Mở nguồn chính thức: ${source.title || "Văn bản Chính phủ"}`
+                              }
                             >
-                              Mở nguồn chính thức ↗
+                              {message.sourceKind === "reference"
+                                ? "Mở nguồn tham khảo ↗"
+                                : "Mở nguồn chính thức ↗"}
                             </a>
                           </li>
                         ))}

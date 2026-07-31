@@ -3,6 +3,8 @@ export type OfficialSourceLink = {
   url: string;
 };
 
+export type PublicSourceKind = "official" | "reference";
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -17,7 +19,18 @@ export function isOfficialGovernmentHost(hostname: string): boolean {
   );
 }
 
-export function canonicalOfficialSourceUrl(value: unknown): string | null {
+export function isReferenceSourceHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return (
+    host === "thuvienphapluat.vn" ||
+    host.endsWith(".thuvienphapluat.vn")
+  );
+}
+
+function canonicalSourceUrl(
+  value: unknown,
+  acceptsHost: (hostname: string) => boolean,
+): string | null {
   if (!isNonEmptyString(value) || value.length > 2_048) return null;
   try {
     const url = new URL(value);
@@ -26,7 +39,7 @@ export function canonicalOfficialSourceUrl(value: unknown): string | null {
       url.username ||
       url.password ||
       url.port ||
-      !isOfficialGovernmentHost(url.hostname)
+      !acceptsHost(url.hostname)
     ) {
       return null;
     }
@@ -37,8 +50,17 @@ export function canonicalOfficialSourceUrl(value: unknown): string | null {
   }
 }
 
-export function parseOfficialSourceLinks(
+export function canonicalOfficialSourceUrl(value: unknown): string | null {
+  return canonicalSourceUrl(value, isOfficialGovernmentHost);
+}
+
+export function canonicalReferenceSourceUrl(value: unknown): string | null {
+  return canonicalSourceUrl(value, isReferenceSourceHost);
+}
+
+function parseSourceLinks(
   value: unknown,
+  canonicalize: (value: unknown) => string | null,
   maximum = 8,
 ): OfficialSourceLink[] {
   if (!Array.isArray(value)) return [];
@@ -52,9 +74,7 @@ export function parseOfficialSourceLinks(
     ) {
       continue;
     }
-    const url = canonicalOfficialSourceUrl(
-      (item as OfficialSourceLink).url,
-    );
+    const url = canonicalize((item as OfficialSourceLink).url);
     if (!url || seen.has(url)) continue;
     seen.add(url);
     parsed.push({
@@ -64,4 +84,18 @@ export function parseOfficialSourceLinks(
     if (parsed.length >= maximum) break;
   }
   return parsed;
+}
+
+export function parseOfficialSourceLinks(
+  value: unknown,
+  maximum = 8,
+): OfficialSourceLink[] {
+  return parseSourceLinks(value, canonicalOfficialSourceUrl, maximum);
+}
+
+export function parseReferenceSourceLinks(
+  value: unknown,
+  maximum = 8,
+): OfficialSourceLink[] {
+  return parseSourceLinks(value, canonicalReferenceSourceUrl, maximum);
 }

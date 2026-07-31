@@ -21,8 +21,9 @@ RAG, nhưng hiện chưa có bằng chứng về một API công khai, có versi
 
 API key của model không thay thế nguồn dữ liệu. Evidence composer chỉ nhận câu
 hỏi đã sanitize và evidence bundle đã truy xuất. Direct-search boundary của
-US-027 chỉ nhận câu hỏi cuối đã redact, chỉ tìm nguồn Chính phủ; thiếu final
-official citation thì trả `unavailable`.
+US-027 chỉ nhận câu hỏi cuối đã redact và luôn tìm nguồn Chính phủ trước. Theo
+DEC-012, official no-result có thể mở lượt reference riêng với nhãn không chính
+thống/cần xác minh; reference result không được persist hay làm evidence RAG.
 
 ## 2. Kết quả kiểm tra nguồn chính thức
 
@@ -205,14 +206,14 @@ Tài liệu chính thức:
 - Server validate ID rồi gắn citation/URL/mức xử lý từ D1.
 - Missing key, timeout, malformed output hoặc citation ID lạ → curated response
   nếu đủ dữ liệu, nếu không → `unavailable`.
-- Nếu retrieval không match và exact `AI_WEB_SEARCH_ENABLED=true`, direct
-  fallback dùng hosted `web_search`, `tool_choice=required`,
-  `search_context_size=low` và official-only domain filter.
-- Final answer phải có ít nhất một HTTPS `url_citation` qua exact authority
-  guard. `thuvienphapluat.vn` không nằm trong direct allowlist; chỉ dành cho
-  backoffice discovery riêng.
-- Direct result gắn nhãn chưa kiểm duyệt, trả link Chính phủ, `no-store` và
-  không tự nhập vào database/RAG.
+- Nếu retrieval không match và exact `AI_WEB_SEARCH_ENABLED=true`, lượt đầu
+  dùng hosted `web_search`, `tool_choice=required`, `search_context_size=low`
+  và official-only domain filter.
+- Official no-result được phép chạy lượt thứ hai chỉ trên
+  `thuvienphapluat.vn`. Result phải ghi rõ đây là nguồn tham khảo ngoài, không
+  chính thống và cần xác minh; không được trả chi tiết pháp lý định lượng.
+- Official result hợp lệ mới được lưu candidate draft. Reference result luôn
+  `no-store`, không tự nhập database/RAG và không được dùng làm căn cứ pháp lý.
 
 ## 7. Env/binding cần có
 

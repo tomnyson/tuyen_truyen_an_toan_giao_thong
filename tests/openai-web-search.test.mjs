@@ -36,19 +36,22 @@ registerHooks({
 });
 
 const {
+  DISCOVERY_ONLY_SEARCH_DOMAINS,
   WEB_SEARCH_DOMAINS,
   canonicalOfficialSourceUrl,
+  canonicalReferenceSourceUrl,
   containsUnverifiedLegalClaim,
   readOpenAiWebSearchConfig,
   sanitizeWebSearchQuestion,
   searchAllowedLegalSources,
+  searchReferenceLegalSources,
 } = await import("../lib/openai-web-search.ts");
 const {
   parseChatAnswerSections,
   projectPublicWebSearchAnswer,
   reviewedCitationsToLegalBasisSection,
 } = await import("../lib/chat-answer-presentation.ts");
-const { parseOfficialSourceLinks } = await import(
+const { parseOfficialSourceLinks, parseReferenceSourceLinks } = await import(
   "../lib/official-source-url.ts"
 );
 const { createChatHandler } = await import("../app/api/chat/route.ts");
@@ -234,6 +237,18 @@ test("detects legal amounts, provisions, document numbers, dates and ages in dir
     ),
     false,
   );
+  assert.equal(
+    containsUnverifiedLegalClaim(
+      "Bạn đang hỏi về tình huống đi xe máy tống 3; nên dừng xe và chọn cách di chuyển an toàn hơn.",
+    ),
+    false,
+  );
+  assert.equal(
+    containsUnverifiedLegalClaim(
+      "Theo quy định chỉ được chở tối đa 2 người.",
+    ),
+    true,
+  );
 });
 
 test("public answer projector rejects active content and section parser fails closed", () => {
@@ -279,7 +294,11 @@ test("chat UI keeps warning, structured text and canonical source actions in saf
   assert.ok(sectionsIndex < sourcesIndex);
   assert.match(pageSource, /parseChatAnswerSections\(data\.sections\)/);
   assert.match(pageSource, /parseOfficialSourceLinks\(data\.sources\)/);
+  assert.match(pageSource, /parseReferenceSourceLinks\(data\.sources\)/);
   assert.match(pageSource, /Nguồn chính thức đã tra cứu/);
+  assert.match(pageSource, /Nguồn tham khảo ngoài — cần xác minh/);
+  assert.match(pageSource, /Thông tin tham khảo — chưa xác minh/);
+  assert.match(pageSource, /Mở nguồn tham khảo ↗/);
   assert.match(pageSource, /Mở nguồn chính thức ↗/);
   assert.match(pageSource, /target="_blank"/);
   assert.match(pageSource, /rel="noopener noreferrer"/);
@@ -341,6 +360,45 @@ test("the UI source parser keeps only deduplicated official links", () => {
   );
 });
 
+test("the reference parser accepts only exact HTTPS reference authorities", () => {
+  assert.equal(
+    canonicalReferenceSourceUrl(
+      "https://thuvienphapluat.vn/van-ban/giao-thong#noi-dung",
+    ),
+    "https://thuvienphapluat.vn/van-ban/giao-thong",
+  );
+  assert.deepEqual(
+    parseReferenceSourceLinks([
+      {
+        title: "Thư Viện Pháp Luật",
+        url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+      },
+      {
+        title: "Tên miền giả",
+        url: "https://thuvienphapluat.vn.evil.test/van-ban",
+      },
+      {
+        title: "Nguồn Chính phủ không thuộc reference allowlist",
+        url: "https://vbpl.vn/document",
+      },
+    ]),
+    [
+      {
+        title: "Thư Viện Pháp Luật",
+        url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+      },
+    ],
+  );
+  for (const invalid of [
+    "http://thuvienphapluat.vn/van-ban",
+    "https://user@thuvienphapluat.vn/van-ban",
+    "https://thuvienphapluat.vn:8443/van-ban",
+    "https://thuvienphapluat.vn.evil.test/van-ban",
+  ]) {
+    assert.equal(canonicalReferenceSourceUrl(invalid), null);
+  }
+});
+
 test("sends a required, store-false, server-allowlisted search and returns official citations", async () => {
   let requestBody;
   const result = await searchAllowedLegalSources(
@@ -360,6 +418,7 @@ test("sends a required, store-false, server-allowlisted search and returns offic
   );
 
   assert.equal(result.ok, true);
+  assert.equal(result.sourceKind, "official");
   assert.deepEqual(requestBody.tools, [
     {
       type: "web_search",
@@ -390,6 +449,93 @@ test("sends a required, store-false, server-allowlisted search and returns offic
   ]);
   assert.doesNotMatch(result.answer, /\*\*|\[[^\]]+\]\(|https?:\/\//);
   assert.equal(result.usage.totalTokens, 120);
+});
+
+test("reference search is separately allowlisted and visibly unverified", async () => {
+  let requestBody;
+  const result = await searchReferenceLegalSources(
+    {
+      enabled: true,
+      apiKey: "fake-secret",
+      model: "gpt-5.4-mini",
+      timeoutMs: 1_000,
+    },
+    "đi xe máy tống 3",
+    {
+      fetch: async (_url, init) => {
+        requestBody = JSON.parse(init.body);
+        return providerResponse({
+          url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+          title: "Bài viết tham khảo",
+          text: "Kết luận: Bạn đang hỏi về tình huống đi xe máy tống 3.\nBạn nên làm gì: Hãy chọn cách di chuyển an toàn hơn và xác minh bằng nguồn chính thức.",
+        });
+      },
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.sourceKind, "reference");
+  assert.deepEqual(requestBody.tools[0].filters.allowed_domains, [
+    ...DISCOVERY_ONLY_SEARCH_DOMAINS,
+  ]);
+  assert.match(result.warning, /không phải nguồn chính thống/i);
+  assert.match(result.warning, /xác minh/i);
+  assert.deepEqual(result.sources, [
+    {
+      title: "Bài viết tham khảo",
+      url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+    },
+  ]);
+});
+
+test("reference search rejects deceptive domains and legal detail claims", async () => {
+  const deceptive = await searchReferenceLegalSources(
+    { enabled: true, apiKey: "fake-secret" },
+    "đi xe máy tống 3",
+    {
+      fetch: async () =>
+        providerResponse({
+          url: "https://thuvienphapluat.vn.evil.test/van-ban",
+          text: "Kết luận: Hãy chọn cách di chuyển an toàn hơn.",
+        }),
+    },
+  );
+  assert.deepEqual(deceptive, {
+    ok: false,
+    code: "UNTRUSTED_CITATION",
+  });
+
+  const legalDetail = await searchReferenceLegalSources(
+    { enabled: true, apiKey: "fake-secret" },
+    "đi xe máy tống 3",
+    {
+      fetch: async () =>
+        providerResponse({
+          url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+          text: "Kết luận: Mức phạt là 400.000 đồng.",
+        }),
+    },
+  );
+  assert.deepEqual(legalDetail, {
+    ok: false,
+    code: "UNVERIFIED_LEGAL_CLAIM",
+  });
+
+  const missingCitation = await searchReferenceLegalSources(
+    { enabled: true, apiKey: "fake-secret" },
+    "đi xe máy tống 3",
+    {
+      fetch: async () =>
+        providerResponse({
+          annotations: [],
+          text: "Kết luận: Hãy chọn cách di chuyển an toàn hơn.",
+        }),
+    },
+  );
+  assert.deepEqual(missingCitation, {
+    ok: false,
+    code: "MISSING_REFERENCE_CITATION",
+  });
 });
 
 test("fails closed when final citation is discovery-only or authority is deceptive", async () => {
@@ -671,6 +817,7 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
       },
     ],
     mode: "web_search",
+    sourceKind: "official",
     warning: "Chưa kiểm duyệt.",
     sources: [
       {
@@ -692,6 +839,93 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
       bullets: [],
     },
   ]);
+  for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
+    delete globalThis.__webSearchWorkerEnv[key];
+  }
+});
+
+test("chat falls back to a non-persisted reference for đi xe máy tống 3", async () => {
+  let officialCalls = 0;
+  let referenceCalls = 0;
+  let reserveCalls = 0;
+  let settleCalls = 0;
+  let persisted = 0;
+  Object.assign(globalThis.__webSearchWorkerEnv, {
+    AI_WEB_SEARCH_ENABLED: "true",
+    OPENAI_API_KEY: "test-key",
+    OPENAI_MODEL: "gpt-5.4-mini",
+  });
+  const chat = createChatHandler({
+    limiter: () => ({ consumeChat: async () => allowed }),
+    telemetry: { emit() {} },
+    managedAnswer: async () => null,
+    curatedAnswer: () => null,
+    reviewedWebAnswer: async () => null,
+    reserveWebBudget: async () => {
+      reserveCalls += 1;
+      return {
+        dayStart: reserveCalls,
+        reservedTokens: 12_000,
+      };
+    },
+    settleWebBudget: async () => {
+      settleCalls += 1;
+      return true;
+    },
+    persistWebCandidate: async () => {
+      persisted += 1;
+      return "33333333-3333-4333-8333-333333333333";
+    },
+    webSearch: async (_config, question) => {
+      officialCalls += 1;
+      assert.equal(question, "đi xe máy tống 3");
+      return { ok: false, code: "MISSING_OFFICIAL_CITATION" };
+    },
+    referenceWebSearch: async (_config, question) => {
+      referenceCalls += 1;
+      assert.equal(question, "đi xe máy tống 3");
+      return {
+        ok: true,
+        sourceKind: "reference",
+        answer:
+          "Kết luận: Bạn đang hỏi về tình huống đi xe máy tống 3.\nBạn nên làm gì: Hãy chọn cách di chuyển an toàn hơn và xác minh bằng nguồn chính thức.",
+        warning:
+          "Nguồn tham khảo ngoài, không phải nguồn chính thống; cần xác minh.",
+        sources: [
+          {
+            title: "Bài viết tham khảo",
+            url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+          },
+        ],
+        model: "gpt-5.4-mini",
+        usage: {
+          inputTokens: 2,
+          outputTokens: 2,
+          totalTokens: 4,
+        },
+      };
+    },
+  });
+
+  const response = await chat(chatRequest("đi xe máy tống 3"));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const body = await response.json();
+  assert.equal(body.mode, "web_search");
+  assert.equal(body.sourceKind, "reference");
+  assert.match(body.warning, /không phải nguồn chính thống/i);
+  assert.match(body.warning, /xác minh/i);
+  assert.deepEqual(body.sources, [
+    {
+      title: "Bài viết tham khảo",
+      url: "https://thuvienphapluat.vn/van-ban/giao-thong",
+    },
+  ]);
+  assert.equal(officialCalls, 1);
+  assert.equal(referenceCalls, 1);
+  assert.equal(reserveCalls, 2);
+  assert.equal(settleCalls, 2);
+  assert.equal(persisted, 0);
   for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
     delete globalThis.__webSearchWorkerEnv[key];
   }

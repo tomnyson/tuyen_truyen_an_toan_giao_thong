@@ -231,20 +231,25 @@ Mỗi kết quả phải hiển thị:
 - Khi managed/curated retrieval không match và feature flag được bật, có thể
   dùng `web_search` trong danh sách nguồn cố định. Kết quả phải có citation
   Chính phủ đã được server kiểm tra URL, gắn nhãn chưa kiểm duyệt và dùng mode
-  `web_search`; nếu thiếu nguồn chính thức thì vẫn `unavailable`.
+  `web_search`. Nếu lượt official không đủ điều kiện, hệ thống có thể chạy lượt
+  reference thứ hai trên exact allowlist cố định và phải trả
+  `sourceKind=reference`.
 - Với `web_search`, cảnh báo “kết quả tra cứu tự động, chưa được kiểm duyệt nội
   dung” phải xuất hiện trước phần nội dung trả lời, luôn nhìn thấy và đọc được
-  bằng công nghệ hỗ trợ; danh sách link dùng nhãn “Nguồn chính thức đã tra cứu”.
+  bằng công nghệ hỗ trợ. Official result dùng nhãn “Nguồn chính thức đã tra
+  cứu”; reference result dùng nhãn “Nguồn tham khảo ngoài — cần xác minh”.
 - `unavailable`, lỗi kết nối và lỗi hệ thống là các trạng thái trình bày khác
   nhau. `unavailable` phải nói rõ chưa đủ thông tin đã duyệt và gợi ý bước tiếp
   theo an toàn, không hiển thị như một kết luận pháp lý và không lộ lỗi/provider
   nội bộ.
-- Kết quả web đủ điều kiện phải được lưu thành candidate `draft` không chứa raw
-  question trước khi trả response. Candidate không trở thành corpus RAG cho tới
-  khi editor và reviewer độc lập hoàn tất quy trình bốn mắt.
-- `thuvienphapluat.vn` không nằm trong direct-search allowlist; chỉ là nguồn
-  backoffice discovery để tìm văn bản, không được dùng làm citation cuối cùng
-  hoặc tự động đưa vào corpus.
+- Official web result đủ điều kiện phải được lưu thành candidate `draft` không
+  chứa raw question trước khi trả response. Candidate không trở thành corpus
+  RAG cho tới khi editor và reviewer độc lập hoàn tất quy trình bốn mắt.
+  Reference result luôn live/no-store và không được persist.
+- `thuvienphapluat.vn` không được dùng làm căn cứ pháp lý cuối cùng. Nguồn này
+  chỉ được dùng ở lượt reference sau official no-result, phải ghi rõ “không
+  chính thống, cần xác minh”, không hiển thị chi tiết pháp lý định lượng và
+  không được persist hoặc tự động đưa vào corpus.
 - Intent ảnh riêng tư/nhạy cảm phải ưu tiên safety guidance; intent bản quyền
   chỉ match dấu hiệu tác giả/tác phẩm/giấy phép/ghi nguồn. Từ chung “hình ảnh”
   hoặc câu mơ hồ không được tự chọn một nhánh.
@@ -455,7 +460,8 @@ type LegalAnswerResponse = {
 - Danh sách hai URL nguồn chính thức còn được phép hiển thị.
 - Chat kiểm tra message, ưu tiên dữ liệu quản trị đã publish rồi dữ liệu nền;
   câu không match chỉ gọi allowed-source web fallback khi flag bật, còn flag
-  tắt hoặc thiếu official citation thì trả `unavailable`.
+  tắt thì trả `unavailable`. Thiếu official citation có thể mở lượt reference
+  theo DEC-012; reference lỗi/không hợp lệ vẫn trả `unavailable`.
 - CMS CRUD cho `legal_entries` và `showcases`, trạng thái `draft/published`.
 - Cookie session ký HMAC, hết hạn sau 8 giờ, kiểm tra origin cho mutation.
 - Public API chỉ lấy record `published`.
@@ -584,6 +590,7 @@ activation; do đó production deployment vẫn bị chặn.
 | 2026-07-31 | DEC-008 | Catalog phân biệt managed success-empty với dependency unavailable; static baseline là normal overlay, còn unavailable dùng degraded fallback. | Degraded trả HTTP 200 + `dataState=degraded` + no-store; reviewed suppression áp dụng cả fallback, managed-only key hợp lệ không phải orphan và local slice không đóng production migration gate. |
 | 2026-07-31 | DEC-009 | AI integration đầu tiên chỉ là offline/local shadow, không import vào chat/API route; dùng `AI_SHADOW_ENABLED=false` mặc định và `OPENAI_API_KEY` server-only hiện có. Exact model allowlist là `gpt-5.4-mini` + snapshot `gpt-5.4-mini-2026-03-17`. | Chỉ non-user technical fixture được gửi với `store:false`, không web/tool/persist. `store:false` không phải ZDR; dữ liệu học sinh cần data-control + under-18 privacy/safety gate. Route shadow còn chờ production bundle + `waitUntil`; direct `ai_assisted` cần gate riêng. |
 | 2026-07-31 | DEC-010 | Khi RAG không match, chủ dự án cho phép direct web-search fallback có kiểm soát. | Chỉ final answer có ít nhất một official `url_citation` qua exact HTTPS authority guard mới được trả với nhãn chưa kiểm duyệt; Thư Viện Pháp Luật discovery-only; flag off hoặc mọi validation/provider failure vẫn `unavailable`. Quyết định này không biến web result thành reviewed corpus và không nới gate của evidence-bound `ai_assisted`. |
+| 2026-07-31 | DEC-012 | Khi official web search không có câu trả lời đủ điều kiện, cho phép thêm một lượt reference search có kiểm soát. | Reference allowlist ban đầu chỉ có `thuvienphapluat.vn`; output phải ghi rõ không chính thống/cần xác minh, không có chi tiết pháp lý định lượng, không persist/candidate/RAG và không được gọi là căn cứ pháp lý. |
 | 2026-07-31 | DEC-011 | Kết quả web qua official guard được lưu thành immutable draft không chứa raw question. | D1 persistence là điều kiện trước khi trả web result; chỉ stable principal + independent reviewer mới publish candidate vào reviewed retrieval. |
 
 ## 16. Open questions cần chủ dự án xác nhận

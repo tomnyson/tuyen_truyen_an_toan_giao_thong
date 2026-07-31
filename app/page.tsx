@@ -59,6 +59,22 @@ function parseTags(value: string) {
   }
 }
 
+function reviewedLegalBasis(item: LawItem) {
+  if (!item.citation) return "Đang kiểm chứng căn cứ hiện hành";
+  const provision = [
+    item.citation.point ? `Điểm ${item.citation.point}` : "",
+    `khoản ${item.citation.clause}`,
+    `Điều ${item.citation.article}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return `${provision} Nghị định ${item.citation.documentNumber}`;
+}
+
+function reviewedPenalty(item: LawItem) {
+  return item.reviewedSanction?.summary ?? "Chưa công bố mức tham khảo";
+}
+
 const initialChatMessage: ChatMessage = {
   role: "assistant",
   content: "Chào bạn! Mình là trợ lý tra cứu Luật Học Đường. Bạn có thể hỏi về giao thông hoặc an toàn trên mạng nhé.",
@@ -296,7 +312,7 @@ export default function Home() {
                   <th>Hành vi</th>
                   <th>Căn cứ pháp lý</th>
                   <th>Mức phạt tham khảo</th>
-                  <th>Khắc phục</th>
+                  <th>Việc nên làm</th>
                   <th><span className="sr-only">Xem chi tiết</span></th>
                 </tr>
               </thead>
@@ -304,8 +320,8 @@ export default function Home() {
                 {filteredLaws.map((item) => (
                   <tr key={item.id}>
                     <td><span className="row-icon">{item.icon}</span><strong>{item.title}</strong></td>
-                    <td>{item.legal}</td>
-                    <td><span className="penalty">{item.penalty}</span></td>
+                    <td>{reviewedLegalBasis(item)}</td>
+                    <td><span className="penalty">{reviewedPenalty(item)}</span></td>
                     <td>{item.remedy}</td>
                     <td><button className="detail-button" onClick={() => setSelectedLaw(item)} aria-label={`Xem tình huống: ${item.title}`}>→</button></td>
                   </tr>
@@ -367,8 +383,20 @@ export default function Home() {
             <span className="modal-topic">{selectedLaw.topic}</span>
             <h2 id="modal-title">{selectedLaw.title}</h2>
             <div className="modal-facts">
-              <div><span>Căn cứ</span><strong>{selectedLaw.legal}</strong></div>
-              <div><span>Mức phạt tham khảo</span><strong>{selectedLaw.penalty}</strong></div>
+              <div>
+                <span>Căn cứ</span>
+                <strong>{reviewedLegalBasis(selectedLaw)}</strong>
+                {selectedLaw.citation && (
+                  <a
+                    href={selectedLaw.citation.officialUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Mở nguồn chính thức
+                  </a>
+                )}
+              </div>
+              <div><span>Mức phạt tham khảo</span><strong>{reviewedPenalty(selectedLaw)}</strong></div>
             </div>
             <div className="story-box"><span>TÌNH HUỐNG MINH HỌA</span><p>{selectedLaw.caseStudy}</p></div>
             <div className="tag-row">{selectedLaw.tags.map((tag) => <span key={tag}>#{tag}</span>)}</div>
@@ -396,7 +424,11 @@ export default function Home() {
                   {message.sections ? (
                     <div className="chat-answer-sections">
                       {message.sections.map((section) => (
-                        <section key={section.kind}>
+                        <section
+                          key={section.kind}
+                          className={`chat-answer-section chat-answer-section-${section.kind.replaceAll("_", "-")}`}
+                          data-kind={section.kind}
+                        >
                           <h3>{chatAnswerSectionTitle(section.kind)}</h3>
                           {section.paragraphs.map((paragraph, paragraphIndex) => (
                             <p key={`${section.kind}-p-${paragraphIndex}`}>
@@ -420,7 +452,11 @@ export default function Home() {
                   )}
                   {message.sources && (
                     <div className="chat-source-group">
-                      <h3>Nguồn chính thức đã tra cứu</h3>
+                      <h3>
+                        {message.warning
+                          ? "Nguồn chính thức đã tra cứu"
+                          : "Nguồn chính thức"}
+                      </h3>
                       <ul className="chat-sources">
                         {message.sources.map((source) => (
                           <li key={source.url}>

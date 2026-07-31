@@ -34,6 +34,7 @@ type CandidateCitation = {
   article?: string;
   clause?: string;
   point?: string;
+  issuedAt?: string;
   effectiveFrom: string;
   effectiveTo?: string;
   lastVerifiedAt: string;
@@ -308,6 +309,7 @@ function CandidatePanel() {
         citations: candidate.sources.map((source) => ({
           ...source,
           documentNumber: "",
+          issuedAt: "",
           effectiveFrom: "",
           lastVerifiedAt: today,
         })),
@@ -402,6 +404,7 @@ function CandidatePanel() {
               <a href={citation.url} target="_blank" rel="noreferrer">{citation.title}</a>
               <div className="admin-form-grid">
                 <label>Số hiệu văn bản<input required value={citation.documentNumber} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, documentNumber: event.target.value } : item) })} /></label>
+                <label>Ngày ban hành<input type="date" required value={citation.issuedAt ?? ""} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, issuedAt: event.target.value } : item) })} /></label>
                 <label>Ngày hiệu lực<input type="date" required value={citation.effectiveFrom} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, effectiveFrom: event.target.value } : item) })} /></label>
                 <label>Ngày hết hiệu lực<input type="date" value={citation.effectiveTo ?? ""} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, effectiveTo: event.target.value || undefined } : item) })} /></label>
                 <label>Ngày kiểm chứng<input type="date" required value={citation.lastVerifiedAt} onChange={(event) => setDraft({ ...draft, citations: draft.citations.map((item, itemIndex) => itemIndex === index ? { ...item, lastVerifiedAt: event.target.value } : item) })} /></label>

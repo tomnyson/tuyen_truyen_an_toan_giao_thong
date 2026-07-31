@@ -35,6 +35,7 @@ registerHooks({
 const {
   findReviewedWebCandidate,
   listWebSearchCandidates,
+  normalizeReviewedCandidateSnapshot,
   persistWebSearchCandidate,
   reserveWebSearchBudget,
   resolveEditorialActor,
@@ -158,12 +159,25 @@ function validSnapshot() {
         url: "https://vanban.chinhphu.vn/quy-dinh-mu-bao-hiem",
         documentNumber: "NĐ-TEST/2026",
         article: "Điều 1",
+        issuedAt: "2025-12-01",
         effectiveFrom: "2026-01-01",
         lastVerifiedAt: "2026-07-31",
       },
     ],
   };
 }
+
+test("legacy reviewed snapshots stay retrievable while new revisions require issuedAt", () => {
+  const legacy = validSnapshot();
+  delete legacy.citations[0].issuedAt;
+  assert.ok(normalizeReviewedCandidateSnapshot(legacy));
+  assert.equal(
+    normalizeReviewedCandidateSnapshot(legacy, undefined, {
+      requireIssuedAt: true,
+    }),
+    null,
+  );
+});
 
 test("0005 is idempotent, append-only and contains no raw-question field", () => {
   const database = createDatabase();

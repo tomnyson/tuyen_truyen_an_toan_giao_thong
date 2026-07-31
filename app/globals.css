@@ -176,6 +176,12 @@ footer { border-top: 2px solid var(--ink); padding: 34px clamp(24px, 7vw, 110px)
 .chat-warning span { color: #424a5d; }
 .chat-answer-sections { display: grid; gap: 12px; white-space: normal; }
 .chat-answer-sections section { display: grid; gap: 5px; }
+.chat-answer-section { padding: 10px; border: 1px solid rgba(20, 27, 45, .22); border-radius: 10px; background: rgba(255, 255, 255, .52); }
+.chat-answer-section-summary { border-left: 4px solid var(--blue); }
+.chat-answer-section-legal-basis { border-left: 4px solid #2c8d72; }
+.chat-answer-section-sanctions { border-left: 4px solid #d49c00; background: rgba(255, 226, 122, .38); }
+.chat-answer-section-legal-remedies, .chat-answer-section-next-steps { border-left: 4px solid #7358b5; }
+.chat-answer-section-limitations { background: rgba(255, 255, 255, .34); }
 .chat-answer-sections h3, .chat-source-group h3 { margin: 0; font-size: 11px; color: #173f9f; letter-spacing: .15px; }
 .chat-answer-sections ul { margin: 1px 0 0; padding-left: 18px; }
 .chat-answer-sections li + li { margin-top: 3px; }

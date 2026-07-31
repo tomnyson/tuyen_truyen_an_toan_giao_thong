@@ -81,8 +81,21 @@
   answer revision; thiếu bất kỳ phần bắt buộc nào trả contract `unavailable`
   ổn định với mảng rỗng.
 - [ ] Frontend render từng phần với nhãn rõ ràng.
+- [ ] UI answered-state có các khối riêng, theo thứ tự dễ đọc:
+  `Trả lời ngắn` → `Giải thích` → `Ví dụ dễ hiểu` → `Căn cứ pháp lý`
+  → `Mức phạt tham khảo` → `Biện pháp khắc phục theo văn bản`
+  → `Cách xử lý / việc nên làm` → `Điều cần lưu ý`; khối không có dữ liệu hợp
+  lệ phải bị bỏ thay vì hiển thị tiêu đề hoặc giá trị đoán.
+- [ ] Card căn cứ hiển thị tên/số văn bản, điều-khoản-điểm, ngày ban hành,
+  ngày có hiệu lực/hết hiệu lực nếu có, lần kiểm chứng và link Chính phủ.
+  Card mức phạt hiển thị số tiền/biện pháp cùng chủ thể, độ tuổi, phương tiện,
+  điều kiện/ngoại lệ áp dụng và nhãn “tham khảo”.
+- [ ] `legalRemedies` (biện pháp khắc phục hậu quả theo văn bản) và
+  `recommendedActions` (gợi ý thực tế/an toàn cho người dùng) là hai field và
+  hai nhãn khác nhau; không trình bày gợi ý của AI như nghĩa vụ pháp lý.
 - [ ] Trong nội dung trả lời, frontend render theo thứ tự deterministic `Kết
-  luận` → `Giải thích` → `Ví dụ` → `Bạn nên làm gì` → `Căn cứ`; cảnh báo bắt
+  luận` → `Giải thích` → `Ví dụ` → `Căn cứ` → `Mức phạt` → `Biện pháp khắc
+  phục` → `Bạn nên làm gì` → `Lưu ý`; cảnh báo bắt
   buộc của mode được đặt trước nội dung, section optional rỗng bị bỏ và không
   có heading rỗng. Kết luận là 1–2 câu dễ hiểu, không buộc học sinh phải biết
   thuật ngữ pháp lý.
@@ -242,6 +255,10 @@ và malformed messages.
   trong phần diễn giải. Link duy nhất người dùng bấm được phải lấy từ danh sách
   `sources` đã qua exact official-URL guard; client không render HTML từ answer
   và có plain-text fallback khi DTO trình bày sai.
+- [x] Direct `web_search` không công khai số tiền, điều-khoản-điểm hoặc ngày
+  pháp lý do model sinh chỉ vì có official URL. Các field này chỉ xuất hiện sau
+  khi được map vào source/provision/sanction record đã review; output trực tiếp
+  có legal numeric/article/date claim phải fail closed.
 - [x] Timeout, HTTP lỗi, refusal, malformed/oversized output, model mismatch,
   URL ngoài allowlist hoặc thiếu official citation đều fail closed về response
   `unavailable` hiện có.
@@ -272,6 +289,10 @@ không thuộc thay đổi này do commit migration `0006_petite_lady_deathstrik
 test ledger cũ vẫn kỳ vọng `0005` là migration cuối. Story giữ `Partial` vì
 canonical US-004 và production data-control,
 under-18 disclosure, budget/rate limit/telemetry và rollout review còn mở.
+Safety/presentation increment cùng ngày nâng focused suite lên **21/21**:
+direct web có amount/article/document/date/age claim hoặc section pháp lý
+canonical bị từ chối `UNVERIFIED_LEGAL_CLAIM`; source Chính phủ đơn thuần không
+được coi là claim validation.
 
 ### [ ] US-028 — Lưu, duyệt và tái sử dụng kết quả tra cứu trực tuyến
 

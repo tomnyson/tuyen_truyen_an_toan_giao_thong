@@ -1014,6 +1014,24 @@ type ChatPresentation =
       explanation: string;
       examples: Array<{ title: string; scenario: string; outcome: string }>;
       recommendedActions: string[];
+      legalRemedies: Array<{
+        summary: string;
+        sanctionId: number;
+        provisionId: number;
+      }>;
+      sanctions: Array<{
+        sanctionId: number;
+        provisionId: number;
+        measureType: "fine" | "warning" | "remedy" | "other";
+        summary: string;
+        amountMin: number | null;
+        amountMax: number | null;
+        currency: "VND" | null;
+        subjectType: string;
+        ageMin: number | null;
+        ageMax: number | null;
+        applicabilityConditions: string[];
+      }>;
       citations: LegalCitation[];
     }
   | {
@@ -1051,8 +1069,10 @@ Quy tắc render:
 1. Mode badge/cảnh báo bắt buộc xuất hiện trước nội dung. Với `web_search`, dùng
    nguyên semantic “Kết quả tra cứu tự động, chưa được kiểm duyệt nội dung” và
    không dùng từ “đã duyệt”, “đã xác minh” hoặc “RAG” cho kết quả đó.
-2. Trong phần answer, thứ tự là `Kết luận`, `Giải thích`, `Ví dụ`, `Bạn nên làm
-   gì`, `Căn cứ`. Kết luận là answer section đầu tiên và giới hạn 1–2 câu.
+2. Presentation answered-state dùng một thứ tự duy nhất: `Trả lời ngắn`
+   → `Giải thích` → `Ví dụ dễ hiểu` → `Căn cứ pháp lý` → `Mức phạt tham khảo`
+   → `Biện pháp khắc phục theo văn bản` → `Cách xử lý / việc nên làm`
+   → `Điều cần lưu ý`. Kết luận là answer section đầu tiên và giới hạn 1–2 câu.
    Section optional rỗng không render.
 3. Mọi text field được React/text renderer escape mặc định. Không dùng
    `dangerouslySetInnerHTML`; không để lộ literal Markdown/HTML/JSON. Nếu cần
@@ -1063,14 +1083,36 @@ Quy tắc render:
    action name là “Mở nguồn chính thức”, đồng thời hiển thị official host.
    Link mở tab mới với `rel="noopener noreferrer"` và accessible name phải đủ
    để phân biệt nhiều nguồn.
-5. `unavailable` không render các section citation/sanction/conclusion pháp lý.
+   Citation card còn hiển thị `issuedAt`, `effectiveFrom`, optional
+   `effectiveTo`, `lastVerifiedAt` từ canonical source/provision revision.
+   Candidate revision mới bắt buộc có `issuedAt`. Snapshot published đời cũ
+   thiếu field này vẫn được retrieval để tránh mất nội dung, nhưng citation đó
+   không được dựng thành legal-basis card cho tới khi có revision mới đã duyệt.
+   Production RAG chỉ nhận sanction từ `legal_sanctions` thuộc cùng validated
+   evidence bundle. Trong giai đoạn chuyển tiếp, curated fixture chỉ được hiển
+   thị sanction nếu có `reviewedSanction` riêng và citation có explicit
+   article/clause/point đã qua four-eyes; tuyệt đối không parse từ `penalty`,
+   `legalBasis` hoặc prose. Card hiển thị subject/age/vehicle/condition cạnh
+   amount và luôn mang nhãn “tham khảo”.
+5. `legalRemedies` là nghĩa vụ/biện pháp có sanction/provision ID;
+   `recommendedActions` là hướng xử lý thực tế và an toàn. Hai nhóm render tách
+   biệt. Text mang nghĩa vụ pháp lý nhưng không có evidence ID phải bị loại.
+6. `unavailable` không render các section citation/sanction/conclusion pháp lý.
    Title/message nói rõ chưa đủ thông tin đã duyệt; `nextActions` có 1–2 lựa
    chọn an toàn như thu hẹp câu hỏi hoặc mở nguồn chính thức. Không lộ
    stack/provider/config. `error`, `loading` và `unavailable` là ba state DOM
    khác nhau.
-6. Heading/landmark và thứ tự DOM phải theo đúng thứ tự đọc; warning có semantic
+7. Heading/landmark và thứ tự DOM phải theo đúng thứ tự đọc; warning có semantic
    note/status phù hợp, link và action điều khiển được bằng bàn phím. Nội dung
    phải wrap ở viewport 320 px mà không buộc cuộn ngang.
+
+Direct `web_search` không được dùng official URL annotation như bằng chứng cho
+mọi claim trong prose. Trước khi có claim/span validator và canonical graph
+match, direct output chứa amount/currency, điều-khoản-điểm hoặc ngày pháp lý
+phải fail closed; mode này chỉ được trả diễn giải không có các field pháp lý
+canonical cùng danh sách source URL đã guard. Candidate draft chỉ được hiển thị
+các field đó sau four-eyes review và server assembly từ source/provision/
+sanction record.
 
 Test gate trước cutover:
 

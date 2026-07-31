@@ -35,12 +35,12 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-001 — Tra cứu theo từ khóa và chủ đề | P0 | Done | Full-stack | `app/page.tsx`; `lib/legal-content.ts` | 2026-07-29 |
 | US-002 — Xem căn cứ, mức xử lý và ví dụ | P0 | Done | Full-stack | `app/page.tsx`; `lib/legal-content.ts` | 2026-07-29 |
 | US-003 — Nguồn chính thức theo từng citation | P0 | Partial | Full-stack + PM | Đã khóa UX label nguồn thân thiện + link chỉ từ structured validated DTO; hiện có source list nhưng thiếu mapping source/provision/answer | 2026-07-31 |
-| US-004 — Câu trả lời đầy đủ có cấu trúc | P0 | Partial | Full-stack + PM | Đã khóa presentation contract: conclusion-first, section order, no raw Markdown, citation UX, web warning và unavailable/error tách biệt. API/UI hiện vẫn dùng text `{answer, mode}`; implementation/component/a11y/responsive tests chưa có | 2026-07-31 |
+| US-004 — Câu trả lời đầy đủ có cấu trúc | P0 | Partial | Full-stack + PM + Code review | Curated, legacy managed và reviewed-candidate path đã có additive section DTO/card UI; chỉ explicit reviewed helmet fixture hiển thị căn cứ/sanction, dữ liệu cũ thiếu canonical graph bị ẩn. Canonical v1, legal_sanctions DB, managed graph assembly và component a11y suite vẫn mở | 2026-07-31 |
 | US-005 — Showcase public đầy đủ | P1 | Done | Full-stack + Code review | Public projector + 503/no-store dependency contract; exact client DTO; UI render toàn bộ API order theo stable ID, đủ field/source, loading/empty/degraded và accessible detail dialog/focus recovery; focused 15/15, current full 198/198 pass | 2026-07-31 |
 | US-006 — Chat ưu tiên kho kiến thức | P0 | Partial | Full-stack | Rendered/chat suite 15/15 pass; vẫn chưa đủ bốn nhóm kiến thức nền theo AC | 2026-07-31 |
 | US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
-| US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Public section projector + warning-first UI + friendly canonical source links đã verified: focused 16/16, type/lint/build và live browser/320px pass. Full suite 229/232 do migration 0006 làm ledger tests cũ fail; còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
-| US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; focused 4/4, combined 24/24, full 230/230, type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
+| US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Readable sections + warning/source UI và direct-claim guard đã verified: focused 21/21, type/lint/build và live browser/320px pass. Full suite 236/239; 3 failure cũ do migration 0006 và ledger expectations. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
+| US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; new revision requires issuedAt while legacy snapshot stays retrievable; focused 5/5, combined 26/26, current full 236/239 (3 migration-ledger failures cũ), type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
 | US-010 — Auth khu vực quản trị | P0 | Done | Full-stack + Code review | Anonymous redirect, invalid credential, signed session và admin access regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
@@ -83,6 +83,50 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 
 - PM review khóa presentation contract ở US-004, citation presentation ở
   US-003 và warning trực tuyến ở US-027; không tạo story ID mới.
+- Bổ sung design gate theo yêu cầu end user: citation card phải có văn bản,
+  điều-khoản-điểm, ngày ban hành/hiệu lực/lần kiểm chứng; sanction card phải có
+  mức tham khảo và điều kiện áp dụng; legal remedy tách khỏi gợi ý thực tế.
+- Four-eyes review xác nhận official URL không đủ chứng minh amount/article/date
+  do model sinh. Direct web output có các claim này phải fail closed cho tới
+  khi có claim/span validation và canonical source→provision→sanction assembly.
+  `legal_sanctions`/backfill/review vẫn là dependency mở của US-015/US-004.
+
+### 2026-07-31 — US-004 legal answer cards, curated increment
+
+- `lib/chat-answer-presentation.ts` có ordered section contract và fixed titles
+  cho summary, explanation, example, legal basis, sanction, legal remedy,
+  recommended action và limitation. Reviewed citation formatter chỉ nhận
+  metadata server-side, hiển thị document/provision cùng issued/effective/
+  last-verified dates.
+- `lib/legal-chat.ts` chuyển ba curated match hiện có và managed/legacy match
+  thành additive structured sections mà vẫn giữ flattened `answer` tương thích
+  client cũ. Chỉ fixture mũ bảo hiểm được hiển thị citation/sanction vì có
+  explicit provision + reviewed sanction đã đối chiếu Nghị định
+  168/2024/NĐ-CP. Dữ liệu tuổi xe và Nghị định 15 không còn được suy diễn từ
+  prose/URL hợp nhất cũ; cả bảng public, modal và chat đều ẩn căn cứ/mức phạt
+  legacy chưa review và nói rõ đang chờ kiểm chứng/backfill bốn mắt.
+- `app/page.tsx` render mỗi section thành semantic card; CSS nhấn riêng căn cứ,
+  mức phạt, hành động và lưu ý. Live browser với câu hỏi mũ bảo hiểm thấy 7
+  section đúng thứ tự, official source action; viewport 320px có dialog 296px,
+  `scrollWidth=clientWidth=292`, không tràn ngang.
+- Direct `web_search` không được phép lấp card pháp lý: provider prompt cấm và
+  server từ chối mọi chữ số cùng các amount/provision/date/age viết bằng chữ
+  hoặc legal section do model sinh. Chỉ reviewed candidate metadata — bắt buộc
+  revision mới có issued/effective/verified date — mới được server thêm
+  legal-basis section. Snapshot cũ thiếu `issuedAt` vẫn được retrieval nhưng
+  không sinh legal-basis card cho tới khi được biên tập lại.
+- Four-eyes code review ban đầu nêu 4 High và 3 Medium; increment đã xử lý:
+  mở rộng guard bypass, bỏ parse free text thành sanction/provision, loại source
+  identity Nghị định 15 cũ khỏi public UI/chat, bỏ claim tuổi thiếu evidence,
+  chuẩn hóa managed response, thêm `issuedAt` có compatibility, thống nhất
+  section order và map telemetry fail-closed thành `invalid_output`.
+- Verification: web-search **21/21**, rendered/auth/chat **15/15**, web-candidate
+  **5/5**, typecheck, focused ESLint và Vinext build pass. Full suite
+  **236/239**; ba failure là ledger expectations có trước vẫn dừng ở migration
+  0005 trong khi commit hiện có migration 0006, không thuộc increment này.
+- US-004 vẫn `Partial`: transitional curated fixture không thay thế canonical
+  source→provision→sanction graph; `legal_sanctions`, backfill bốn mắt và đầy
+  đủ UI contract tests chưa hoàn tất.
 - Evidence hiện tại cho thấy `app/page.tsx` render `message.content` như một
   paragraph text, warning sau answer và `unavailable` như assistant message
   thông thường. Vì vậy các AC UX mới đều giữ unchecked.

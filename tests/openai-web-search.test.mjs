@@ -38,6 +38,7 @@ registerHooks({
 const {
   WEB_SEARCH_DOMAINS,
   canonicalOfficialSourceUrl,
+  containsUnverifiedLegalClaim,
   readOpenAiWebSearchConfig,
   sanitizeWebSearchQuestion,
   searchAllowedLegalSources,
@@ -45,6 +46,7 @@ const {
 const {
   parseChatAnswerSections,
   projectPublicWebSearchAnswer,
+  reviewedCitationsToLegalBasisSection,
 } = await import("../lib/chat-answer-presentation.ts");
 const { parseOfficialSourceLinks } = await import(
   "../lib/official-source-url.ts"
@@ -183,6 +185,57 @@ test("projects provider Markdown and long inline citations into readable public 
   );
 });
 
+test("builds reviewed legal-basis cards from canonical citation metadata", () => {
+  const section = reviewedCitationsToLegalBasisSection([
+    {
+      title: "Quy định xử phạt vi phạm hành chính về giao thông đường bộ",
+      documentNumber: "168/2024/NĐ-CP",
+      issuedAt: "2024-12-26",
+      article: "7",
+      clause: "2",
+      point: "h",
+      effectiveFrom: "2025-01-01",
+      lastVerifiedAt: "2026-07-31",
+    },
+  ]);
+  assert.deepEqual(section, {
+    kind: "legal_basis",
+    paragraphs: [
+      "168/2024/NĐ-CP — Quy định xử phạt vi phạm hành chính về giao thông đường bộ. Điểm h, khoản 2, Điều 7. Ban hành ngày 26/12/2024. Có hiệu lực từ 01/01/2025. Kiểm tra gần nhất 31/07/2026.",
+    ],
+    bullets: [],
+  });
+  assert.deepEqual(parseChatAnswerSections([section]), [section]);
+});
+
+test("detects legal amounts, provisions, document numbers, dates and ages in direct web prose", () => {
+  for (const claim of [
+    "Mức phạt là 400.000 đồng.",
+    "Áp dụng theo điểm h khoản 2 Điều 7.",
+    "Nghị định 168/2024/NĐ-CP quy định việc này.",
+    "Văn bản có hiệu lực từ 01/01/2025.",
+    "Người từ đủ 16 tuổi có thể bị xử lý.",
+    "Mức tham khảo là 400.000–600.000đ.",
+    "Mức tham khảo là 400k.",
+    "Mức tham khảo là năm triệu đồng.",
+    "Theo 168/2024/NĐ-CP, hành vi này bị xử lý.",
+    "Văn bản có hiệu lực từ 2025-01-01.",
+    "Văn bản có hiệu lực từ ngày một tháng một năm hai nghìn không trăm hai mươi lăm.",
+    "Điều bảy quy định hành vi này.",
+    "Điều thứ bảy quy định hành vi này.",
+    "Khoản thứ hai có nội dung liên quan.",
+    "Văn bản có hiệu lực từ ngày mùng một tháng một năm hai nghìn không trăm hai mươi lăm.",
+  ]) {
+    assert.equal(containsUnverifiedLegalClaim(claim), true, claim);
+  }
+  assert.equal(
+    containsUnverifiedLegalClaim(
+      "Bạn nên mở nguồn Chính phủ bên dưới và nhờ người lớn hỗ trợ kiểm tra trường hợp cụ thể.",
+    ),
+    false,
+  );
+});
+
 test("public answer projector rejects active content and section parser fails closed", () => {
   for (const value of [
     "Kết luận: an toàn <script>alert('x')</script>",
@@ -231,6 +284,9 @@ test("chat UI keeps warning, structured text and canonical source actions in saf
   assert.match(pageSource, /target="_blank"/);
   assert.match(pageSource, /rel="noopener noreferrer"/);
   assert.match(pageSource, /role="note"/);
+  assert.match(pageSource, /data-kind=\{section\.kind\}/);
+  assert.match(cssSource, /\.chat-answer-section-legal-basis/);
+  assert.match(cssSource, /\.chat-answer-section-sanctions/);
   assert.doesNotMatch(pageSource, /dangerouslySetInnerHTML/);
   assert.match(cssSource, /@media \(max-width: 420px\)/);
   assert.match(cssSource, /\.chat-message \{[^}]*overflow-wrap: anywhere;/);
@@ -366,6 +422,28 @@ test("fails closed when the final answer has no official citation", async () => 
   });
 });
 
+test("fails closed when direct web prose contains unreviewed legal claims", async () => {
+  for (const text of [
+    "Kết luận: Mức phạt tham khảo là 400.000 đồng.",
+    "Giải thích: Áp dụng theo khoản 2 Điều 7.",
+    "Lưu ý: Văn bản có hiệu lực từ 01/01/2025.",
+    "Căn cứ pháp lý: Xem văn bản tại nguồn bên dưới.",
+    "Kết luận: Mức tham khảo là năm triệu đồng.",
+    "Giải thích: Điều bảy có quy định liên quan.",
+    "Giải thích: Điều thứ bảy có quy định liên quan.",
+  ]) {
+    const result = await searchAllowedLegalSources(
+      { enabled: true, apiKey: "fake-secret" },
+      "Quy định này là gì?",
+      { fetch: async () => providerResponse({ text }) },
+    );
+    assert.deepEqual(result, {
+      ok: false,
+      code: "UNVERIFIED_LEGAL_CLAIM",
+    });
+  }
+});
+
 test("flag-off, missing key and unknown model do not call the provider", async () => {
   let calls = 0;
   const fetch = async () => {
@@ -499,6 +577,40 @@ test("chat remains curated-first and does not search on a local match", async ()
   assert.equal(webCalls, 0);
 });
 
+test("legacy reviewed candidate without issuedAt stays usable but omits legal-basis card", async () => {
+  const chat = createChatHandler({
+    limiter: () => ({ consumeChat: async () => allowed }),
+    telemetry: { emit() {} },
+    managedAnswer: async () => null,
+    curatedAnswer: () => null,
+    reviewedWebAnswer: async () => ({
+      answer: "Kết luận: Hãy mở nguồn chính thức và kiểm tra trường hợp cụ thể.",
+      sources: [
+        {
+          title: "Nguồn Chính phủ",
+          url: "https://vbpl.vn/document",
+        },
+      ],
+      citations: [
+        {
+          title: "Văn bản cũ đã duyệt",
+          url: "https://vbpl.vn/document",
+          documentNumber: "Văn bản legacy",
+          effectiveFrom: "2026-01-01",
+          lastVerifiedAt: "2026-07-31",
+        },
+      ],
+      candidateId: "33333333-3333-4333-8333-333333333333",
+      policyVersion: "reviewed-web-candidate-v1",
+    }),
+  });
+  const response = await chat(chatRequest("Nội dung đã duyệt là gì?"));
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.mode, "knowledge");
+  assert.deepEqual(body.sections.map((section) => section.kind), ["summary"]);
+});
+
 test("chat uses guarded web search only after retrieval no-match", async () => {
   let webCalls = 0;
   let persisted = 0;
@@ -615,6 +727,38 @@ test("chat fails closed when a successful web result cannot be persisted", async
   const response = await chat(chatRequest("Quy định mới?"));
   assert.equal(response.status, 200);
   assert.equal((await response.json()).mode, "unavailable");
+  for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
+    delete globalThis.__webSearchWorkerEnv[key];
+  }
+});
+
+test("chat records rejected direct legal claims as invalid provider output", async () => {
+  const events = [];
+  Object.assign(globalThis.__webSearchWorkerEnv, {
+    AI_WEB_SEARCH_ENABLED: "true",
+    OPENAI_API_KEY: "test-key",
+    OPENAI_MODEL: "gpt-5.4-mini",
+  });
+  const chat = createChatHandler({
+    limiter: () => ({ consumeChat: async () => allowed }),
+    telemetry: { emit: (event) => events.push(event) },
+    managedAnswer: async () => null,
+    curatedAnswer: () => null,
+    reviewedWebAnswer: async () => null,
+    reserveWebBudget: async () => ({
+      dayStart: 1,
+      reservedTokens: 12_000,
+    }),
+    settleWebBudget: async () => true,
+    webSearch: async () => ({
+      ok: false,
+      code: "UNVERIFIED_LEGAL_CLAIM",
+    }),
+  });
+  const response = await chat(chatRequest("Mức xử lý là gì?"));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).mode, "unavailable");
+  assert.equal(events[0].providerOutcome, "invalid_output");
   for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
     delete globalThis.__webSearchWorkerEnv[key];
   }

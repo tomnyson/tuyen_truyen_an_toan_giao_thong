@@ -5,9 +5,88 @@ import {
   hasBlockedLegalBasis,
   laws,
   normalizeVietnamese,
+  type LawItem,
 } from "./legal-content";
+import {
+  flattenChatAnswerSections,
+  reviewedCitationsToLegalBasisSection,
+  type ChatAnswerSection,
+  type PublicChatAnswer,
+} from "./chat-answer-presentation";
+import type { OfficialSourceLink } from "./official-source-url";
 
 const [helmetLaw, , falseInformationLaw] = laws;
+
+export type KnowledgeChatAnswer = PublicChatAnswer & {
+  sources?: OfficialSourceLink[];
+};
+
+function curatedPresentation(
+  law: LawItem,
+  summary: string,
+  explanation: string,
+  sanction: LawItem["reviewedSanction"],
+  action: string,
+  warnings: string[],
+): KnowledgeChatAnswer {
+  const sections: ChatAnswerSection[] = [
+    { kind: "summary", paragraphs: [summary], bullets: [] },
+    { kind: "details", paragraphs: [explanation], bullets: [] },
+    { kind: "examples", paragraphs: [law.caseStudy], bullets: [] },
+  ];
+  if (law.citation) {
+    const legalBasis = reviewedCitationsToLegalBasisSection([
+      {
+        title: law.citation.title,
+        documentNumber: law.citation.documentNumber,
+        issuedAt: law.citation.issuedAt,
+        article: law.citation.article,
+        clause: law.citation.clause,
+        point: law.citation.point,
+        effectiveFrom: law.citation.effectiveFrom,
+        lastVerifiedAt: law.citation.lastVerifiedAt,
+      },
+    ]);
+    if (legalBasis) sections.push(legalBasis);
+  }
+  if (sanction) {
+    sections.push({
+      kind: "sanctions",
+      paragraphs: [
+        `${sanction.summary} Đối tượng tham khảo: ${sanction.subject}`,
+      ],
+      bullets: sanction.conditions,
+    });
+  }
+  sections.push({
+    kind: "next_steps",
+    paragraphs: [action],
+    bullets: [],
+  });
+  const limitations = [
+    ...(law.citation?.statusNote ? [law.citation.statusNote] : []),
+    ...warnings,
+  ];
+  if (limitations.length > 0) {
+    sections.push({
+      kind: "limitations",
+      paragraphs: limitations,
+      bullets: [],
+    });
+  }
+  return {
+    answer: flattenChatAnswerSections(sections),
+    sections,
+    sources: law.citation
+      ? [
+          {
+            title: `${law.citation.documentNumber} — ${law.citation.title}`,
+            url: law.citation.officialUrl,
+          },
+        ]
+      : undefined,
+  };
+}
 
 export const legalContext = `
 Bạn là Trợ lý AI của Cổng Luật Học Đường Việt Nam. Đối tượng là học sinh.
@@ -24,34 +103,62 @@ ${laws.length + 1}. Người từ đủ 14 đến dưới 16 tuổi: không áp 
 ${laws.length + 2}. Tình huống trên website là minh họa giáo dục, không phải hồ sơ xử phạt thực tế.
 `;
 
-export function findCuratedAnswer(question: string): string | null {
+export function findCuratedAnswer(question: string): KnowledgeChatAnswer | null {
   const normalized = normalizeVietnamese(question);
 
   if (normalized.includes("mu bao hiem")) {
-    const penalty = helmetLaw.penalty.replace(" – ", "–").replace("đ", " đồng");
-    return `Không đội mũ bảo hiểm khi đi xe máy hoặc xe máy điện là vi phạm. Mức tham khảo cho người thành niên là ${penalty} theo ${helmetLaw.legal}. Nếu bạn từ 16 đến dưới 18 tuổi, tiền phạt không quá một nửa mức của người thành niên; từ 14 đến dưới 16 tuổi không áp dụng phạt tiền. Hãy luôn đội mũ đạt chuẩn và cài quai đúng cách.`;
+    return curatedPresentation(
+      helmetLaw,
+      "Không đội mũ bảo hiểm khi đi xe máy hoặc xe máy điện là hành vi vi phạm.",
+      "Có mũ nhưng không đội, hoặc đội mà không cài quai đúng quy cách, vẫn có thể bị xử lý.",
+      helmetLaw.reviewedSanction,
+      helmetLaw.remedy,
+      [
+        "Mức áp dụng thực tế còn phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể.",
+      ],
+    );
   }
   if (
     normalized.includes("tin sai") ||
     normalized.includes("facebook") ||
     normalized.includes("dang lai")
   ) {
-    const penalty = falseInformationLaw.penalty
-      .replace("5 – 10", "5–10")
-      .replace(" đối với cá nhân*", "");
-    return `Việc đăng hoặc chia sẻ lại thông tin sai sự thật vẫn có thể gây trách nhiệm, kể cả khi bạn không phải người viết đầu tiên. Cá nhân có thể bị phạt ${penalty} và buộc gỡ nội dung theo ${falseInformationLaw.legal}. Hãy dừng chia sẻ, kiểm tra nguồn và đính chính nếu đã đăng.`;
+    return curatedPresentation(
+      falseInformationLaw,
+      "Đăng hoặc chia sẻ lại thông tin sai sự thật vẫn có thể làm phát sinh trách nhiệm, kể cả khi bạn không phải người viết đầu tiên.",
+      "Việc tiếp tục chia sẻ có thể làm thông tin lan rộng và ảnh hưởng đến người khác.",
+      undefined,
+      "Dừng chia sẻ, kiểm tra nguồn, gỡ nội dung và đính chính nếu đã đăng.",
+      [
+        "Chưa hiển thị mức phạt vì văn bản đã được sửa đổi và dữ liệu sanction hiện hành chưa qua backfill bốn mắt.",
+        "Mức áp dụng thực tế còn phụ thuộc chủ thể, nội dung và tình tiết cụ thể.",
+      ],
+    );
   }
   if (
     normalized.includes("50cc") ||
     normalized.includes("15 tuoi") ||
     normalized.includes("16 tuoi")
   ) {
-    return "Độ tuổi và thông số thực tế của phương tiện quyết định bạn có được điều khiển hay không. Không nên chỉ dựa vào tên gọi “xe điện” hoặc “50cc”. Hãy kiểm tra giấy đăng ký xe và nhờ phụ huynh xác nhận trước khi sử dụng; tuyệt đối không tự lái xe không phù hợp độ tuổi.";
+    const ageLaw = laws[1];
+    return curatedPresentation(
+      ageLaw,
+      "Độ tuổi và thông số thực tế của phương tiện quyết định bạn có được điều khiển xe hay không.",
+      "Không nên chỉ dựa vào tên gọi “xe điện” hoặc “50cc”; cần kiểm tra dung tích xi-lanh hoặc công suất động cơ ghi trên giấy tờ xe.",
+      undefined,
+      ageLaw.remedy,
+      [
+        "Chưa hiển thị căn cứ hoặc mức xử lý vì dữ liệu hiện hành cho từng loại xe chưa qua backfill bốn mắt.",
+        "Việc xử lý phụ thuộc tuổi chính xác, loại xe và người đã giao xe.",
+      ],
+    );
   }
   return null;
 }
 
-export async function findManagedAnswer(question: string): Promise<string | null> {
+export async function findManagedAnswer(
+  question: string,
+): Promise<KnowledgeChatAnswer | null> {
   const ignoredTerms = new Set(["cho", "cua", "duoc", "khong", "nhung", "the", "nao", "voi"]);
   const terms = normalizeVietnamese(question)
     .split(/[^a-z0-9]+/)
@@ -77,7 +184,45 @@ export async function findManagedAnswer(question: string): Promise<string | null
     const best = ranked[0];
     if (!best || best.score < Math.min(2, terms.length)) return null;
 
-    return `${best.entry.title}. Mức phạt hoặc cách xử lý tham khảo: ${best.entry.penalty}. Căn cứ: ${best.entry.legalBasis}. Biện pháp nên thực hiện: ${best.entry.remedy} Nội dung do ban quản trị biên soạn và xuất bản; việc áp dụng thực tế còn phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể.`;
+    const sections: ChatAnswerSection[] = [
+      {
+        kind: "summary",
+        paragraphs: [best.entry.title],
+        bullets: [],
+      },
+      {
+        kind: "details",
+        paragraphs: [
+          "Nội dung phù hợp đã được tìm thấy trong kho kiến thức của cổng.",
+        ],
+        bullets: [],
+      },
+      ...(best.entry.caseStudy
+        ? [
+            {
+              kind: "examples" as const,
+              paragraphs: [best.entry.caseStudy],
+              bullets: [],
+            },
+          ]
+        : []),
+      {
+        kind: "next_steps",
+        paragraphs: [best.entry.remedy],
+        bullets: [],
+      },
+      {
+        kind: "limitations",
+        paragraphs: [
+          "Chưa hiển thị căn cứ và mức xử lý từ bản ghi cũ vì dữ liệu này chưa được liên kết với source, provision và sanction đã qua kiểm duyệt bốn mắt.",
+        ],
+        bullets: [],
+      },
+    ];
+    return {
+      answer: flattenChatAnswerSections(sections),
+      sections,
+    };
   } catch {
     return null;
   }

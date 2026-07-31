@@ -1,6 +1,10 @@
 export const CHAT_ANSWER_SECTION_KINDS = [
   "summary",
   "details",
+  "examples",
+  "legal_basis",
+  "sanctions",
+  "legal_remedies",
   "next_steps",
   "limitations",
 ] as const;
@@ -20,7 +24,7 @@ export type PublicChatAnswer = {
 };
 
 const MAX_ANSWER_LENGTH = 6_000;
-const MAX_SECTIONS = 4;
+const MAX_SECTIONS = CHAT_ANSWER_SECTION_KINDS.length;
 const MAX_PARAGRAPHS_PER_SECTION = 4;
 const MAX_BULLETS_PER_SECTION = 6;
 const MAX_ITEM_LENGTH = 1_200;
@@ -32,9 +36,18 @@ const headingKinds = new Map<string, ChatAnswerSectionKind>([
   ["giải thích", "details"],
   ["vì sao", "details"],
   ["thông tin chi tiết", "details"],
+  ["ví dụ", "examples"],
+  ["ví dụ dễ hiểu", "examples"],
+  ["căn cứ pháp lý", "legal_basis"],
+  ["căn cứ", "legal_basis"],
+  ["mức phạt tham khảo", "sanctions"],
+  ["mức xử lý tham khảo", "sanctions"],
+  ["biện pháp khắc phục theo văn bản", "legal_remedies"],
   ["bạn nên làm", "next_steps"],
   ["bạn nên làm gì", "next_steps"],
   ["việc nên làm", "next_steps"],
+  ["cách xử lý", "next_steps"],
+  ["cách xử lý / việc nên làm", "next_steps"],
   ["hành động đề xuất", "next_steps"],
   ["lưu ý", "limitations"],
   ["giới hạn", "limitations"],
@@ -44,8 +57,24 @@ const headingKinds = new Map<string, ChatAnswerSectionKind>([
 const sectionTitles: Record<ChatAnswerSectionKind, string> = {
   summary: "Trả lời ngắn",
   details: "Giải thích",
-  next_steps: "Bạn nên làm gì",
+  examples: "Ví dụ dễ hiểu",
+  legal_basis: "Căn cứ pháp lý",
+  sanctions: "Mức phạt tham khảo",
+  legal_remedies: "Biện pháp khắc phục theo văn bản",
+  next_steps: "Cách xử lý / việc nên làm",
   limitations: "Điều cần lưu ý",
+};
+
+export type ReviewedCitationPresentationInput = {
+  title: string;
+  documentNumber: string;
+  issuedAt: string;
+  article?: string;
+  clause?: string;
+  point?: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  lastVerifiedAt: string;
 };
 
 type MutableSection = ChatAnswerSection & {
@@ -91,7 +120,7 @@ function parseHeading(value: string) {
     .replace(/^[*_~`]+|[*_~`]+$/g, "")
     .trim();
   const match = normalized.match(
-    /^(kết luận|trả lời ngắn|tóm tắt|giải thích|vì sao|thông tin chi tiết|bạn nên làm(?: gì)?|việc nên làm|hành động đề xuất|lưu ý|giới hạn|điều cần lưu ý)\s*:?\s*(.*)$/i,
+    /^(kết luận|trả lời ngắn|tóm tắt|giải thích|vì sao|thông tin chi tiết|ví dụ(?: dễ hiểu)?|căn cứ pháp lý|căn cứ|mức phạt tham khảo|mức xử lý tham khảo|biện pháp khắc phục theo văn bản|bạn nên làm(?: gì)?|việc nên làm|cách xử lý(?:\s*\/\s*việc nên làm)?|hành động đề xuất|lưu ý|giới hạn|điều cần lưu ý)\s*:?\s*(.*)$/i,
   );
   if (!match) return null;
   return {
@@ -207,7 +236,14 @@ export function projectPublicWebSearchAnswer(
     );
   if (publicSections.length === 0) return null;
 
-  const answer = publicSections
+  const answer = flattenChatAnswerSections(publicSections);
+  return answer && answer.length <= MAX_ANSWER_LENGTH
+    ? { answer, sections: publicSections }
+    : null;
+}
+
+export function flattenChatAnswerSections(sections: ChatAnswerSection[]) {
+  return sections
     .map((section) =>
       [
         sectionTitles[section.kind],
@@ -217,9 +253,6 @@ export function projectPublicWebSearchAnswer(
     )
     .join("\n\n")
     .trim();
-  return answer && answer.length <= MAX_ANSWER_LENGTH
-    ? { answer, sections: publicSections }
-    : null;
 }
 
 export function parseChatAnswerSections(
@@ -267,4 +300,40 @@ export function parseChatAnswerSections(
 
 export function chatAnswerSectionTitle(kind: ChatAnswerSectionKind) {
   return sectionTitles[kind];
+}
+
+function formatIsoDate(value: string) {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+export function reviewedCitationsToLegalBasisSection(
+  citations: ReviewedCitationPresentationInput[],
+): ChatAnswerSection | null {
+  const paragraphs = citations.slice(0, 8).map((citation) => {
+    const provision = [
+      citation.point ? `Điểm ${citation.point}` : "",
+      citation.clause ? `khoản ${citation.clause}` : "",
+      citation.article ? `Điều ${citation.article}` : "",
+    ].filter(Boolean);
+    const effectivity = citation.effectiveTo
+      ? `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)} đến ${formatIsoDate(citation.effectiveTo)}.`
+      : `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)}.`;
+    return [
+      `${citation.documentNumber} — ${citation.title}.`,
+      provision.length > 0 ? `${provision.join(", ")}.` : "",
+      `Ban hành ngày ${formatIsoDate(citation.issuedAt)}.`,
+      effectivity,
+      `Kiểm tra gần nhất ${formatIsoDate(citation.lastVerifiedAt)}.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+  });
+  return paragraphs.length > 0
+    ? {
+        kind: "legal_basis",
+        paragraphs,
+        bullets: [],
+      }
+    : null;
 }

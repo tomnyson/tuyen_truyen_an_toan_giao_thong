@@ -194,6 +194,9 @@ test("server-renders the student law portal", async () => {
   assert.match(html, /Không đội mũ bảo hiểm/);
   assert.match(html, /Hỏi trợ lý/);
   assert.doesNotMatch(html, /Nghị định 131\/2013\/NĐ-CP/);
+  assert.doesNotMatch(html, /Nghị định 15\/2020\/NĐ-CP/);
+  assert.doesNotMatch(html, /5\s*[–-]\s*10 triệu đồng/i);
+  assert.match(html, /Chưa công bố mức tham khảo/);
   assert.doesNotMatch(html, /Sao chép tác phẩm trái phép, đạo văn/);
   assert.doesNotMatch(html, /Cố ý vô hiệu biện pháp bảo vệ phần mềm/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
@@ -273,8 +276,37 @@ test("answers a published knowledge question without AI", async () => {
 
   assert.equal(response.status, 200);
   assert.equal(body.mode, "knowledge");
-  assert.match(body.answer, /400\.000–600\.000 đồng/);
-  assert.match(body.answer, /Nghị định 168\/2024\/NĐ-CP/);
+  assert.match(body.answer, /400\.000 đồng đến 600\.000 đồng/);
+  assert.match(body.answer, /168\/2024\/NĐ-CP — Quy định xử phạt/);
+  assert.deepEqual(
+    body.sections.map((section) => section.kind),
+    [
+      "summary",
+      "details",
+      "examples",
+      "legal_basis",
+      "sanctions",
+      "next_steps",
+      "limitations",
+    ],
+  );
+  assert.match(
+    body.sections.find((section) => section.kind === "legal_basis")
+      .paragraphs[0],
+    /Ban hành ngày 26\/12\/2024.*Có hiệu lực từ 01\/01\/2025.*Kiểm tra gần nhất 31\/07\/2026/,
+  );
+  assert.match(
+    body.sections.find((section) => section.kind === "sanctions")
+      .paragraphs[0],
+    /Phạt tiền từ 400\.000 đồng đến 600\.000 đồng.*Đối tượng tham khảo/,
+  );
+  assert.deepEqual(body.sources, [
+    {
+      title:
+        "168/2024/NĐ-CP — Quy định xử phạt vi phạm hành chính về trật tự, an toàn giao thông trong lĩnh vực giao thông đường bộ; trừ điểm, phục hồi điểm giấy phép lái xe",
+      url: "https://vbpl.vn/tw/Pages/ivbpq-thuoctinh.aspx?ItemID=173920",
+    },
+  ]);
   assert.doesNotMatch(body.answer, /131\/2013|341\/2025/i);
 });
 

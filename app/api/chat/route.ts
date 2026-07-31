@@ -4,7 +4,11 @@ import {
   classifyImageIntent,
   privacySafetyGuidance,
 } from "@/lib/image-intent";
-import { projectPublicWebSearchAnswer } from "@/lib/chat-answer-presentation";
+import {
+  CHAT_ANSWER_SECTION_KINDS,
+  projectPublicWebSearchAnswer,
+  reviewedCitationsToLegalBasisSection,
+} from "@/lib/chat-answer-presentation";
 import { findCuratedAnswer, findManagedAnswer } from "@/lib/legal-chat";
 import {
   readOpenAiWebSearchConfig,
@@ -212,8 +216,17 @@ export function createChatHandler(
           ? null
           : (await managedAnswer(question)) ?? curatedAnswer(question);
       if (knowledgeAnswer) {
+        const knowledgePayload =
+          typeof knowledgeAnswer === "string"
+            ? { answer: knowledgeAnswer, mode: "knowledge" as const }
+            : {
+                answer: knowledgeAnswer.answer,
+                sections: knowledgeAnswer.sections,
+                mode: "knowledge" as const,
+                sources: parseOfficialSourceLinks(knowledgeAnswer.sources),
+              };
         return complete(
-          NextResponse.json({ answer: knowledgeAnswer, mode: "knowledge" }),
+          NextResponse.json(knowledgePayload),
           "knowledge",
           "knowledge",
         );
@@ -229,10 +242,25 @@ export function createChatHandler(
           reviewedCandidate.sources,
         );
         if (presentation && publicSources.length > 0) {
+          const legalBasis = reviewedCitationsToLegalBasisSection(
+            (reviewedCandidate.citations ?? []).filter(
+              (
+                citation,
+              ): citation is typeof citation & { issuedAt: string } =>
+                Boolean(citation.issuedAt),
+            ),
+          );
+          const sections = legalBasis
+            ? [...presentation.sections, legalBasis].sort(
+                (left, right) =>
+                  CHAT_ANSWER_SECTION_KINDS.indexOf(left.kind) -
+                  CHAT_ANSWER_SECTION_KINDS.indexOf(right.kind),
+              )
+            : presentation.sections;
           return complete(
             NextResponse.json({
               answer: presentation.answer,
-              sections: presentation.sections,
+              sections,
               mode: "knowledge",
               sources: publicSources,
             }),
@@ -365,7 +393,8 @@ export function createChatHandler(
               ? "timeout"
               : searched.code === "PROVIDER_REFUSAL"
                 ? "refusal"
-                : searched.code === "INVALID_OUTPUT" ||
+              : searched.code === "INVALID_OUTPUT" ||
+                    searched.code === "UNVERIFIED_LEGAL_CLAIM" ||
                     searched.code === "UNTRUSTED_CITATION" ||
                     searched.code === "MISSING_OFFICIAL_CITATION"
                   ? "invalid_output"

@@ -42,6 +42,7 @@ export type ReviewedCandidateCitation = {
   article?: string;
   clause?: string;
   point?: string;
+  issuedAt?: string;
   effectiveFrom: string;
   effectiveTo?: string;
   lastVerifiedAt: string;
@@ -58,6 +59,7 @@ export type ReviewedCandidateSnapshot = {
 export type ReviewedWebCandidateAnswer = {
   answer: string;
   sources: OfficialSourceLink[];
+  citations: ReviewedCandidateCitation[];
   candidateId: string;
   policyVersion: typeof REVIEWED_WEB_RETRIEVAL_POLICY_VERSION;
 };
@@ -280,6 +282,7 @@ export async function persistWebSearchCandidate(
 export function normalizeReviewedCandidateSnapshot(
   value: unknown,
   allowedSourceUrls?: ReadonlySet<string>,
+  requirements: { requireIssuedAt?: boolean } = {},
 ): ReviewedCandidateSnapshot | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
@@ -304,6 +307,7 @@ export function normalizeReviewedCandidateSnapshot(
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const citation = value as Record<string, unknown>;
     const url = canonicalOfficialSourceUrl(citation.url);
+    const issuedAt = citation.issuedAt ? isoDate(citation.issuedAt) : undefined;
     const effectiveFrom = isoDate(citation.effectiveFrom);
     const effectiveTo = citation.effectiveTo
       ? isoDate(citation.effectiveTo)
@@ -315,6 +319,8 @@ export function normalizeReviewedCandidateSnapshot(
       !url ||
       !titleValue ||
       !documentNumber ||
+      (citation.issuedAt && !issuedAt) ||
+      (requirements.requireIssuedAt && !issuedAt) ||
       !effectiveFrom ||
       !lastVerifiedAt ||
       (effectiveTo && effectiveTo < effectiveFrom) ||
@@ -331,6 +337,7 @@ export function normalizeReviewedCandidateSnapshot(
       effectiveFrom,
       lastVerifiedAt,
     };
+    if (issuedAt) normalized.issuedAt = issuedAt;
     for (const key of ["article", "clause", "point"] as const) {
       const field = boundedText(citation[key], 80);
       if (field) normalized[key] = field;
@@ -412,7 +419,9 @@ export async function saveWebSearchCandidateRevision(
   if (!roleFor(actor, "edit") || !Number.isInteger(expectedVersion)) return null;
   const db = requireDb(dependencies.db);
   const sourceSet = await candidateSourceSet(candidateId, db);
-  const snapshot = normalizeReviewedCandidateSnapshot(snapshotInput, sourceSet);
+  const snapshot = normalizeReviewedCandidateSnapshot(snapshotInput, sourceSet, {
+    requireIssuedAt: true,
+  });
   if (!snapshot) return null;
   const snapshotJson = canonicalSnapshotJson(snapshot);
   const snapshotSha256 = await sha256(snapshotJson);
@@ -760,6 +769,7 @@ export async function findReviewedWebCandidate(
     return {
       answer: best.snapshot.answer,
       sources: best.snapshot.citations.map(({ title, url }) => ({ title, url })),
+      citations: best.snapshot.citations,
       candidateId: best.id,
       policyVersion: REVIEWED_WEB_RETRIEVAL_POLICY_VERSION,
     };

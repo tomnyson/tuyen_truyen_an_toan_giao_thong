@@ -14,6 +14,23 @@ export type LawItem = {
   remedy: string;
   caseStudy: string;
   tags: string[];
+  citation?: {
+    documentNumber: string;
+    title: string;
+    issuedAt: string;
+    article: string;
+    clause: string;
+    point?: string;
+    effectiveFrom: string;
+    lastVerifiedAt: string;
+    officialUrl: string;
+    statusNote?: string;
+  };
+  reviewedSanction?: {
+    summary: string;
+    subject: string;
+    conditions: string[];
+  };
 };
 
 export const topics: { name: Topic; icon: string; detail: string }[] = [
@@ -35,6 +52,26 @@ export const laws: LawItem[] = [
     caseStudy:
       "Minh, 16 tuổi, đi xe máy điện tới trường nhưng để mũ trong cốp. Khi được kiểm tra, Minh mới hiểu việc có mũ mà không đội vẫn là vi phạm.",
     tags: ["xemaydien", "mu-baohiem", "antoan"],
+    citation: {
+      documentNumber: "168/2024/NĐ-CP",
+      title:
+        "Quy định xử phạt vi phạm hành chính về trật tự, an toàn giao thông trong lĩnh vực giao thông đường bộ; trừ điểm, phục hồi điểm giấy phép lái xe",
+      issuedAt: "2024-12-26",
+      article: "7",
+      clause: "2",
+      point: "h",
+      effectiveFrom: "2025-01-01",
+      lastVerifiedAt: "2026-07-31",
+      officialUrl:
+        "https://vbpl.vn/tw/Pages/ivbpq-thuoctinh.aspx?ItemID=173920",
+    },
+    reviewedSanction: {
+      summary: "Phạt tiền từ 400.000 đồng đến 600.000 đồng.",
+      subject: "Người điều khiển xe mô tô, xe gắn máy hoặc phương tiện tương tự.",
+      conditions: [
+        "Không đội mũ bảo hiểm hoặc đội mũ nhưng không cài quai đúng quy cách.",
+      ],
+    },
   },
   {
     id: 2,

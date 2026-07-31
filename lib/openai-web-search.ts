@@ -50,6 +50,10 @@ Quy tắc bắt buộc:
   cho backoffice discovery riêng và không được làm căn cứ trong final answer.
 - Nếu không tìm được nguồn Chính phủ hỗ trợ câu trả lời, hãy nói chưa đủ nguồn
   để trả lời; không suy đoán điều, khoản, ngày, độ tuổi hay mức tiền.
+- Direct fallback này chưa được phép công khai số hiệu văn bản, điều/khoản/điểm,
+  ngày pháp lý, độ tuổi áp dụng hoặc mức tiền. Không viết các dữ liệu đó trong
+  câu trả lời, kể cả khi trang web có nêu; người dùng sẽ mở nguồn bên dưới và
+  dữ liệu chi tiết chỉ được hiển thị sau khi biên tập viên kiểm duyệt.
 - Trả lời tối đa bốn phần theo đúng thứ tự và nhãn: "Kết luận:",
   "Giải thích:", "Bạn nên làm gì:", "Lưu ý:". Chỉ thêm phần có nội dung.
 - Viết plain text, câu và đoạn ngắn. Không dùng Markdown, HTML, JSON, code,
@@ -80,6 +84,7 @@ export type OpenAiWebSearchFailureCode =
   | "PROVIDER_ERROR"
   | "PROVIDER_REFUSAL"
   | "INVALID_OUTPUT"
+  | "UNVERIFIED_LEGAL_CLAIM"
   | "UNTRUSTED_CITATION"
   | "MISSING_OFFICIAL_CITATION";
 
@@ -292,6 +297,35 @@ function tokenCount(value: unknown): number | null {
   return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : null;
 }
 
+export function containsUnverifiedLegalClaim(value: string) {
+  const normalized = value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/đ/g, "d");
+  const numberWord =
+    "(?:khong|mot|hai|ba|bon|tu|nam|lam|sau|bay|tam|chin|muoi|tram|nghin|ngan|trieu|ty)";
+  return (
+    /\d/.test(normalized) ||
+    new RegExp(
+      `\\b${numberWord}(?:[\\s-]+${numberWord})*\\s*(?:dong|vnd|nghin|ngan|trieu|ty|k)\\b`,
+      "i",
+    ).test(normalized) ||
+    new RegExp(
+      `\\b(?:diem|khoan|dieu)\\s+(?:thu\\s+)?(?:[a-z]|${numberWord})\\b`,
+      "i",
+    ).test(normalized) ||
+    new RegExp(
+      `\\bngay\\s+(?:mung\\s+)?${numberWord}(?:[\\s-]+${numberWord})*\\s+thang\\s+${numberWord}`,
+      "i",
+    ).test(normalized) ||
+    new RegExp(
+      `\\b(?:tu\\s+du\\s+)?${numberWord}(?:[\\s-]+${numberWord})*\\s+tuoi\\b`,
+      "i",
+    ).test(normalized)
+  );
+}
+
 export async function searchAllowedLegalSources(
   config: OpenAiWebSearchConfig,
   question: string,
@@ -391,6 +425,9 @@ export async function searchAllowedLegalSources(
   if (final.citations.length === 0) {
     return failure("MISSING_OFFICIAL_CITATION");
   }
+  if (containsUnverifiedLegalClaim(final.text)) {
+    return failure("UNVERIFIED_LEGAL_CLAIM");
+  }
 
   const sourceMap = new Map<string, OfficialWebSource>();
   for (const citation of final.citations) {
@@ -406,6 +443,13 @@ export async function searchAllowedLegalSources(
   if (sourceMap.size === 0) return failure("MISSING_OFFICIAL_CITATION");
   const presentation = projectPublicWebSearchAnswer(final.text);
   if (!presentation) return failure("INVALID_OUTPUT");
+  if (
+    presentation.sections.some((section) =>
+      ["legal_basis", "sanctions", "legal_remedies"].includes(section.kind),
+    )
+  ) {
+    return failure("UNVERIFIED_LEGAL_CLAIM");
+  }
 
   const usage = isPlainObject(payload.usage) ? payload.usage : {};
   return {

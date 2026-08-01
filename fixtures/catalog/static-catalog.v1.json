@@ -1,0 +1,67 @@
+{
+  "staticCatalogVersion": "static-catalog-v1",
+  "records": [
+    {
+      "entityType": "law",
+      "contentKey": "law:helmet-road-safety",
+      "topic": "Giao thông",
+      "displayOrder": 20,
+      "eligibility": "eligible",
+      "icon": "◉",
+      "title": "Đội mũ bảo hiểm",
+      "legalBasis": "Căn cứ fixture đã duyệt",
+      "penalty": "Mức xử lý fixture",
+      "remedy": "Đội mũ đúng quy cách.",
+      "caseStudy": "Tình huống fixture giao thông.",
+      "tags": ["giao-thong", "mu-bao-hiem"]
+    },
+    {
+      "entityType": "law",
+      "contentKey": "law:social-information",
+      "topic": "Mạng xã hội",
+      "displayOrder": 10,
+      "eligibility": "eligible",
+      "icon": "@",
+      "title": "Kiểm tra thông tin trước khi chia sẻ",
+      "legalBasis": "Căn cứ fixture đã duyệt",
+      "penalty": "Mức xử lý fixture",
+      "remedy": "Dừng chia sẻ và kiểm tra nguồn.",
+      "caseStudy": "Tình huống fixture mạng xã hội.",
+      "tags": ["mang-xa-hoi", "tin-sai"]
+    },
+    {
+      "entityType": "law",
+      "contentKey": "law:blocked-static",
+      "topic": "Sở hữu trí tuệ",
+      "displayOrder": 1,
+      "eligibility": "blocked",
+      "icon": "©",
+      "title": "Nội dung bị chặn",
+      "legalBasis": "Căn cứ không còn đủ điều kiện",
+      "penalty": "Không được hiển thị",
+      "remedy": "Chờ rà soát.",
+      "caseStudy": "Không được dùng làm fallback.",
+      "tags": ["blocked"]
+    },
+    {
+      "entityType": "showcase",
+      "contentKey": "showcase:sharing-warning",
+      "topic": "Mạng xã hội",
+      "displayOrder": 30,
+      "eligibility": "eligible",
+      "title": "Dừng lại trước khi chia sẻ",
+      "summary": "Tình huống fixture dùng để kiểm tra resolver.",
+      "sourceUrl": "https://chinhphu.vn/nguon-fixture"
+    },
+    {
+      "entityType": "showcase",
+      "contentKey": "showcase:stale-warning",
+      "topic": "Mạng xã hội",
+      "displayOrder": 40,
+      "eligibility": "stale",
+      "title": "Tình huống đã cũ",
+      "summary": "Không được dùng làm fallback.",
+      "sourceUrl": "https://chinhphu.vn/nguon-fixture-cu"
+    }
+  ]
+}

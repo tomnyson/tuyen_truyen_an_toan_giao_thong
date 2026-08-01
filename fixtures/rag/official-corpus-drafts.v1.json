@@ -1,0 +1,339 @@
+{
+  "schemaVersion": "official-corpus-drafts-v1",
+  "packetId": "official-corpus-school-safety-2026-07-31",
+  "verifiedAt": "2026-07-31",
+  "records": [
+    {
+      "intentKey": "traffic.motorcycle_passenger_overload",
+      "candidateId": "a9d6f3e2-7331-4cb0-8db5-0d745b06c001",
+      "requestId": "ee1fb447-64d9-4ad8-933a-e2e77fe4c001",
+      "recordKind": "legal_candidate",
+      "canonicalQuestion": "Đi xe máy “tống 3” thì bị xử lý thế nào?",
+      "aliases": [
+        "đi xe máy tống 3",
+        "xe máy chở ba",
+        "xe máy kẹp ba",
+        "một xe máy đi ba người",
+        "xe máy chở quá người"
+      ],
+      "topic": "traffic",
+      "proposedSnapshot": {
+        "topic": "Giao thông",
+        "title": "Xe máy chở hai hoặc từ ba người đi cùng",
+        "answer": "Cần làm rõ “tống 3” là tổng cộng ba người hay người lái chở theo ba người. Nếu xe có một người lái và chở thêm hai người, mức phạt tham khảo là 400.000–600.000 đồng, trừ trường hợp chở người bệnh đi cấp cứu, trẻ em dưới 12 tuổi, người già yếu hoặc người khuyết tật, hoặc áp giải người vi phạm pháp luật. Nếu người lái chở theo từ ba người trở lên, mức phạt tham khảo là 600.000–800.000 đồng. Các mức trên là khung cho người thành niên; người chưa đủ 18 tuổi phải xác định tuổi cụ thể trước khi áp dụng. Cách xử lý an toàn là dừng chở quá số người và bố trí thêm phương tiện phù hợp.",
+        "tags": [
+          "xe máy",
+          "tống 3",
+          "chở ba",
+          "kẹp ba",
+          "chở quá số người"
+        ],
+        "citations": [
+          {
+            "kind": "legal_instrument",
+            "title": "Nghị định 168/2024/NĐ-CP",
+            "url": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-168-2024-nd-cp-43733/54013.htm",
+            "documentNumber": "168/2024/NĐ-CP",
+            "article": "Điều 7",
+            "clause": "Khoản 2 và khoản 3",
+            "point": "Điểm g khoản 2; điểm b khoản 3",
+            "issuedAt": "2024-12-26",
+            "effectiveFrom": "2025-01-01",
+            "lastVerifiedAt": "2026-07-31"
+          }
+        ]
+      },
+      "reviewNotes": "Biên tập viên phải giữ câu làm rõ vì cách nói “tống 3” có thể chỉ tổng cộng ba người hoặc chở theo ba người."
+    },
+    {
+      "intentKey": "traffic.motorcycle_red_light",
+      "candidateId": "a9d6f3e2-7331-4cb0-8db5-0d745b06c002",
+      "requestId": "ee1fb447-64d9-4ad8-933a-e2e77fe4c002",
+      "recordKind": "legal_candidate",
+      "canonicalQuestion": "Đi xe máy vượt đèn đỏ bị phạt bao nhiêu?",
+      "aliases": [
+        "xe máy vượt đèn đỏ",
+        "không chấp hành đèn tín hiệu",
+        "đi xe máy lỡ vượt đèn đỏ",
+        "vượt đèn đỏ bị phạt sao"
+      ],
+      "topic": "traffic",
+      "proposedSnapshot": {
+        "topic": "Giao thông",
+        "title": "Xe máy không chấp hành đèn tín hiệu giao thông",
+        "answer": "Người điều khiển xe máy không chấp hành hiệu lệnh của đèn tín hiệu giao thông có mức phạt tham khảo 4–6 triệu đồng và bị trừ 4 điểm giấy phép lái xe. Mức tiền trên là khung cho người thành niên; người chưa đủ 18 tuổi phải xác định tuổi cụ thể trước khi áp dụng. Nếu hành vi gây tai nạn, tình huống cần được tra cứu theo nhánh hậu quả riêng. Cách khắc phục trước mắt là dừng xe đúng vạch, chấp hành tín hiệu và cung cấp thông tin trung thực khi cơ quan có thẩm quyền làm việc.",
+        "tags": [
+          "xe máy",
+          "vượt đèn đỏ",
+          "đèn tín hiệu",
+          "trừ điểm giấy phép lái xe"
+        ],
+        "citations": [
+          {
+            "kind": "legal_instrument",
+            "title": "Nghị định 168/2024/NĐ-CP",
+            "url": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-168-2024-nd-cp-43733/54013.htm",
+            "documentNumber": "168/2024/NĐ-CP",
+            "article": "Điều 7",
+            "clause": "Khoản 7 và khoản 13",
+            "point": "Điểm c khoản 7; điểm b khoản 13",
+            "issuedAt": "2024-12-26",
+            "effectiveFrom": "2025-01-01",
+            "lastVerifiedAt": "2026-07-31"
+          }
+        ]
+      },
+      "reviewNotes": "Không dùng record này cho trường hợp đã gây tai nạn; cần một intent và evidence riêng."
+    },
+    {
+      "intentKey": "online_safety.false_or_insulting_content",
+      "candidateId": "a9d6f3e2-7331-4cb0-8db5-0d745b06c003",
+      "requestId": "ee1fb447-64d9-4ad8-933a-e2e77fe4c003",
+      "recordKind": "legal_candidate",
+      "canonicalQuestion": "Đăng bài sai sự thật hoặc xúc phạm người khác trên mạng có thể bị xử lý thế nào?",
+      "aliases": [
+        "nói xấu trên mạng",
+        "xúc phạm bạn học trên mạng",
+        "đăng tin sai sự thật",
+        "vu khống trên facebook",
+        "bôi nhọ trong nhóm lớp"
+      ],
+      "topic": "online_safety",
+      "proposedSnapshot": {
+        "topic": "Mạng xã hội",
+        "title": "Chia sẻ thông tin sai sự thật, vu khống hoặc xúc phạm trên mạng xã hội",
+        "answer": "Cụm từ “nói xấu” chưa đủ để tự động kết luận vi phạm. Cần xác định có hành vi cung cấp hoặc chia sẻ thông tin giả mạo, sai sự thật, xuyên tạc, vu khống hoặc xúc phạm uy tín, danh dự, nhân phẩm trên mạng xã hội hay không. Theo quy định có hiệu lực từ 01/07/2026, mức phạt tại điều khoản này là 20–30 triệu đồng đối với tổ chức; cá nhân thành niên có hành vi tương ứng áp dụng bằng một nửa, tức 10–15 triệu đồng. Người chưa đủ 18 tuổi phải xác định tuổi cụ thể trước khi áp dụng mức tiền. Nội dung vi phạm có thể bị buộc gỡ bỏ. Người bị ảnh hưởng nên lưu bằng chứng, yêu cầu dừng và gỡ nội dung, báo cho nhà trường hoặc người lớn đáng tin cậy, và liên hệ nền tảng/cơ quan chức năng khi cần.",
+        "tags": [
+          "ứng xử trên mạng",
+          "thông tin sai sự thật",
+          "xúc phạm",
+          "vu khống",
+          "bôi nhọ"
+        ],
+        "citations": [
+          {
+            "kind": "legal_instrument",
+            "title": "Nghị định 174/2026/NĐ-CP",
+            "url": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-174-2026-nd-cp-469616/65312.htm",
+            "documentNumber": "174/2026/NĐ-CP",
+            "article": "Điều 4 và Điều 95",
+            "clause": "Khoản 3 Điều 4; khoản 1 và khoản 3 Điều 95",
+            "point": "Điểm a khoản 1 Điều 95",
+            "issuedAt": "2026-05-15",
+            "effectiveFrom": "2026-07-01",
+            "lastVerifiedAt": "2026-07-31"
+          }
+        ]
+      },
+      "reviewNotes": "Không dùng Điều 101 Nghị định 15/2020 hoặc mức cá nhân 5–10 triệu cho hành vi xảy ra từ 01/07/2026."
+    },
+    {
+      "intentKey": "online_safety.account_compromise",
+      "candidateId": "a9d6f3e2-7331-4cb0-8db5-0d745b06c004",
+      "requestId": "ee1fb447-64d9-4ad8-933a-e2e77fe4c004",
+      "recordKind": "official_guidance",
+      "canonicalQuestion": "Tài khoản mạng xã hội bị chiếm đoạt thì nên làm gì?",
+      "aliases": [
+        "tài khoản bị hack",
+        "mất tài khoản facebook",
+        "bị chiếm tài khoản",
+        "lộ mật khẩu",
+        "không đăng nhập được tài khoản"
+      ],
+      "topic": "online_safety",
+      "proposedSnapshot": {
+        "topic": "Mạng xã hội",
+        "title": "Xử lý an toàn khi tài khoản có dấu hiệu bị chiếm đoạt",
+        "answer": "Đây trước hết là tình huống an toàn tài khoản, chưa đủ dữ kiện để kết luận tội danh hoặc mức phạt. Khi phát hiện dấu hiệu bất thường, hãy đổi mật khẩu và thông báo cho bạn bè, người thân biết tài khoản có thể bị xâm nhập để tránh bị lừa đảo. Không cung cấp mật khẩu hoặc mã OTP và không truy cập liên kết lạ. Nếu đã bị chiếm đoạt tài sản, hãy nhanh chóng trình báo cơ quan công an gần nhất.",
+        "tags": [
+          "an toàn mạng",
+          "tài khoản bị hack",
+          "chiếm đoạt tài khoản",
+          "mật khẩu",
+          "xác thực hai lớp"
+        ],
+        "citations": [
+          {
+            "kind": "official_guidance",
+            "title": "Công an TP.HCM cảnh báo thủ đoạn chiếm quyền tài khoản",
+            "url": "https://tphcm.chinhphu.vn/cong-an-tphcm-canh-bao-thu-doan-lua-dao-ho-tro-cai-dat-sinh-trac-hoc-101240703150617949.htm",
+            "publisher": "Công an TP.HCM qua Báo Điện tử Chính phủ",
+            "publishedAt": "2024-07-03",
+            "lastVerifiedAt": "2026-07-31"
+          }
+        ]
+      },
+      "reviewNotes": "Safety-only record, publicationEligible=false trong legal candidate workflow; không tự động gán Điều 289/290 Bộ luật Hình sự hoặc một mức phạt."
+    },
+    {
+      "intentKey": "copyright.school_quotation",
+      "candidateId": "a9d6f3e2-7331-4cb0-8db5-0d745b06c005",
+      "requestId": "ee1fb447-64d9-4ad8-933a-e2e77fe4c005",
+      "recordKind": "legal_candidate",
+      "canonicalQuestion": "Làm bài học có được trích nội dung của người khác nếu ghi nguồn không?",
+      "aliases": [
+        "ghi nguồn có hết vi phạm bản quyền không",
+        "trích bài của người khác làm bài tập",
+        "đạo văn và ghi nguồn",
+        "dùng tài liệu học tập có cần xin phép",
+        "trích dẫn đúng cách"
+      ],
+      "topic": "copyright",
+      "proposedSnapshot": {
+        "topic": "Sở hữu trí tuệ",
+        "title": "Trích dẫn tác phẩm trong học tập và nghĩa vụ ghi nguồn",
+        "answer": "Ghi tên tác giả và nguồn là yêu cầu quan trọng khi áp dụng ngoại lệ trích dẫn, nhưng ghi nguồn không thay thế việc xin phép trong mọi trường hợp. Phần trích phải hợp lý, phục vụ đúng mục đích, không làm sai ý tác giả và không gây thiệt hại bất hợp lý đến quyền của chủ sở hữu. Nếu sao chép phần lớn tác phẩm, đăng công khai hoặc dùng ngoài phạm vi ngoại lệ, nên xin phép chủ sở hữu hoặc dùng tài liệu có giấy phép phù hợp.",
+        "tags": [
+          "bản quyền",
+          "quyền tác giả",
+          "copyright",
+          "trích dẫn",
+          "ghi nguồn",
+          "đạo văn"
+        ],
+        "citations": [
+          {
+            "kind": "legal_instrument",
+            "title": "Văn bản hợp nhất 155/VBHN-VPQH về Luật Sở hữu trí tuệ",
+            "url": "https://congbao.chinhphu.vn/van-ban/van-ban-hop-nhat-so-155-vbhn-vpqh-46214/58980.htm",
+            "documentNumber": "155/VBHN-VPQH",
+            "article": "Điều 19, Điều 20, Điều 25 và Điều 28",
+            "issuedAt": "2025-09-09",
+            "effectiveFrom": "2023-01-01",
+            "effectivityNote": "Văn bản hợp nhất được xác lập ngày 09/09/2025; ngày 01/01/2023 là hiệu lực của các sửa đổi liên quan theo Luật 07/2022/QH15.",
+            "lastVerifiedAt": "2026-07-31"
+          },
+          {
+            "kind": "legal_instrument",
+            "title": "Luật 07/2022/QH15 sửa đổi Luật Sở hữu trí tuệ",
+            "url": "https://congbao.chinhphu.vn/van-ban/luat-so-07-2022-qh15-37504.htm",
+            "documentNumber": "07/2022/QH15",
+            "article": "Điều 1 và Điều 3",
+            "issuedAt": "2022-06-16",
+            "effectiveFrom": "2023-01-01",
+            "lastVerifiedAt": "2026-07-31"
+          }
+        ]
+      },
+      "reviewNotes": "Không gán một mức phạt chung cho mọi trường hợp bị gọi là “đạo văn”."
+    },
+    {
+      "intentKey": "copyright.school_image_use",
+      "candidateId": "a9d6f3e2-7331-4cb0-8db5-0d745b06c006",
+      "requestId": "ee1fb447-64d9-4ad8-933a-e2e77fe4c006",
+      "recordKind": "legal_candidate",
+      "canonicalQuestion": "Có được dùng ảnh trên mạng cho bài học hoặc hoạt động của trường không?",
+      "aliases": [
+        "dùng ảnh trên mạng làm bài thuyết trình",
+        "lấy ảnh người khác cho website trường",
+        "ảnh minh họa trong lớp có bản quyền không",
+        "đăng ảnh vào bài học",
+        "dùng ảnh có cần xin phép"
+      ],
+      "topic": "copyright",
+      "proposedSnapshot": {
+        "topic": "Sở hữu trí tuệ",
+        "title": "Dùng ảnh có bản quyền trong hoạt động học đường",
+        "answer": "Việc dùng hợp lý một phần tác phẩm để minh họa trong buổi học và giới hạn trong phạm vi người dạy, người học có thể thuộc ngoại lệ nếu đáp ứng đầy đủ điều kiện và ghi tên tác giả, nguồn. Đăng ảnh công khai lên website hoặc mạng xã hội của trường không mặc nhiên thuộc ngoại lệ học tập. Trước khi đăng công khai, nên kiểm tra giấy phép, xin phép chủ sở hữu hoặc chọn ảnh có giấy phép mở phù hợp.",
+        "tags": [
+          "bản quyền",
+          "quyền tác giả",
+          "copyright",
+          "ảnh",
+          "minh họa bài học",
+          "giấy phép sử dụng"
+        ],
+        "citations": [
+          {
+            "kind": "legal_instrument",
+            "title": "Văn bản hợp nhất 155/VBHN-VPQH về Luật Sở hữu trí tuệ",
+            "url": "https://congbao.chinhphu.vn/van-ban/van-ban-hop-nhat-so-155-vbhn-vpqh-46214/58980.htm",
+            "documentNumber": "155/VBHN-VPQH",
+            "article": "Điều 25",
+            "clause": "Khoản 1 và khoản 2",
+            "point": "Điểm c khoản 1",
+            "issuedAt": "2025-09-09",
+            "effectiveFrom": "2023-01-01",
+            "effectivityNote": "Văn bản hợp nhất được xác lập ngày 09/09/2025; ngày 01/01/2023 là hiệu lực của các sửa đổi liên quan theo Luật 07/2022/QH15.",
+            "lastVerifiedAt": "2026-07-31"
+          },
+          {
+            "kind": "legal_instrument",
+            "title": "Luật 07/2022/QH15 sửa đổi Luật Sở hữu trí tuệ",
+            "url": "https://congbao.chinhphu.vn/van-ban/luat-so-07-2022-qh15-37504.htm",
+            "documentNumber": "07/2022/QH15",
+            "article": "Điều 1 và Điều 3",
+            "issuedAt": "2022-06-16",
+            "effectiveFrom": "2023-01-01",
+            "lastVerifiedAt": "2026-07-31"
+          },
+          {
+            "kind": "legal_instrument",
+            "title": "Nghị định 17/2023/NĐ-CP",
+            "url": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-17-2023-nd-cp-39279.htm",
+            "documentNumber": "17/2023/NĐ-CP",
+            "article": "Điều 26",
+            "issuedAt": "2023-04-26",
+            "effectiveFrom": "2023-04-26",
+            "lastVerifiedAt": "2026-07-31"
+          }
+        ]
+      },
+      "reviewNotes": "Phải hỏi lại nội bộ lớp học hay đăng công khai trước khi kết luận ngoại lệ có áp dụng."
+    },
+    {
+      "intentKey": "copyright.school_music_remix",
+      "candidateId": "a9d6f3e2-7331-4cb0-8db5-0d745b06c007",
+      "requestId": "ee1fb447-64d9-4ad8-933a-e2e77fe4c007",
+      "recordKind": "legal_candidate",
+      "canonicalQuestion": "Học sinh remix nhạc để biểu diễn hoặc đăng lên mạng có cần xin phép không?",
+      "aliases": [
+        "remix nhạc ở trường",
+        "phối lại bài hát có vi phạm bản quyền",
+        "dùng nhạc biểu diễn văn nghệ",
+        "đăng video remix lên mạng",
+        "chế lại bài hát"
+      ],
+      "topic": "copyright",
+      "proposedSnapshot": {
+        "topic": "Sở hữu trí tuệ",
+        "title": "Remix hoặc phối lại nhạc trong hoạt động học đường",
+        "answer": "Remix hoặc phối lại thường tạo tác phẩm phái sinh, nên về nguyên tắc cần được chủ sở hữu quyền tác giả cho phép, trừ khi có giấy phép hoặc ngoại lệ phù hợp. Việc diễn ra trong trường hoặc không thu tiền không tự động tạo quyền remix hay đăng công khai. Cần làm rõ hoạt động chỉ biểu diễn nội bộ hay đăng lên mạng, có sửa phần nhạc/lời hay không, và tác phẩm có giấy phép mở hoặc đã được cho phép hay chưa.",
+        "tags": [
+          "bản quyền",
+          "quyền tác giả",
+          "copyright",
+          "remix",
+          "phối lại",
+          "tác phẩm phái sinh"
+        ],
+        "citations": [
+          {
+            "kind": "legal_instrument",
+            "title": "Văn bản hợp nhất 155/VBHN-VPQH về Luật Sở hữu trí tuệ",
+            "url": "https://congbao.chinhphu.vn/van-ban/van-ban-hop-nhat-so-155-vbhn-vpqh-46214/58980.htm",
+            "documentNumber": "155/VBHN-VPQH",
+            "article": "Điều 20 và Điều 25",
+            "clause": "Khoản 1, khoản 2 Điều 20; khoản 1 Điều 25",
+            "point": "Điểm a khoản 1 Điều 20; điểm c và điểm g khoản 1 Điều 25",
+            "issuedAt": "2025-09-09",
+            "effectiveFrom": "2023-01-01",
+            "effectivityNote": "Văn bản hợp nhất được xác lập ngày 09/09/2025; ngày 01/01/2023 là hiệu lực của các sửa đổi liên quan theo Luật 07/2022/QH15.",
+            "lastVerifiedAt": "2026-07-31"
+          },
+          {
+            "kind": "legal_instrument",
+            "title": "Luật 07/2022/QH15 sửa đổi Luật Sở hữu trí tuệ",
+            "url": "https://congbao.chinhphu.vn/van-ban/luat-so-07-2022-qh15-37504.htm",
+            "documentNumber": "07/2022/QH15",
+            "article": "Điều 1 và Điều 3",
+            "issuedAt": "2022-06-16",
+            "effectiveFrom": "2023-01-01",
+            "lastVerifiedAt": "2026-07-31"
+          }
+        ]
+      },
+      "reviewNotes": "Biên tập viên phải giữ câu hỏi làm rõ phạm vi nội bộ/công khai, biến đổi tác phẩm và giấy phép."
+    }
+  ]
+}

@@ -35,9 +35,8 @@ registerHooks({
   },
 });
 
-const { buildSeedStatements, validateSeedContent } = await import(
-  "../scripts/seed-db.mjs"
-);
+const { buildAdminPrincipalStatements, buildSeedStatements, validateSeedContent } =
+  await import("../scripts/seed-db.mjs");
 const seedContent = (await import("../db/seeds/seed-content.v1.mjs")).default;
 const { computeProvisionChecksum, PROVISION_CHECKSUM_VERSION } = await import(
   "../lib/legal-evidence-retriever.ts"
@@ -149,4 +148,17 @@ test("checksum khop computeProvisionChecksum cua app", async () => {
     assert.equal(row.cited_checksum_sha256, expected);
     assert.equal(row.cited_revision_id, row.revision_id);
   }
+});
+
+test("gan principal admin idempotent va co role active", async () => {
+  const statements = buildAdminPrincipalStatements("tabletkindfire@gmail.com");
+  for (const statement of statements) await db.execute(sql.raw(statement));
+  for (const statement of statements) await db.execute(sql.raw(statement)); // lần 2
+  const roles = await db.execute(sql.raw(`
+    SELECT g.role FROM editorial_principals p
+    JOIN editorial_role_grants g ON g.principal_id = p.id
+    WHERE p.id = 'legacy-admin:tabletkindfire@gmail.com'
+      AND p.status = 'active' AND g.revoked_at IS NULL
+  `));
+  assert.deepEqual(roles.rows.map((row) => row.role), ["admin"]);
 });

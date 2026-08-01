@@ -222,6 +222,29 @@ export async function buildSeedSql(content, options = {}) {
 }
 
 
+
+// Gan principal + role biên tập cho tài khoản admin cấu hình qua env —
+// tab "Bản nháp từ AI" yêu cầu principal active kèm role trong DB.
+// Idempotent: chạy lại không nhân đôi, không đè grant đã thu hồi thủ công.
+export function buildAdminPrincipalStatements(username, principalIdOverride) {
+  const principalId = principalIdOverride || `legacy-admin:${username}`;
+  return [
+    `
+INSERT INTO editorial_principals (id, display_name, status)
+SELECT ${q(principalId)}, ${q(username)}, 'active'
+WHERE NOT EXISTS (
+  SELECT 1 FROM editorial_principals WHERE id = ${q(principalId)}
+);`,
+    `
+INSERT INTO editorial_role_grants (id, principal_id, role, granted_by_principal_id)
+SELECT ${q(`seed-role-admin:${principalId}`)}, ${q(principalId)}, 'admin', ${q(principalId)}
+WHERE NOT EXISTS (
+  SELECT 1 FROM editorial_role_grants
+  WHERE principal_id = ${q(principalId)} AND role = 'admin' AND revoked_at IS NULL
+);`,
+  ];
+}
+
 const isMain = process.argv[1]?.endsWith("seed-db.mjs");
 if (isMain) {
   const content = (await import("../db/seeds/seed-content.v1.mjs")).default;
@@ -247,6 +270,15 @@ if (isMain) {
         await client.query(statement);
       }
       const statements = await buildSeedStatements(content);
+      const adminUsername = (process.env.ADMIN_USERNAME ?? "").trim();
+      if (adminUsername) {
+        statements.push(
+          ...buildAdminPrincipalStatements(
+            adminUsername,
+            (process.env.ADMIN_PRINCIPAL_ID ?? "").trim() || undefined,
+          ),
+        );
+      }
       await client.query("BEGIN");
       for (const statement of statements) {
         await client.query(statement);

@@ -3,7 +3,7 @@
 // runtime để phần SQL trong lib giữ nguyên (tests SQLite vẫn dùng được).
 // batch chạy nguyên tử qua sql.transaction của driver neon-http.
 import { neon } from "@neondatabase/serverless";
-import { env } from "cloudflare:workers";
+import { env } from "@/lib/runtime-env";
 
 export type NeonD1Statement = {
   bind(...values: unknown[]): NeonD1Statement;

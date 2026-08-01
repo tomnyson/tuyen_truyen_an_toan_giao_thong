@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env } from "@/lib/runtime-env";
 import { createNeonD1Database, type NeonD1Database } from "./neon-d1";
 import { normalizeVietnamese } from "./legal-content";
 import {

@@ -6,7 +6,7 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
 import { sql } from "drizzle-orm";
-import { env } from "cloudflare:workers";
+import { env } from "@/lib/runtime-env";
 import * as schema from "./pg-schema";
 import {
   pgBootstrapSentinelTable,

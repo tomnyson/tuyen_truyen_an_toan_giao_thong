@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import { env } from "cloudflare:workers";
+import { env } from "@/lib/runtime-env";
 
 export const rateLimitPolicyVersion = "rate-limit-v1";
 

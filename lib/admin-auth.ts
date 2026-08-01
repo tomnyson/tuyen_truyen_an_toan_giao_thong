@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env } from "@/lib/runtime-env";
 import { verifyAdminPassword } from "@/lib/password-hash";
 
 export const adminCookieName = "law_school_admin";

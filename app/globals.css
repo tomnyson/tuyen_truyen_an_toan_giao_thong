@@ -155,6 +155,8 @@ footer { border-top: 2px solid var(--ink); padding: 34px clamp(24px, 7vw, 110px)
 .modal-facts strong { font-size: 12px; }
 .story-box { background: var(--mint); border-radius: 14px; padding: 18px; margin: 16px 0; border-left: 6px solid var(--blue); }
 .story-box p { margin: 0; font-size: 13px; line-height: 1.65; }
+.modal-ask-ai { display: block; width: 100%; margin-top: 18px; border: 2px solid var(--ink); border-radius: 14px; background: var(--ink); color: white; padding: 13px 18px; font-weight: 900; font-size: 14px; cursor: pointer; box-shadow: 4px 4px 0 var(--yellow); }
+.modal-ask-ai:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--yellow); }
 .modal-note { font-size: 10px; color: #697085; line-height: 1.5; margin-top: 18px; }
 .showcase-detail { border: 1.5px solid var(--ink); border-radius: 14px; padding: 18px; margin-bottom: 18px; }
 .showcase-detail > span { display: block; font-size: 9px; font-weight: 900; letter-spacing: .7px; color: var(--blue); margin-bottom: 8px; }

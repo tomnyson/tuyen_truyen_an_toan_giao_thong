@@ -14,6 +14,9 @@ export type LawItem = {
   remedy: string;
   caseStudy: string;
   tags: string[];
+  // true khi entry có citation đã duyệt bốn mắt trong D1/Postgres — UI được
+  // phép hiển thị trực tiếp legal/penalty do biên tập viên soạn.
+  verified?: boolean;
   citation?: {
     documentNumber: string;
     title: string;

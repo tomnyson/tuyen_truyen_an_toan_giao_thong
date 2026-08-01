@@ -38,6 +38,18 @@ type ChatMessage = {
   sourceKind?: PublicSourceKind;
 };
 
+type PublishedCitation = {
+  documentNumber: string;
+  title: string;
+  issuedAt: string | null;
+  article: string | null;
+  clause: string | null;
+  point: string | null;
+  effectiveFrom: string | null;
+  lastVerifiedAt: string | null;
+  officialUrl: string;
+};
+
 type PublishedContent = {
   laws?: Array<{
     id: number;
@@ -49,6 +61,7 @@ type PublishedContent = {
     remedy: string;
     caseStudy: string;
     tags: string;
+    citations?: PublishedCitation[];
   }>;
   showcases?: unknown;
 };
@@ -63,6 +76,9 @@ function parseTags(value: string) {
 }
 
 function reviewedLegalBasis(item: LawItem) {
+  // Entry đã có citation bốn mắt: hiển thị đúng câu căn cứ do biên tập viên
+  // soạn (bao quát cả Luật/Bộ luật/VBHN, không chỉ Nghị định).
+  if (item.verified) return item.legal;
   if (!item.citation) return "Đang kiểm chứng căn cứ hiện hành";
   const provision = [
     item.citation.point ? `Điểm ${item.citation.point}` : "",
@@ -75,6 +91,7 @@ function reviewedLegalBasis(item: LawItem) {
 }
 
 function reviewedPenalty(item: LawItem) {
+  if (item.verified) return item.penalty;
   return item.reviewedSanction?.summary ?? "Chưa công bố mức tham khảo";
 }
 
@@ -106,17 +123,35 @@ export default function Home() {
         const parsedShowcases = parsePublicShowcases(content.showcases);
         if (!parsedShowcases) throw new Error("invalid showcase response");
         if (!active) return;
-        setManagedLaws((content.laws ?? []).map((item) => ({
-          id: 100_000 + item.id,
-          topic: item.topic,
-          icon: item.icon,
-          title: item.title,
-          legal: item.legalBasis,
-          penalty: item.penalty,
-          remedy: item.remedy,
-          caseStudy: item.caseStudy,
-          tags: parseTags(item.tags),
-        })));
+        setManagedLaws((content.laws ?? []).map((item) => {
+          const firstCitation = item.citations?.[0];
+          const verified = (item.citations?.length ?? 0) > 0;
+          return {
+            id: 100_000 + item.id,
+            topic: item.topic,
+            icon: item.icon,
+            title: item.title,
+            legal: item.legalBasis,
+            penalty: item.penalty,
+            remedy: item.remedy,
+            caseStudy: item.caseStudy,
+            tags: parseTags(item.tags),
+            verified,
+            citation: firstCitation
+              ? {
+                  documentNumber: firstCitation.documentNumber,
+                  title: firstCitation.title,
+                  issuedAt: firstCitation.issuedAt ?? "",
+                  article: firstCitation.article ?? "",
+                  clause: firstCitation.clause ?? "",
+                  point: firstCitation.point ?? undefined,
+                  effectiveFrom: firstCitation.effectiveFrom ?? "",
+                  lastVerifiedAt: firstCitation.lastVerifiedAt ?? "",
+                  officialUrl: firstCitation.officialUrl,
+                }
+              : undefined,
+          };
+        }));
         setManagedShowcases(parsedShowcases);
         setShowcaseState(parsedShowcases.length > 0 ? "ready" : "empty");
       } catch {
@@ -410,6 +445,17 @@ export default function Home() {
             </div>
             <div className="story-box"><span>TÌNH HUỐNG MINH HỌA</span><p>{selectedLaw.caseStudy}</p></div>
             <div className="tag-row">{selectedLaw.tags.map((tag) => <span key={tag}>#{tag}</span>)}</div>
+            <button
+              className="modal-ask-ai"
+              onClick={() => {
+                const question = `${selectedLaw.title} thì bị xử lý thế nào?`;
+                setSelectedLaw(null);
+                setChatOpen(true);
+                void submitChatQuestion(undefined, question);
+              }}
+            >
+              Hỏi AI về tình huống này →
+            </button>
             <p className="modal-note">Tình huống được biên soạn để giáo dục, không phải hồ sơ xử phạt có thật. Mức áp dụng thực tế phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể.</p>
           </section>
         </div>

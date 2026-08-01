@@ -364,11 +364,11 @@ export default function Home() {
               <tbody>
                 {filteredLaws.map((item) => (
                   <tr key={item.id}>
-                    <td><span className="row-icon">{item.icon}</span><strong>{item.title}</strong></td>
-                    <td>{reviewedLegalBasis(item)}</td>
-                    <td><span className="penalty">{reviewedPenalty(item)}</span></td>
-                    <td>{item.remedy}</td>
-                    <td><button className="detail-button" onClick={() => setSelectedLaw(item)} aria-label={`Xem tình huống: ${item.title}`}>→</button></td>
+                    <td data-label="Hành vi"><span className="row-icon">{item.icon}</span><strong>{item.title}</strong></td>
+                    <td data-label="Căn cứ pháp lý">{reviewedLegalBasis(item)}</td>
+                    <td data-label="Mức phạt tham khảo"><span className="penalty">{reviewedPenalty(item)}</span></td>
+                    <td data-label="Việc nên làm">{item.remedy}</td>
+                    <td className="row-action"><button className="detail-button" onClick={() => setSelectedLaw(item)} aria-label={`Xem tình huống: ${item.title}`}>→</button></td>
                   </tr>
                 ))}
               </tbody>

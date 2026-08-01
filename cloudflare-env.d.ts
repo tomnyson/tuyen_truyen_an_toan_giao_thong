@@ -21,6 +21,7 @@ interface D1Result {
 declare module "cloudflare:workers" {
   export const env: {
     DB?: D1Database;
+    DATABASE_URL?: string;
     ADMIN_USERNAME?: string;
     ADMIN_PASSWORD_HASH?: string;
     ADMIN_PRINCIPAL_ID?: string;
@@ -29,6 +30,7 @@ declare module "cloudflare:workers" {
     RATE_LIMIT_KEY_SECRET?: string;
     OPENAI_API_KEY?: string;
     OPENAI_MODEL?: string;
+    OPENAI_WEB_SEARCH_MODEL?: string;
     AI_REPHRASE_ENABLED?: string;
     AI_SHADOW_ENABLED?: string;
     AI_WEB_SEARCH_ENABLED?: string;

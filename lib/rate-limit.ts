@@ -1,4 +1,5 @@
-import { env } from "cloudflare:workers";
+import { neon } from "@neondatabase/serverless";
+import { env } from "@/lib/runtime-env";
 
 export const rateLimitPolicyVersion = "rate-limit-v1";
 
@@ -75,79 +76,79 @@ type LoginIdentity = {
 
 const cleanupBucketsSql = `
   DELETE FROM rate_limit_buckets
-  WHERE rowid IN (
-    SELECT rowid
+  WHERE (scope, key_hash, window_start) IN (
+    SELECT scope, key_hash, window_start
     FROM rate_limit_buckets
-    WHERE expires_at <= ?1
+    WHERE expires_at <= $1
     ORDER BY expires_at
-    LIMIT ?2
+    LIMIT $2
   )
 `;
 
 const cleanupPenaltiesSql = `
   DELETE FROM rate_limit_penalties
-  WHERE rowid IN (
-    SELECT rowid
+  WHERE (scope, key_hash) IN (
+    SELECT scope, key_hash
     FROM rate_limit_penalties
-    WHERE expires_at <= ?1
+    WHERE expires_at <= $1
     ORDER BY expires_at
-    LIMIT ?2
+    LIMIT $2
   )
 `;
 
 const consumeBucketSql = `
   INSERT INTO rate_limit_buckets (
     scope, key_hash, window_start, request_count, expires_at
-  ) VALUES (?1, ?2, ?3, 1, ?4)
+  ) VALUES ($1, $2, $3, 1, $4)
   ON CONFLICT (scope, key_hash, window_start) DO UPDATE SET
-    request_count = min(rate_limit_buckets.request_count + 1, ?5),
-    expires_at = max(rate_limit_buckets.expires_at, excluded.expires_at)
+    request_count = LEAST(rate_limit_buckets.request_count + 1, $5),
+    expires_at = GREATEST(rate_limit_buckets.expires_at, excluded.expires_at)
   RETURNING request_count
 `;
 
 const readPenaltySql = `
   SELECT consecutive_failures, blocked_until, state_version
   FROM rate_limit_penalties
-  WHERE scope = ?1 AND key_hash = ?2 AND window_start = ?3
+  WHERE scope = $1 AND key_hash = $2 AND window_start = $3
 `;
 
 const recordLoginFailureSql = `
   INSERT INTO rate_limit_penalties (
     scope, key_hash, window_start, consecutive_failures, blocked_until,
     state_version, expires_at
-  ) VALUES (?1, ?2, ?3, 1, 0, lower(hex(randomblob(16))), ?4)
+  ) VALUES ($1, $2, $3, 1, 0, md5(random()::text || clock_timestamp()::text), $4)
   ON CONFLICT (scope, key_hash) DO UPDATE SET
     window_start = excluded.window_start,
     consecutive_failures = CASE
       WHEN rate_limit_penalties.window_start = excluded.window_start
-        THEN min(rate_limit_penalties.consecutive_failures + 1, 5)
+        THEN LEAST(rate_limit_penalties.consecutive_failures + 1, 5)
       ELSE 1
     END,
     blocked_until = CASE
       WHEN (
         CASE
           WHEN rate_limit_penalties.window_start = excluded.window_start
-            THEN min(rate_limit_penalties.consecutive_failures + 1, 5)
+            THEN LEAST(rate_limit_penalties.consecutive_failures + 1, 5)
           ELSE 1
         END
-      ) >= 5 THEN ?5
+      ) >= 5 THEN $5
       WHEN (
         CASE
           WHEN rate_limit_penalties.window_start = excluded.window_start
-            THEN min(rate_limit_penalties.consecutive_failures + 1, 5)
+            THEN LEAST(rate_limit_penalties.consecutive_failures + 1, 5)
           ELSE 1
         END
-      ) = 4 THEN ?6
+      ) = 4 THEN $6
       WHEN (
         CASE
           WHEN rate_limit_penalties.window_start = excluded.window_start
-            THEN min(rate_limit_penalties.consecutive_failures + 1, 5)
+            THEN LEAST(rate_limit_penalties.consecutive_failures + 1, 5)
           ELSE 1
         END
-      ) = 3 THEN ?7
+      ) = 3 THEN $7
       ELSE 0
     END,
-    state_version = lower(hex(randomblob(16))),
+    state_version = md5(random()::text || clock_timestamp()::text),
     expires_at = excluded.expires_at
   RETURNING consecutive_failures, blocked_until, state_version
 `;
@@ -156,11 +157,11 @@ const resetLoginPairSql = `
   UPDATE rate_limit_penalties
   SET consecutive_failures = 0,
       blocked_until = 0,
-      state_version = lower(hex(randomblob(16)))
-  WHERE scope = ?1
-    AND key_hash = ?2
-    AND window_start = ?3
-    AND state_version = ?4
+      state_version = md5(random()::text || clock_timestamp()::text)
+  WHERE scope = $1
+    AND key_hash = $2
+    AND window_start = $3
+    AND state_version = $4
   RETURNING state_version
 `;
 
@@ -256,6 +257,24 @@ function rows<Row extends Record<string, unknown>>(result: D1Result | undefined)
   return result.results as Row[];
 }
 
+// Header nhận diện client theo thứ tự tin cậy:
+// 1. cf-connecting-ip — Cloudflare proxy đặt (domain chính đi qua CF).
+// 2. x-vercel-forwarded-for / x-real-ip — Vercel edge đặt khi truy cập
+//    thẳng *.vercel.app; client không tự giả mạo được vì Vercel ghi đè.
+// Tuyệt đối không tin x-forwarded-for thô (giả mạo được).
+function trustedClientHeader(request: Request): string {
+  const candidates = [
+    request.headers.get("cf-connecting-ip"),
+    request.headers.get("x-vercel-forwarded-for"),
+    request.headers.get("x-real-ip"),
+  ];
+  for (const value of candidates) {
+    const first = value?.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return "";
+}
+
 export function createRateLimiter(dependencies: RateLimiterDependencies) {
   const database = dependencies.database;
   const secret =
@@ -323,7 +342,7 @@ export function createRateLimiter(dependencies: RateLimiterDependencies) {
   }
 
   async function loginIdentity(request: Request, username: string): Promise<LoginIdentity> {
-    const client = normalizeClientIp(request.headers.get("cf-connecting-ip") ?? "");
+    const client = normalizeClientIp(trustedClientHeader(request));
     if (!client) throw new Error("Missing trusted client identity.");
     const account = normalizeUsername(username);
     const [clientKey, accountKey, pairAttemptKey, pairPenaltyKey] = await Promise.all([
@@ -542,7 +561,7 @@ export function createRateLimiter(dependencies: RateLimiterDependencies) {
     const requestId = safeRequestId(request);
     try {
       if (!database || !keyPromise) throw new Error("Invalid rate-limit configuration.");
-      const client = normalizeClientIp(request.headers.get("cf-connecting-ip") ?? "");
+      const client = normalizeClientIp(trustedClientHeader(request));
       if (!client) throw new Error("Missing trusted client identity.");
       const [minuteKey, dayKey] = await Promise.all([
         hash(chatMinuteScope, client),
@@ -577,9 +596,52 @@ export function createRateLimiter(dependencies: RateLimiterDependencies) {
   return { beforeLogin, consumeChat, recordLoginFailure, resetLoginPair };
 }
 
+// Adapter Neon giữ nguyên giao diện prepare/bind/batch kiểu D1 mà
+// createRateLimiter tiêu thụ; batch chạy nguyên tử qua sql.transaction.
+type PreparedStatement = RateLimitStatement & {
+  query: string;
+  values: unknown[];
+};
+
+function createNeonRateLimitDatabase(): RateLimitDatabase | undefined {
+  const url = env.DATABASE_URL ?? process.env.DATABASE_URL;
+  if (typeof url !== "string" || url.length === 0) return undefined;
+  const sql = neon(url);
+  return {
+    prepare(query: string): RateLimitStatement {
+      const statement: PreparedStatement = {
+        query,
+        values: [],
+        bind(...values: unknown[]) {
+          return { ...statement, values };
+        },
+      };
+      return statement;
+    },
+    async batch(statements: RateLimitStatement[]) {
+      const results = await sql.transaction(
+        statements.map((statement) => {
+          const { query, values } = statement as PreparedStatement;
+          return sql.query(query, values);
+        }),
+      );
+      return results.map((resultRows) => ({
+        success: true,
+        results: resultRows as Record<string, unknown>[],
+      }));
+    },
+  };
+}
+
+let runtimeDatabase: RateLimitDatabase | undefined;
+
 export function createRuntimeRateLimiter() {
+  // env.DB là seam cho test bơm mock; production không còn binding D1 nên
+  // luôn rơi về adapter Neon (DATABASE_URL).
+  const envDb = env.DB as RateLimitDatabase | undefined;
+  if (!envDb) runtimeDatabase ??= createNeonRateLimitDatabase();
   return createRateLimiter({
-    database: env.DB as RateLimitDatabase | undefined,
+    database: envDb ?? runtimeDatabase,
     secret: env.RATE_LIMIT_KEY_SECRET ?? process.env.RATE_LIMIT_KEY_SECRET,
   });
 }

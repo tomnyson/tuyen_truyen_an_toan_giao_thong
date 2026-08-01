@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env } from "@/lib/runtime-env";
 import { verifyAdminPassword } from "@/lib/password-hash";
 
 export const adminCookieName = "law_school_admin";
@@ -10,7 +10,8 @@ export type AdminSessionActor = {
 };
 
 type AdminAccount = AdminSessionActor & {
-  passwordHash: string;
+  passwordHash?: string;
+  plainPassword?: string;
 };
 
 function getSecret(name: string) {
@@ -80,12 +81,31 @@ function accountRegistry(): AdminAccount[] {
   }
 
   const username = getSecret("ADMIN_USERNAME").trim();
+  const plainPassword = getSecret("ADMIN_PASSWORD");
   const passwordHash = getSecret("ADMIN_PASSWORD_HASH").trim();
   const principalId =
     getSecret("ADMIN_PRINCIPAL_ID").trim() || `legacy-admin:${username}`;
-  return username && passwordHash && /^[A-Za-z0-9._:@-]{1,128}$/.test(principalId)
-    ? [{ username, passwordHash, principalId }]
-    : [];
+  if (!username || !/^[A-Za-z0-9._:@-]{1,128}$/.test(principalId)) return [];
+  // Ưu tiên ADMIN_PASSWORD thuần (cấu hình đơn giản); hash là đường nâng cao.
+  if (plainPassword) return [{ username, plainPassword, principalId }];
+  return passwordHash ? [{ username, passwordHash, principalId }] : [];
+}
+
+// Secret ký phiên: dùng ADMIN_SESSION_SECRET nếu có (≥32 ký tự); nếu không,
+// tự dẫn xuất từ ADMIN_PASSWORD (SHA-256, 64 hex) để cấu hình tối giản chỉ
+// cần username + password. Đổi mật khẩu sẽ vô hiệu các phiên cũ — chấp nhận.
+async function sessionSigningSecret(): Promise<string> {
+  const configured = getSecret("ADMIN_SESSION_SECRET");
+  if (configured.length >= 32) return configured;
+  const password = getSecret("ADMIN_PASSWORD");
+  if (!password) return "";
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`admin-session-secret-v1:${password}`),
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function digest(value: string) {
@@ -102,7 +122,7 @@ async function safeEqual(left: string, right: string) {
 }
 
 async function sign(payload: string) {
-  const secret = getSecret("ADMIN_SESSION_SECRET");
+  const secret = await sessionSigningSecret();
   if (secret.length < 32) return "";
   const key = await crypto.subtle.importKey(
     "raw",
@@ -116,7 +136,7 @@ async function sign(payload: string) {
 
 export async function validateAdminCredentials(username: string, password: string) {
   if (
-    getSecret("ADMIN_SESSION_SECRET").length < 32 ||
+    (await sessionSigningSecret()).length < 32 ||
     !password ||
     new TextEncoder().encode(password).length > 1024
   ) {
@@ -127,7 +147,9 @@ export async function validateAdminCredentials(username: string, password: strin
     accounts.map(async (account) => {
       const [usernameMatches, passwordMatches] = await Promise.all([
         safeEqual(username, account.username),
-        verifyAdminPassword(password, account.passwordHash),
+        account.plainPassword !== undefined
+          ? safeEqual(password, account.plainPassword)
+          : verifyAdminPassword(password, account.passwordHash ?? ""),
       ]);
       return usernameMatches && passwordMatches;
     }),

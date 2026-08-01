@@ -1,6 +1,11 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { getInitializedDb } from "@/db";
-import { legalEntries } from "@/db/schema";
+import {
+  legalEntries,
+  legalEntryCitations,
+  legalProvisions,
+  legalSources,
+} from "@/db/pg-schema";
 import {
   hasBlockedLegalBasis,
   laws,
@@ -12,11 +17,9 @@ import {
   reviewedCitationsToLegalBasisSection,
   type ChatAnswerSection,
   type PublicChatAnswer,
+  type ReviewedCitationPresentationInput,
 } from "./chat-answer-presentation";
-import {
-  chatTopicLabel,
-  type ChatTopic,
-} from "./chat-topic-scope";
+import { chatTopicLabel, type ChatTopic } from "./chat-topic-scope";
 import type { OfficialSourceLink } from "./official-source-url";
 
 const [helmetLaw, , falseInformationLaw] = laws;
@@ -107,7 +110,9 @@ ${laws.length + 1}. Người từ đủ 14 đến dưới 16 tuổi: không áp 
 ${laws.length + 2}. Tình huống trên website là minh họa giáo dục, không phải hồ sơ xử phạt thực tế.
 `;
 
-export function findCuratedAnswer(question: string): KnowledgeChatAnswer | null {
+export function findCuratedAnswer(
+  question: string,
+): KnowledgeChatAnswer | null {
   const normalized = normalizeVietnamese(question);
 
   if (
@@ -148,8 +153,7 @@ export function findCuratedAnswer(question: string): KnowledgeChatAnswer | null 
       sections,
       sources: [
         {
-          title:
-            "Công an TP.HCM cảnh báo thủ đoạn chiếm quyền tài khoản",
+          title: "Công an TP.HCM cảnh báo thủ đoạn chiếm quyền tài khoản",
           url: "https://tphcm.chinhphu.vn/cong-an-tphcm-canh-bao-thu-doan-lua-dao-ho-tro-cai-dat-sinh-trac-hoc-101240703150617949.htm",
         },
       ],
@@ -205,19 +209,136 @@ export function findCuratedAnswer(question: string): KnowledgeChatAnswer | null 
   return null;
 }
 
+export function buildManagedAnswerSections(
+  entry: Pick<
+    typeof legalEntries.$inferSelect,
+    "title" | "penalty" | "remedy" | "caseStudy"
+  >,
+  verifiedCitations: ReviewedCitationPresentationInput[],
+): ChatAnswerSection[] {
+  const hasVerified = verifiedCitations.length > 0;
+  const legalBasis = hasVerified
+    ? reviewedCitationsToLegalBasisSection(verifiedCitations)
+    : null;
+  return [
+    { kind: "summary", paragraphs: [entry.title], bullets: [] },
+    {
+      kind: "details",
+      paragraphs: hasVerified
+        ? [entry.penalty]
+        : ["Nội dung phù hợp đã được tìm thấy trong kho kiến thức của cổng."],
+      bullets: [],
+    },
+    ...(legalBasis ? [legalBasis] : []),
+    ...(entry.caseStudy
+      ? [
+          {
+            kind: "examples" as const,
+            paragraphs: [entry.caseStudy],
+            bullets: [],
+          },
+        ]
+      : []),
+    { kind: "next_steps", paragraphs: [entry.remedy], bullets: [] },
+    {
+      kind: "limitations",
+      paragraphs: hasVerified
+        ? [
+            "Mức áp dụng thực tế còn phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể; người từ đủ 14 đến dưới 16 tuổi không áp dụng phạt tiền, từ đủ 16 đến dưới 18 tuổi mức tiền phạt không quá một nửa mức của người thành niên.",
+          ]
+        : [
+            "Chưa hiển thị căn cứ và mức xử lý từ bản ghi cũ vì dữ liệu này chưa được liên kết với source, provision và sanction đã qua kiểm duyệt bốn mắt.",
+          ],
+      bullets: [],
+    },
+  ];
+}
+
+async function fetchVerifiedEntryCitations(
+  db: Awaited<ReturnType<typeof getInitializedDb>>,
+  entryId: number,
+): Promise<ReviewedCitationPresentationInput[]> {
+  const rows = await db
+    .select({
+      title: legalSources.title,
+      documentNumber: legalSources.documentNumber,
+      issuedAt: legalSources.issuedAt,
+      article: legalProvisions.article,
+      clause: legalProvisions.clause,
+      point: legalProvisions.point,
+      effectiveFrom: legalProvisions.effectiveFrom,
+      effectiveTo: legalProvisions.effectiveTo,
+      lastVerifiedAt: legalSources.lastVerifiedAt,
+    })
+    .from(legalEntryCitations)
+    .innerJoin(
+      legalProvisions,
+      eq(legalEntryCitations.provisionId, legalProvisions.id),
+    )
+    .innerJoin(legalSources, eq(legalProvisions.sourceId, legalSources.id))
+    .where(
+      and(
+        eq(legalEntryCitations.legalEntryId, entryId),
+        eq(legalEntryCitations.reviewStatus, "four_eyes_verified"),
+        eq(legalProvisions.status, "published"),
+        eq(legalSources.status, "in_force"),
+        isNotNull(legalSources.lastVerifiedAt),
+        isNotNull(legalSources.verifiedBy),
+        eq(
+          legalEntryCitations.citedChecksumSha256,
+          legalProvisions.checksumSha256,
+        ),
+      ),
+    )
+    .orderBy(legalEntryCitations.displayOrder)
+    .limit(8);
+  return rows.flatMap((row) =>
+    row.issuedAt && row.effectiveFrom && row.lastVerifiedAt
+      ? [
+          {
+            title: row.title,
+            documentNumber: row.documentNumber,
+            issuedAt: row.issuedAt,
+            article: row.article ?? undefined,
+            clause: row.clause ?? undefined,
+            point: row.point ?? undefined,
+            effectiveFrom: row.effectiveFrom,
+            effectiveTo: row.effectiveTo ?? undefined,
+            lastVerifiedAt: row.lastVerifiedAt,
+          },
+        ]
+      : [],
+  );
+}
+
 export async function findManagedAnswer(
   question: string,
   topic?: ChatTopic,
 ): Promise<KnowledgeChatAnswer | null> {
-  const ignoredTerms = new Set(["cho", "cua", "duoc", "khong", "nhung", "the", "nao", "voi"]);
+  const ignoredTerms = new Set([
+    "cho",
+    "cua",
+    "duoc",
+    "khong",
+    "nhung",
+    "the",
+    "nao",
+    "voi",
+  ]);
   const terms = normalizeVietnamese(question)
     .split(/[^a-z0-9]+/)
-    .filter((term) => term.length >= 3 && !ignoredTerms.has(term));
+    // Loại term thuần số: năm/số hiệu văn bản trong legal_basis dễ khớp
+    // nhầm với số vô tình xuất hiện trong câu hỏi (ví dụ "2026").
+    .filter(
+      (term) =>
+        term.length >= 3 && !/^\d+$/.test(term) && !ignoredTerms.has(term),
+    );
   if (!terms.length) return null;
 
   try {
     const db = await getInitializedDb();
-    const entries = await db.select()
+    const entries = await db
+      .select()
       .from(legalEntries)
       .where(
         topic
@@ -235,47 +356,20 @@ export async function findManagedAnswer(
         const searchable = normalizeVietnamese(
           `${entry.title} ${entry.topic} ${entry.tags} ${entry.legalBasis}`,
         );
-        return { entry, score: terms.filter((term) => searchable.includes(term)).length };
+        return {
+          entry,
+          score: terms.filter((term) => searchable.includes(term)).length,
+        };
       })
       .sort((left, right) => right.score - left.score);
     const best = ranked[0];
     if (!best || best.score < Math.min(2, terms.length)) return null;
 
-    const sections: ChatAnswerSection[] = [
-      {
-        kind: "summary",
-        paragraphs: [best.entry.title],
-        bullets: [],
-      },
-      {
-        kind: "details",
-        paragraphs: [
-          "Nội dung phù hợp đã được tìm thấy trong kho kiến thức của cổng.",
-        ],
-        bullets: [],
-      },
-      ...(best.entry.caseStudy
-        ? [
-            {
-              kind: "examples" as const,
-              paragraphs: [best.entry.caseStudy],
-              bullets: [],
-            },
-          ]
-        : []),
-      {
-        kind: "next_steps",
-        paragraphs: [best.entry.remedy],
-        bullets: [],
-      },
-      {
-        kind: "limitations",
-        paragraphs: [
-          "Chưa hiển thị căn cứ và mức xử lý từ bản ghi cũ vì dữ liệu này chưa được liên kết với source, provision và sanction đã qua kiểm duyệt bốn mắt.",
-        ],
-        bullets: [],
-      },
-    ];
+    const verifiedCitations = await fetchVerifiedEntryCitations(
+      db,
+      best.entry.id,
+    );
+    const sections = buildManagedAnswerSections(best.entry, verifiedCitations);
     return {
       answer: flattenChatAnswerSections(sections),
       sections,

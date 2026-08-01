@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
-import { DatabaseSync } from "node:sqlite";
+import { PGlite } from "@electric-sql/pglite";
 import test from "node:test";
 
 globalThis.__rateLimitWorkerEnv = {};
@@ -44,19 +43,18 @@ const {
 const { createLoginHandler } = await import("../app/admin/api/login/route.ts");
 const { createChatHandler } = await import("../app/api/chat/route.ts");
 
-const migration = (await readFile(
-  new URL("../drizzle/0004_rate_limit_v1.sql", import.meta.url),
-  "utf8",
-)).replaceAll("--> statement-breakpoint", "");
+const { pgRateLimitStatements } = await import("../db/pg-bootstrap.ts");
 const secret = "rate-limit-test-secret-at-least-32-bytes";
 
-class SqliteD1 {
+class PgD1 {
   constructor() {
-    this.sqlite = new DatabaseSync(":memory:");
+    this.pg = new PGlite();
   }
 
-  migrate() {
-    this.sqlite.exec(migration);
+  async migrate() {
+    for (const statement of pgRateLimitStatements) {
+      await this.pg.query(statement);
+    }
   }
 
   prepare(query) {
@@ -70,22 +68,30 @@ class SqliteD1 {
   }
 
   async batch(statements) {
-    this.sqlite.exec("BEGIN IMMEDIATE");
-    try {
-      const results = statements.map(({ query, values }) => ({
-        success: true,
-        results: this.sqlite.prepare(query).all(...values),
-      }));
-      this.sqlite.exec("COMMIT");
+    return this.pg.transaction(async (tx) => {
+      const results = [];
+      for (const { query, values } of statements) {
+        const result = await tx.query(query, values);
+        results.push({ success: true, results: result.rows });
+      }
       return results;
-    } catch (error) {
-      this.sqlite.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 
-  close() {
-    this.sqlite.close();
+  async all(query, params = []) {
+    return (await this.pg.query(query, params)).rows;
+  }
+
+  async get(query, params = []) {
+    return (await this.pg.query(query, params)).rows[0];
+  }
+
+  async run(query, params = []) {
+    await this.pg.query(query, params);
+  }
+
+  async close() {
+    await this.pg.close();
   }
 }
 
@@ -99,9 +105,9 @@ function request(ip = "203.0.113.10", extraHeaders = {}) {
   });
 }
 
-function setup(startMs = Date.UTC(2026, 6, 31, 12, 0, 0)) {
-  const database = new SqliteD1();
-  database.migrate();
+async function setup(startMs = Date.UTC(2026, 6, 31, 12, 0, 0)) {
+  const database = new PgD1();
+  await database.migrate();
   let currentMs = startMs;
   const events = [];
   const limiter = createRateLimiter({
@@ -123,30 +129,26 @@ function setup(startMs = Date.UTC(2026, 6, 31, 12, 0, 0)) {
   };
 }
 
-test("0004 migration is idempotent and constrains hashed expiring state", () => {
-  const database = new SqliteD1();
-  database.migrate();
-  database.migrate();
+test("DDL rate limit idempotent va chan key hash tho", async () => {
+  const database = new PgD1();
+  await database.migrate();
+  await database.migrate();
 
-  const tables = database.sqlite.prepare(`
-    SELECT name FROM sqlite_master
-    WHERE type = 'table' AND name LIKE 'rate_limit_%'
-    ORDER BY name
-  `).all();
+  const tables = await database.all(`
+    SELECT table_name AS name FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name LIKE 'rate_limit_%'
+    ORDER BY table_name
+  `);
   assert.deepEqual(tables.map(({ name }) => name), [
     "rate_limit_buckets",
     "rate_limit_penalties",
   ]);
-  assert.equal(
-    database.sqlite.prepare("PRAGMA integrity_check").get().integrity_check,
-    "ok",
-  );
-  assert.throws(() => database.sqlite.prepare(`
+  await assert.rejects(database.run(`
     INSERT INTO rate_limit_buckets
       (scope, key_hash, window_start, request_count, expires_at)
     VALUES ('chat-client-60s-v1', 'raw-ip', 0, 1, 60)
-  `).run(), /constraint/i);
-  database.close();
+  `), /check|constraint/i);
+  await database.close();
 });
 
 test("normalizes IPv4 and IPv6 /64 while ignoring spoofable X-Forwarded-For", async () => {
@@ -160,7 +162,7 @@ test("normalizes IPv4 and IPv6 /64 while ignoring spoofable X-Forwarded-For", as
     normalizeClientIp("2001:db8:abcd:13::1"),
   );
 
-  const { database, limiter } = setup();
+  const { database, limiter } = await setup();
   const noTrustedIdentity = new Request("https://example.test/api", {
     headers: { "x-forwarded-for": "203.0.113.10" },
   });
@@ -172,41 +174,50 @@ test("normalizes IPv4 and IPv6 /64 while ignoring spoofable X-Forwarded-For", as
   database.close();
 });
 
+test("chap nhan header do Vercel dat khi khong di qua Cloudflare", async () => {
+  const { database, limiter } = await setup();
+  const viaVercel = new Request("https://example.test/api", {
+    headers: { "x-vercel-forwarded-for": "203.0.113.77" },
+  });
+  assert.equal((await limiter.consumeChat(viaVercel)).allowed, true);
+  const viaRealIp = new Request("https://example.test/api", {
+    headers: { "x-real-ip": "203.0.113.78" },
+  });
+  assert.equal((await limiter.beforeLogin(viaRealIp, "admin")).allowed, true);
+  database.close();
+});
+
 test("stores only scope-separated HMAC keys, never raw client or username", async () => {
-  const { database, limiter } = setup();
+  const { database, limiter } = await setup();
   const incoming = request("2001:db8:abcd:12::99");
   assert.equal((await limiter.beforeLogin(incoming, " Admin User ")).allowed, true);
   assert.equal((await limiter.recordLoginFailure(incoming, " Admin User ")).allowed, true);
 
   const state = JSON.stringify({
-    buckets: database.sqlite.prepare("SELECT * FROM rate_limit_buckets").all(),
-    penalties: database.sqlite.prepare("SELECT * FROM rate_limit_penalties").all(),
+    buckets: await database.all("SELECT * FROM rate_limit_buckets"),
+    penalties: await database.all("SELECT * FROM rate_limit_penalties"),
   });
   assert.doesNotMatch(state, /2001:db8|Admin User|admin user/i);
-  for (const { key_hash: keyHash } of database.sqlite
-    .prepare(`
+  for (const { key_hash: keyHash } of await database.all(`
       SELECT key_hash FROM rate_limit_buckets
       UNION ALL
       SELECT key_hash FROM rate_limit_penalties
-    `)
-    .all()) {
+    `)) {
     assert.match(keyHash, /^[0-9a-f]{64}$/);
   }
-  const distinctHashes = database.sqlite
-    .prepare(`
+  const distinctHashes = (await database.get(`
       SELECT count(DISTINCT key_hash) AS count FROM (
         SELECT key_hash FROM rate_limit_buckets
         UNION ALL
         SELECT key_hash FROM rate_limit_penalties
-      )
-    `)
-    .get().count;
-  assert.equal(distinctHashes, 4);
+      ) AS hashes
+    `)).count;
+  assert.equal(Number(distinctHashes), 4);
   database.close();
 });
 
 test("chat enforces minute threshold ±1, rollover and UTC daily quota", async () => {
-  const minuteState = setup();
+  const minuteState = await setup();
   for (let attempt = 1; attempt <= 20; attempt += 1) {
     assert.equal((await minuteState.limiter.consumeChat(request())).allowed, true);
   }
@@ -217,13 +228,13 @@ test("chat enforces minute threshold ±1, rollover and UTC daily quota", async (
   assert.equal((await minuteState.limiter.consumeChat(request())).allowed, true);
   minuteState.database.close();
 
-  const dailyState = setup(Date.UTC(2026, 6, 31, 0, 0, 0));
+  const dailyState = await setup(Date.UTC(2026, 6, 31, 0, 0, 0));
   assert.equal((await dailyState.limiter.consumeChat(request())).allowed, true);
-  dailyState.database.sqlite.prepare(`
+  await dailyState.database.run(`
     UPDATE rate_limit_buckets
     SET request_count = 199
     WHERE scope = 'chat-client-day-v1'
-  `).run();
+  `);
   dailyState.advance(61_000);
   assert.equal((await dailyState.limiter.consumeChat(request())).allowed, true);
   const dailyDenied = await dailyState.limiter.consumeChat(request());
@@ -235,7 +246,7 @@ test("chat enforces minute threshold ±1, rollover and UTC daily quota", async (
 });
 
 test("login applies pair backoff, resets consecutive failures and preserves quotas", async () => {
-  const state = setup();
+  const state = await setup();
   const incoming = request();
   for (let failure = 1; failure <= 2; failure += 1) {
     assert.equal((await state.limiter.beforeLogin(incoming, "admin")).allowed, true);
@@ -265,11 +276,11 @@ test("login applies pair backoff, resets consecutive failures and preserves quot
   );
   assert.equal((await state.limiter.recordLoginFailure(incoming, "admin")).allowed, true);
 
-  const clientAttempts = databaseCount(
+  const clientAttempts = await databaseCount(
     state.database,
     "login-client-15m-v1",
   );
-  const accountFailures = databaseCount(
+  const accountFailures = await databaseCount(
     state.database,
     "login-account-60m-v1",
   );
@@ -278,14 +289,16 @@ test("login applies pair backoff, resets consecutive failures and preserves quot
   state.database.close();
 });
 
-function databaseCount(database, scope) {
-  return database.sqlite
-    .prepare("SELECT request_count FROM rate_limit_buckets WHERE scope = ?")
-    .get(scope)?.request_count ?? 0;
+async function databaseCount(database, scope) {
+  const row = await database.get(
+    "SELECT request_count FROM rate_limit_buckets WHERE scope = $1",
+    [scope],
+  );
+  return Number(row?.request_count ?? 0);
 }
 
 test("fifth pair failure blocks to rollover and state-version CAS prevents ABA reset", async () => {
-  const state = setup();
+  const state = await setup();
   const incoming = request();
   for (let failure = 1; failure <= 5; failure += 1) {
     const preflight = await state.limiter.beforeLogin(incoming, "admin");
@@ -306,7 +319,7 @@ test("fifth pair failure blocks to rollover and state-version CAS prevents ABA r
   assert.equal((await state.limiter.beforeLogin(incoming, "admin")).allowed, true);
   state.database.close();
 
-  const raceState = setup();
+  const raceState = await setup();
   await raceState.limiter.recordLoginFailure(incoming, "admin");
   const stalePreflight = await raceState.limiter.beforeLogin(incoming, "admin");
   const staleVersion = stalePreflight.resetToken.stateVersion;
@@ -315,13 +328,13 @@ test("fifth pair failure blocks to rollover and state-version CAS prevents ABA r
     "admin",
     stalePreflight.resetToken,
   );
-  const resetVersion = raceState.database.sqlite
-    .prepare("SELECT state_version FROM rate_limit_penalties")
-    .get().state_version;
+  const resetVersion = (await raceState.database.get(
+    "SELECT state_version FROM rate_limit_penalties",
+  )).state_version;
   await raceState.limiter.recordLoginFailure(incoming, "admin");
-  const failureVersion = raceState.database.sqlite
-    .prepare("SELECT state_version FROM rate_limit_penalties")
-    .get().state_version;
+  const failureVersion = (await raceState.database.get(
+    "SELECT state_version FROM rate_limit_penalties",
+  )).state_version;
   assert.notEqual(resetVersion, staleVersion);
   assert.notEqual(failureVersion, resetVersion);
   assert.equal(
@@ -335,16 +348,16 @@ test("fifth pair failure blocks to rollover and state-version CAS prevents ABA r
     true,
   );
   assert.equal(
-    raceState.database.sqlite
-      .prepare("SELECT consecutive_failures FROM rate_limit_penalties")
-      .get().consecutive_failures,
+    Number((await raceState.database.get(
+      "SELECT consecutive_failures FROM rate_limit_penalties",
+    )).consecutive_failures),
     1,
   );
   raceState.database.close();
 });
 
 test("isolates pair/client keys and enforces shared account attempt quota", async () => {
-  const state = setup();
+  const state = await setup();
   for (let index = 1; index <= 20; index += 1) {
     const incoming = request(`198.51.100.${index}`);
     assert.equal((await state.limiter.beforeLogin(incoming, "ADMIN")).allowed, true);
@@ -366,7 +379,7 @@ test("isolates pair/client keys and enforces shared account attempt quota", asyn
 });
 
 test("login client attempt quota is atomic under concurrent requests", async () => {
-  const state = setup();
+  const state = await setup();
   const decisions = await Promise.all(
     Array.from({ length: 25 }, (_, index) =>
       state.limiter.beforeLogin(request(), `unique-user-${index}`),
@@ -374,12 +387,12 @@ test("login client attempt quota is atomic under concurrent requests", async () 
   );
   assert.equal(decisions.filter(({ allowed }) => allowed).length, 20);
   assert.equal(decisions.filter(({ status }) => status === 429).length, 5);
-  assert.equal(databaseCount(state.database, "login-client-15m-v1"), 21);
+  assert.equal(await databaseCount(state.database, "login-client-15m-v1"), 21);
   state.database.close();
 });
 
 test("account reservation caps credential validation across more than 20 client IPs", async () => {
-  const state = setup();
+  const state = await setup();
   let validationCalls = 0;
   const login = createLoginHandler({
     limiter: () => state.limiter,
@@ -409,7 +422,7 @@ test("account reservation caps credential validation across more than 20 client 
 });
 
 test("pair-attempt reservation caps same client and username validation at five", async () => {
-  const state = setup();
+  const state = await setup();
   let validationCalls = 0;
   const login = createLoginHandler({
     limiter: () => state.limiter,
@@ -439,19 +452,19 @@ test("pair-attempt reservation caps same client and username validation at five"
 });
 
 test("chat multi-bucket batch is atomic under concurrent requests", async () => {
-  const state = setup();
+  const state = await setup();
   const decisions = await Promise.all(
     Array.from({ length: 25 }, () => state.limiter.consumeChat(request())),
   );
   assert.equal(decisions.filter(({ allowed }) => allowed).length, 20);
   assert.equal(decisions.filter(({ status }) => status === 429).length, 5);
-  assert.equal(databaseCount(state.database, "chat-client-60s-v1"), 21);
-  assert.equal(databaseCount(state.database, "chat-client-day-v1"), 25);
+  assert.equal(await databaseCount(state.database, "chat-client-60s-v1"), 21);
+  assert.equal(await databaseCount(state.database, "chat-client-day-v1"), 25);
   state.database.close();
 });
 
 test("fails closed for missing secret, missing D1 and D1 batch failure", async () => {
-  const state = setup();
+  const state = await setup();
   const withoutSecret = createRateLimiter({ database: state.database, secret: "" });
   assert.equal((await withoutSecret.consumeChat(request())).status, 503);
   const withoutDatabase = createRateLimiter({ secret });
@@ -471,8 +484,8 @@ test("fails closed for missing secret, missing D1 and D1 batch failure", async (
 });
 
 test("fails closed when any D1 batch item reports success false, including reset", async () => {
-  const base = new SqliteD1();
-  base.migrate();
+  const base = new PgD1();
+  await base.migrate();
   let failedResultIndex = -1;
   const database = {
     prepare: (query) => base.prepare(query),
@@ -500,18 +513,19 @@ test("fails closed when any D1 batch item reports success false, including reset
 });
 
 test("bounded cleanup removes expired rows and telemetry exposes only allowlisted fields", async () => {
-  const state = setup();
+  const state = await setup();
   const expiredHash = "a".repeat(64);
-  state.database.sqlite.prepare(`
+  await state.database.run(`
     INSERT INTO rate_limit_buckets
       (scope, key_hash, window_start, request_count, expires_at)
-    VALUES ('chat-client-60s-v1', ?, 1, 1, 2)
-  `).run(expiredHash);
+    VALUES ('chat-client-60s-v1', $1, 1, 1, 2)
+  `, [expiredHash]);
   await state.limiter.consumeChat(request());
   assert.equal(
-    state.database.sqlite
-      .prepare("SELECT count(*) AS count FROM rate_limit_buckets WHERE key_hash = ?")
-      .get(expiredHash).count,
+    Number((await state.database.get(
+      "SELECT count(*) AS count FROM rate_limit_buckets WHERE key_hash = $1",
+      [expiredHash],
+    )).count),
     0,
   );
 

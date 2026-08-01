@@ -18,7 +18,7 @@ const [
   readFile(new URL("drizzle/0000_groovy_cerise.sql", repositoryRoot), "utf8"),
   readFile(new URL("drizzle/0001_citation_foundation.sql", repositoryRoot), "utf8"),
   readFile(new URL("drizzle/0002_reviewed_rag_bridge.sql", repositoryRoot), "utf8"),
-  readFile(new URL("db/index.ts", repositoryRoot), "utf8"),
+  readFile(new URL("db/pg-bootstrap.ts", repositoryRoot), "utf8"),
   readFile(new URL("drizzle/meta/_journal.json", repositoryRoot), "utf8"),
   readFile(new URL("build/sites-vite-plugin.ts", repositoryRoot), "utf8"),
   readFile(new URL(".openai/hosting.json", repositoryRoot), "utf8"),
@@ -86,7 +86,7 @@ test("declares the citation foundation in Drizzle and bootstrap DDL", () => {
 
   for (const trigger of triggerNames) {
     assert.match(migration, new RegExp(`CREATE TRIGGER IF NOT EXISTS [\`"]${trigger}`));
-    assert.match(bootstrap, new RegExp(`CREATE TRIGGER IF NOT EXISTS ${trigger}`));
+    assert.match(bootstrap, new RegExp(`CREATE OR REPLACE TRIGGER ${trigger}`));
   }
 
   assert.match(schema, /createdBy: text\("created_by"\)\.notNull\(\)/);
@@ -145,7 +145,7 @@ test("migration enforces review, allowlist and source-validity foundations", () 
 });
 
 test("Sites build packages migration inputs but does not prove execution", () => {
-  assert.equal(hosting.d1, "DB");
+  assert.equal(hosting.d1, null); // D1 đã gỡ — tầng dữ liệu chạy Neon Postgres
   assert.match(sitesPlugin, /resolve\(root,\s*"drizzle"\)/);
   assert.match(
     sitesPlugin,
@@ -154,7 +154,7 @@ test("Sites build packages migration inputs but does not prove execution", () =>
   assert.equal(journal.entries[2]?.tag, "0002_reviewed_rag_bridge");
   assert.equal(
     journal.entries.at(-1)?.tag,
-    "0005_web_search_candidate_workflow",
+    "0006_petite_lady_deathstrike",
   );
   assert.match(migration, /CREATE TABLE IF NOT EXISTS `legal_sources`/);
   assert.match(readinessMigration, /ALTER TABLE `legal_entries`/);
@@ -208,6 +208,12 @@ test("migration journal records citation foundation after baseline", () => {
         idx: 5,
         version: "6",
         tag: "0005_web_search_candidate_workflow",
+        breakpoints: true,
+      },
+      {
+        idx: 6,
+        version: "6",
+        tag: "0006_petite_lady_deathstrike",
         breakpoints: true,
       },
     ],

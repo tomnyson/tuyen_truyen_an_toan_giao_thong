@@ -96,13 +96,16 @@ test("credential validation requires complete hash-based server configuration", 
   }
 });
 
-test("legacy plaintext ADMIN_PASSWORD is ignored", async () => {
+// Chính sách mới (2026-08-01, theo yêu cầu vận hành): ADMIN_PASSWORD thuần
+// được chấp nhận để cấu hình tối giản; sai mật khẩu vẫn bị từ chối.
+test("plaintext ADMIN_PASSWORD dang nhap duoc va sai thi tu choi", async () => {
   setWorkerEnv({
     ADMIN_USERNAME: "admin",
     ADMIN_PASSWORD: password,
     ADMIN_SESSION_SECRET: validConfig.ADMIN_SESSION_SECRET,
   });
-  assert.equal(await validateAdminCredentials("admin", password), false);
+  assert.equal(await validateAdminCredentials("admin", password), true);
+  assert.equal(await validateAdminCredentials("admin", "sai-mat-khau"), false);
 });
 
 test("login route creates a signed session only for the hashed credential", async () => {

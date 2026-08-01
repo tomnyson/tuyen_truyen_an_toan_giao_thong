@@ -219,9 +219,11 @@ export function readOpenAiWebSearchConfig(
         ? runtimeEnv.OPENAI_API_KEY
         : undefined,
     model:
-      typeof runtimeEnv.OPENAI_MODEL === "string"
-        ? runtimeEnv.OPENAI_MODEL
-        : undefined,
+      typeof runtimeEnv.OPENAI_WEB_SEARCH_MODEL === "string"
+        ? runtimeEnv.OPENAI_WEB_SEARCH_MODEL
+        : typeof runtimeEnv.OPENAI_MODEL === "string"
+          ? runtimeEnv.OPENAI_MODEL
+          : undefined,
     timeoutMs: Number.isInteger(timeout) ? timeout : undefined,
   };
 }

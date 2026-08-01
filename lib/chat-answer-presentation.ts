@@ -74,6 +74,7 @@ export type ReviewedCitationPresentationInput = {
   point?: string;
   effectiveFrom: string;
   effectiveTo?: string;
+  effectivityNote?: string;
   lastVerifiedAt: string;
 };
 
@@ -255,6 +256,27 @@ export function flattenChatAnswerSections(sections: ChatAnswerSection[]) {
     .trim();
 }
 
+const referenceSectionKinds = new Set<ChatAnswerSectionKind>([
+  "summary",
+  "details",
+  "sanctions",
+  "next_steps",
+  "limitations",
+]);
+
+export function projectReferenceWebSearchAnswer(
+  value: unknown,
+): PublicChatAnswer | null {
+  const presentation = projectPublicWebSearchAnswer(value);
+  if (!presentation) return null;
+  const sections = presentation.sections.filter((section) =>
+    referenceSectionKinds.has(section.kind),
+  );
+  if (sections.length === 0) return null;
+  const answer = flattenChatAnswerSections(sections);
+  return answer ? { answer, sections } : null;
+}
+
 export function parseChatAnswerSections(
   value: unknown,
 ): ChatAnswerSection[] | null {
@@ -316,9 +338,11 @@ export function reviewedCitationsToLegalBasisSection(
       citation.clause ? `khoản ${citation.clause}` : "",
       citation.article ? `Điều ${citation.article}` : "",
     ].filter(Boolean);
-    const effectivity = citation.effectiveTo
-      ? `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)} đến ${formatIsoDate(citation.effectiveTo)}.`
-      : `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)}.`;
+    const effectivity = citation.effectivityNote
+      ? citation.effectivityNote
+      : citation.effectiveTo
+        ? `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)} đến ${formatIsoDate(citation.effectiveTo)}.`
+        : `Có hiệu lực từ ${formatIsoDate(citation.effectiveFrom)}.`;
     return [
       `${citation.documentNumber} — ${citation.title}.`,
       provision.length > 0 ? `${provision.join(", ")}.` : "",

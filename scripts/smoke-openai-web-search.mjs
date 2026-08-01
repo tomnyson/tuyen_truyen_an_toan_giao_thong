@@ -19,7 +19,7 @@ const {
 } = await import("../lib/openai-web-search.ts");
 
 const technicalQuestion =
-  "Theo nguồn chính thức của Chính phủ Việt Nam, người điều khiển xe mô tô có phải đội mũ bảo hiểm không?";
+  "Theo nguồn chính thức của Chính phủ Việt Nam, người điều khiển xe mô tô không đội mũ bảo hiểm có mức phạt tham khảo bao nhiêu?";
 
 try {
   const result = await searchAllowedLegalSources(
@@ -38,6 +38,10 @@ try {
           (source) => new URL(source.url).hostname,
         ),
         sourceCount: result.sources.length,
+        sectionKinds: result.sections.map((section) => section.kind),
+        hasPenaltySection: result.sections.some(
+          (section) => section.kind === "sanctions",
+        ),
         usage: result.usage,
       }),
     );

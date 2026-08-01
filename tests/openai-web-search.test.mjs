@@ -58,6 +58,9 @@ const {
   publicSourceUiCopy,
 } = await import("../lib/official-source-url.ts");
 const { createChatHandler } = await import("../app/api/chat/route.ts");
+const { WEB_SEARCH_TEMPORARILY_UNAVAILABLE_ANSWER } = await import(
+  "../lib/chat-topic-scope.ts"
+);
 
 function providerResponse({
   url = "https://vanban.chinhphu.vn/?pageid=27160&docid=123#section",
@@ -220,6 +223,27 @@ test("builds reviewed legal-basis cards from canonical citation metadata", () =>
     bullets: [],
   });
   assert.deepEqual(parseChatAnswerSections([section]), [section]);
+
+  const consolidated = reviewedCitationsToLegalBasisSection([
+    {
+      title: "Văn bản hợp nhất Luật Sở hữu trí tuệ",
+      documentNumber: "155/VBHN-VPQH",
+      issuedAt: "2025-09-09",
+      article: "25",
+      effectiveFrom: "2023-01-01",
+      effectivityNote:
+        "Văn bản hợp nhất được xác lập ngày 09/09/2025; ngày 01/01/2023 là hiệu lực của các sửa đổi liên quan.",
+      lastVerifiedAt: "2026-07-31",
+    },
+  ]);
+  assert.match(
+    consolidated.paragraphs[0],
+    /Văn bản hợp nhất được xác lập ngày 09\/09\/2025/,
+  );
+  assert.doesNotMatch(
+    consolidated.paragraphs[0],
+    /Có hiệu lực từ 01\/01\/2023/,
+  );
 });
 
 test("detects legal amounts, provisions, document numbers, dates and ages in direct web prose", () => {
@@ -566,7 +590,7 @@ test("reference search can expose exact-guarded consulted sources with safe pros
   ]);
 });
 
-test("reference search rejects deceptive domains and replaces unverified legal details", async () => {
+test("reference search rejects deceptive domains and keeps warned reference fines", async () => {
   const deceptive = await searchReferenceLegalSources(
     { enabled: true, apiKey: "fake-secret" },
     "đi xe máy tống 3",
@@ -587,13 +611,17 @@ test("reference search rejects deceptive domains and replaces unverified legal d
       fetch: async () =>
         providerResponse({
           url: "https://thuvienphapluat.vn/van-ban/giao-thong",
-          text: "Kết luận: Mức phạt là 400.000 đồng.",
+          text: "Kết luận: Đây là tình huống giao thông xe máy.\nMức phạt tham khảo: Mức phạt là 400.000 đồng.",
         }),
     },
   );
   assert.equal(legalDetail.ok, true);
-  assert.doesNotMatch(legalDetail.answer, /400|đồng|mức phạt/i);
-  assert.match(legalDetail.answer, /không hiển thị chi tiết pháp lý/i);
+  assert.equal(legalDetail.answerOrigin, "provider");
+  assert.match(legalDetail.answer, /400\.000 đồng/i);
+  assert.deepEqual(
+    legalDetail.sections.map(({ kind }) => kind),
+    ["summary", "sanctions"],
+  );
   assert.match(legalDetail.warning, /không phải nguồn chính thống/i);
 
   const missingCitation = await searchReferenceLegalSources(
@@ -640,7 +668,7 @@ test("fails closed when the final answer has no official citation", async () => 
   assertFailureCode(result, "MISSING_OFFICIAL_CITATION");
 });
 
-test("fails closed when direct web prose contains unreviewed legal claims", async () => {
+test("official web result keeps unreviewed legal details behind its warning", async () => {
   for (const text of [
     "Kết luận: Mức phạt tham khảo là 400.000 đồng.",
     "Giải thích: Áp dụng theo khoản 2 Điều 7.",
@@ -655,11 +683,55 @@ test("fails closed when direct web prose contains unreviewed legal claims", asyn
       "Quy định này là gì?",
       { fetch: async () => providerResponse({ text }) },
     );
-    assertFailureCode(result, "UNVERIFIED_LEGAL_CLAIM");
+    assert.equal(result.ok, true, text);
+    assert.match(result.warning, /chưa được kiểm chứng/i);
   }
 });
 
-test("flag-off, missing key and unknown model do not call the provider", async () => {
+test("penalty section appears only when the searched answer contains a penalty", async () => {
+  const withPenalty = await searchAllowedLegalSources(
+    { enabled: true, apiKey: "fake-secret" },
+    "Xe máy vượt đèn đỏ bị phạt bao nhiêu?",
+    {
+      fetch: async () =>
+        providerResponse({
+          text: [
+            "Kết luận: Đây là hành vi giao thông bằng xe máy.",
+            "Mức phạt tham khảo: Mức tiền tham khảo là 4–6 triệu đồng.",
+            "Lưu ý: Cần kiểm tra lại nguồn Chính phủ trước khi áp dụng.",
+          ].join("\n"),
+        }),
+    },
+  );
+  assert.equal(withPenalty.ok, true);
+  assert.deepEqual(
+    withPenalty.sections.map(({ kind }) => kind),
+    ["summary", "sanctions", "limitations"],
+  );
+  assert.match(withPenalty.answer, /4–6 triệu đồng/);
+
+  const withoutPenalty = await searchAllowedLegalSources(
+    { enabled: true, apiKey: "fake-secret" },
+    "Cách đi bộ qua đường an toàn?",
+    {
+      fetch: async () =>
+        providerResponse({
+          text: [
+            "Kết luận: Đây là hướng dẫn an toàn giao thông cho người đi bộ.",
+            "Bạn nên làm gì: Quan sát tín hiệu và chỉ qua đường ở nơi phù hợp.",
+          ].join("\n"),
+        }),
+    },
+  );
+  assert.equal(withoutPenalty.ok, true);
+  assert.equal(
+    withoutPenalty.sections.some(({ kind }) => kind === "sanctions"),
+    false,
+  );
+  assert.doesNotMatch(withoutPenalty.answer, /Mức phạt tham khảo/);
+});
+
+test("flag-off, missing key and malformed model ID do not call the provider", async () => {
   let calls = 0;
   const fetch = async () => {
     calls += 1;
@@ -683,13 +755,35 @@ test("flag-off, missing key and unknown model do not call the provider", async (
   );
   assert.deepEqual(
     await searchAllowedLegalSources(
-      { enabled: true, apiKey: "fake-secret", model: "unknown" },
+      { enabled: true, apiKey: "fake-secret", model: "bad model id" },
       "Câu hỏi?",
       { fetch },
     ),
     { ok: false, code: "INVALID_CONFIG" },
   );
   assert.equal(calls, 0);
+});
+
+test("direct web search accepts any syntactically valid server-side model ID", async () => {
+  let requestBody;
+  const result = await searchAllowedLegalSources(
+    {
+      enabled: true,
+      apiKey: "fake-secret",
+      model: "gpt-5.6-luna",
+    },
+    "Quy định giao thông này thế nào?",
+    {
+      fetch: async (_url, init) => {
+        requestBody = JSON.parse(init.body);
+        return providerResponse({ model: "gpt-5.6-luna" });
+      },
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(requestBody.model, "gpt-5.6-luna");
+  assert.equal(result.model, "gpt-5.6-luna");
 });
 
 test("provider timeout fails closed", async () => {
@@ -710,7 +804,45 @@ test("provider timeout fails closed", async () => {
   assert.deepEqual(result, { ok: false, code: "PROVIDER_TIMEOUT" });
 });
 
-test("HTTP, refusal, malformed, oversized and model mismatch all fail closed", async () => {
+test("chat reports provider error as retryable instead of no-match", async () => {
+  const events = [];
+  Object.assign(globalThis.__webSearchWorkerEnv, {
+    AI_WEB_SEARCH_ENABLED: "true",
+    OPENAI_API_KEY: "test-key",
+  });
+  const chat = createChatHandler({
+    limiter: () => ({ consumeChat: async () => allowed }),
+    telemetry: { emit: (event) => events.push(event) },
+    managedAnswer: async () => null,
+    curatedAnswer: () => null,
+    reviewedWebAnswer: async () => null,
+    reserveWebBudget: async () => ({
+      dayStart: 1,
+      reservedTokens: 12_000,
+    }),
+    settleWebBudget: async () => true,
+    webSearch: async () => ({
+      ok: false,
+      code: "PROVIDER_ERROR",
+      model: "gpt-5.6-luna",
+    }),
+  });
+
+  const response = await chat(chatRequest("đi xe máy một bánh"));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    answer: WEB_SEARCH_TEMPORARILY_UNAVAILABLE_ANSWER,
+    mode: "unavailable",
+  });
+  assert.equal(events[0].outcome, "dependency_error");
+  assert.equal(events[0].providerOutcome, "error");
+
+  for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
+    delete globalThis.__webSearchWorkerEnv[key];
+  }
+});
+
+test("HTTP, refusal, malformed, oversized and invalid provider model metadata fail closed", async () => {
   const oversized = "x".repeat(1_000_001);
   const cases = [
     {
@@ -741,7 +873,7 @@ test("HTTP, refusal, malformed, oversized and model mismatch all fail closed", a
     },
     {
       expected: "INVALID_OUTPUT",
-      response: providerResponse({ model: "unreviewed-model" }),
+      response: providerResponse({ model: "invalid model metadata" }),
     },
   ];
 
@@ -819,7 +951,9 @@ test("legacy reviewed candidate without issuedAt stays usable but omits legal-ba
       policyVersion: "reviewed-web-candidate-v1",
     }),
   });
-  const response = await chat(chatRequest("Nội dung đã duyệt là gì?"));
+  const response = await chat(
+    chatRequest("Quy định giao thông đã duyệt là gì?"),
+  );
   const body = await response.json();
   assert.equal(response.status, 200);
   assert.equal(body.mode, "knowledge");
@@ -853,10 +987,12 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
     },
     webSearch: async (_config, question) => {
       webCalls += 1;
-      assert.equal(question, "Một quy định mới là gì?");
+      assert.equal(question, "Một quy định giao thông mới là gì?");
       return {
         ok: true,
-        answer: "Kết quả tra cứu có căn cứ Chính phủ.",
+        sourceKind: "official",
+        answer:
+          "Kết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
         warning: "Chưa kiểm duyệt.",
         sources: [
           {
@@ -873,15 +1009,20 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
       };
     },
   });
-  const response = await chat(chatRequest("Một quy định mới là gì?"));
+  const response = await chat(
+    chatRequest("Một quy định giao thông mới là gì?"),
+  );
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(await response.json(), {
-    answer: "Trả lời ngắn\nKết quả tra cứu có căn cứ Chính phủ.",
+    answer:
+      "Trả lời ngắn\nKết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
     sections: [
       {
         kind: "summary",
-        paragraphs: ["Kết quả tra cứu có căn cứ Chính phủ."],
+        paragraphs: [
+          "Kết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
+        ],
         bullets: [],
       },
     ],
@@ -899,12 +1040,14 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
   assert.equal(persisted, 1);
   assert.equal(
     persistedResult.answer,
-    "Trả lời ngắn\nKết quả tra cứu có căn cứ Chính phủ.",
+    "Trả lời ngắn\nKết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
   );
   assert.deepEqual(persistedResult.sections, [
     {
       kind: "summary",
-      paragraphs: ["Kết quả tra cứu có căn cứ Chính phủ."],
+      paragraphs: [
+        "Kết quả tra cứu về việc đội mũ bảo hiểm khi đi xe máy có căn cứ Chính phủ.",
+      ],
       bullets: [],
     },
   ]);
@@ -1074,14 +1217,15 @@ test("chat fails closed when a successful web result cannot be persisted", async
     persistWebCandidate: async () => null,
     webSearch: async () => ({
       ok: true,
-      answer: "Có nguồn nhưng D1 đang lỗi.",
+      sourceKind: "official",
+      answer: "Có nguồn giao thông nhưng D1 đang lỗi.",
       warning: "Chưa kiểm duyệt.",
       sources: [{ title: "Nguồn", url: "https://vbpl.vn/document" }],
       model: "gpt-5.4-mini",
       usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
     }),
   });
-  const response = await chat(chatRequest("Quy định mới?"));
+  const response = await chat(chatRequest("Quy định giao thông mới?"));
   assert.equal(response.status, 200);
   assert.equal((await response.json()).mode, "unavailable");
   for (const key of Object.keys(globalThis.__webSearchWorkerEnv)) {
@@ -1116,7 +1260,9 @@ test("chat records rejected direct legal claims as invalid provider output", asy
       code: "UNVERIFIED_LEGAL_CLAIM",
     }),
   });
-  const response = await chat(chatRequest("Mức xử lý là gì?"));
+  const response = await chat(
+    chatRequest("Không đội mũ bảo hiểm có mức xử lý gì?"),
+  );
   assert.equal(response.status, 200);
   assert.equal((await response.json()).mode, "unavailable");
   assert.equal(events[0].providerOutcome, "invalid_output");

@@ -1128,6 +1128,61 @@ Test gate trước cutover:
 - accessibility test kiểm tra heading order, accessible link names, keyboard
   focus; responsive test kiểm tra nội dung tiếng Việt dài tại 320 px.
 
+### 6.6 Topic scope và trust-tier presentation — US-029
+
+`/api/chat` phải chạy `chat-topic-scope-v1` sau input validation và trước mọi
+retrieval/search. Intent ảnh riêng tư có thể chạy trước topic gate để safety
+guidance không bị chặn; nhánh này không retrieval, search hoặc persistence.
+Classifier topic là pure deterministic function, normalize Unicode/tiếng Việt
+và trả một trong:
+
+```ts
+type ChatTopic = "traffic" | "online_safety" | "copyright";
+type ChatScopeDecision =
+  | { inScope: true; topic: ChatTopic; policyVersion: "chat-topic-scope-v1" }
+  | { inScope: false; topic: null; policyVersion: "chat-topic-scope-v1" };
+```
+
+Chỉ signal mạnh hoặc tổ hợp signal có ngữ cảnh được match. Các từ chung như
+“ảnh”, “bài”, “xe”, “mạng” đứng một mình không đủ. Safety intent ảnh riêng tư
+vẫn thuộc `online_safety`; dấu hiệu authorship/tác phẩm/giấy phép thuộc
+`copyright`. Topic gate chỉ giới hạn phạm vi sản phẩm, không được coi là bằng
+chứng pháp lý hoặc thay thế retrieval score.
+
+Mapping legacy phải thu hẹp, không mở rộng phạm vi: `copyright` không được dùng
+mọi record có topic rộng `Sở hữu trí tuệ`. Managed legacy path bỏ qua copyright
+cho tới khi có subtype canonical; reviewed candidate chỉ đủ điều kiện khi topic
+là `Sở hữu trí tuệ` và tags đã duyệt chứa `bản quyền`, `quyền tác giả` hoặc
+`copyright`. Predicate subtype phải nằm trong SQL trước `LIMIT` và được kiểm tra
+lại sau khi parse snapshot.
+
+Nếu `inScope=false`, route trả `mode=unavailable` với đúng message sản phẩm,
+không gọi managed/curated/reviewed retrieval, budget, OpenAI search hoặc
+persistence. Nếu `inScope=true` nhưng toàn bộ nguồn không đủ điều kiện, route
+trả no-match message ngắn, không có `sections`, `sources` hoặc legal claim.
+
+Presentation chia theo trust tier:
+
+1. Reviewed/published application data có thể dùng form đầy đủ, nhưng chỉ field
+   map từ canonical reviewed records mới được dựng legal card.
+2. Official live search chỉ dùng form direct-search đã guard; candidate chỉ
+   được persist khi kết quả khai báo `sourceKind=official`, answer tự chứa
+   signal đúng topic, có official URL và presentation hợp lệ. Tiêu đề source
+   không được dùng để làm một answer chung chung trở thành đúng topic.
+3. Reference live search giữ section
+   `summary|details|sanctions|next_steps|limitations`, loại
+   `legal_basis|legal_remedies|examples`, luôn cảnh báo không chính thống/chưa
+   kiểm chứng và không gọi persistence. Provider answer phải tự match topic đã
+   phân loại trước khi hiển thị. Section `sanctions` chỉ có khi kết quả search
+   chứa mức phạt; không có mức phạt thì section bị bỏ hoàn toàn.
+4. Out-of-scope/no-match/provider-invalid không dùng form trả lời pháp lý và
+   không lưu.
+
+Regression gate phải chứng minh: ba topic được đi tiếp; off-topic dừng trước
+mọi dependency; Vietnamese có/không dấu; generic-token false positive; no-match
+không có structured legal fields; reference sanctions có warning và no-persist;
+official result sai `sourceKind` không được lưu; reference không persist.
+
 ## 7. Retrieval và answer composition (To-be)
 
 ### 7.1 Pipeline
@@ -2287,8 +2342,54 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
 - **DEC-012:** nếu official direct search không có kết quả đủ điều kiện, route
   được chạy thêm một lượt reference search trên exact allowlist
   `thuvienphapluat.vn`. Kết quả phải có `sourceKind=reference`, cảnh báo không
-  chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist
-  thành candidate/evidence/RAG. Official search luôn chạy trước.
+  chính thống/cần xác minh và không persist thành candidate/evidence/RAG.
+  Hạn chế chi tiết định lượng ban đầu được DEC-017 thay đổi. Official search
+  luôn chạy trước.
+- **DEC-013:** `/api/chat` chạy topic gate deterministic trước mọi retrieval,
+  provider và persistence. Phạm vi chỉ gồm giao thông, an toàn/ứng xử trên mạng
+  và bản quyền học đường. Off-topic/no-match trả message ngắn không có legal
+  form; reference giữ sanctions tham khảo nhưng không lưu; chỉ official result
+  đúng loại, đúng URL guard và presentation hợp lệ mới được lưu draft. Mọi
+  provider prose vẫn phải tự match topic; không có ngoại lệ topic-neutral.
+- **DEC-014:** Gói official corpus đầu tiên được commit dưới dạng review packet
+  versioned và chỉ import vào `web_search_candidates` ở trạng thái `draft`.
+  Import không tạo revision/actor/review và không có quyền publish. ID/request
+  ID cố định cộng full-record hash trong immutable audit metadata cho phép chạy
+  lặp an toàn; cùng ID nhưng khác intent/topic/kind/question/alias/snapshot/
+  citation/review note phải fail closed. Canonical question không được ghi vào
+  D1; alias biên tập đã commit được merge vào draft tags để retrieval dùng,
+  nhưng không có đường lưu raw user question. Quy định mạng xã hội
+  hiện hành từ 01/07/2026 dùng Nghị định 174/2026/NĐ-CP; Điều 101 Nghị định
+  15/2020 bị đánh dấu superseded cho hành vi mới và bị fixture validator từ
+  chối. Production import chờ exact Sites project/D1 binding resolve được.
+- **DEC-015:** Để chạy MVP sớm, `official_guidance` được tách khỏi
+  `legal_candidate`. Hướng dẫn an toàn có thể được trả trực tiếp khi có nguồn
+  Chính phủ và không chứa căn cứ/tội danh/mức phạt; metadata bắt buộc
+  `publicationEligible=false`, admin API từ chối mọi mutation workflow và UI
+  không hiện nút legal review/publish. Việc này không thay đổi DEC-003:
+  `legal_candidate` và mọi citation/sanction vẫn bắt buộc bốn mắt trước khi vào
+  reviewed RAG.
+- **DEC-016:** Model policy của direct web-search tách khỏi policy của offline
+  evidence/shadow. `OPENAI_MODEL` cho `/api/chat` web fallback chấp nhận mọi
+  model ID server-side khớp `^[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}$`; missing/rỗng
+  dùng default. Model ID không đến từ client. Provider response chỉ được chấp
+  nhận khi trả model ID cùng định dạng; capability/HTTP/refusal/output lỗi tiếp
+  tục fail closed. Exact allowlist/pinned model tại DEC-009 vẫn giữ nguyên cho
+  offline evaluation và evidence composer.
+- **DEC-017:** Product owner chấp nhận rủi ro MVP và cho phép direct
+  official/reference web-search giữ số tiền, số hiệu văn bản, điều-khoản-điểm,
+  ngày hiệu lực và biện pháp pháp lý do provider trả về. Public response phải
+  có warning trước nội dung, dùng nhãn “tham khảo — chưa kiểm chứng”, chỉ render
+  source URL qua exact authority guard và không mô tả output là reviewed
+  application evidence. Official result chỉ persist immutable draft;
+  reference result live/no-store, không candidate/RAG. Thiếu source hợp lệ,
+  malformed/active content hoặc sai topic vẫn fail closed.
+- **DEC-018:** Direct hosted web-search dùng timeout mặc định/mẫu 30.000 ms vì
+  live evidence cho thấy một truy vấn hợp lệ có thể hoàn tất sau khoảng 19 giây.
+  `PROVIDER_TIMEOUT|PROVIDER_ERROR|PROVIDER_REFUSAL` vẫn fail closed nhưng route
+  trả thông báo retry riêng; chúng không được ánh xạ sang no-match vì lỗi
+  provider không chứng minh nguồn thiếu dữ liệu. Telemetry ghi
+  `dependency_error` cùng provider outcome tương ứng và không log câu hỏi.
 
 ### Điểm còn mở
 

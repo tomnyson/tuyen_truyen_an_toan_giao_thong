@@ -217,6 +217,108 @@ chưa đủ bốn nhóm kiến thức nền.
 `tests/rendered-html.test.mjs` chạy 15/15 pass, gồm ngoài phạm vi, empty request
 và malformed messages.
 
+### [x] US-029 — Giới hạn trợ lý đúng ba chủ đề MVP
+
+- **Priority:** P0
+- **Persona:** Học sinh
+- **Mô tả:** Là học sinh, tôi muốn trợ lý chỉ xử lý câu hỏi về giao thông, an
+  toàn/ứng xử trên mạng và bản quyền học đường, để câu trả lời đúng mục đích
+  website và nội dung sai không bị lưu vào kho.
+
+**Acceptance criteria**
+
+- [x] Backend dùng topic gate deterministic, versioned và chạy trước managed
+  retrieval, reviewed-candidate retrieval, official search, reference search
+  và candidate persistence.
+- [x] Ba phạm vi được phép là `giao thông`, `an toàn/ứng xử trên mạng` và
+  `bản quyền học đường`; classifier hỗ trợ câu tiếng Việt có/không dấu và các
+  cách gọi gần gũi trong trường học nhưng không match chỉ vì một từ chung.
+- [x] Mapping sang nhãn database legacy không được mở rộng phạm vi: copyright
+  bỏ qua managed record chưa có subtype và reviewed candidate `Sở hữu trí tuệ`
+  chỉ match khi có tag bản quyền/quyền tác giả đã duyệt.
+- [x] Câu ngoài phạm vi trả đúng thông báo ngắn: “Câu hỏi này chưa thuộc phạm
+  vi hỗ trợ của website. Bạn hãy hỏi về an toàn giao thông, ứng xử trên mạng
+  hoặc bản quyền học đường.” Response không có legal sections/sources và không
+  gọi provider hoặc persistence.
+- [x] Câu đúng phạm vi nhưng không có nguồn đủ điều kiện trả thông báo no-match
+  ngắn, không dựng form căn cứ/mức phạt và không persist.
+- [x] Kết quả official chỉ được persist khi `sourceKind=official`, answer tự
+  match cùng topic đã phân loại, URL qua exact official guard và presentation
+  hợp lệ. Tiêu đề nguồn không được dùng để hợp thức hóa answer chung chung;
+  output/reference sai loại hoặc không đủ điều kiện phải fail closed.
+- [x] Kết quả reference được giữ chi tiết pháp lý để tham khảo theo DEC-017,
+  luôn có cảnh báo không chính thống/chưa kiểm chứng và không persist. Source
+  link vẫn phải qua exact authority guard.
+- [x] Có regression test cho cả ba topic, câu ngoài phạm vi, no-match, zero
+  provider/persistence call, official persistence guard và reference
+  unreviewed-details form.
+
+**Decision (2026-07-31):** Chủ dự án chốt thông điệp “Tra cứu nhanh các quy
+định gần gũi với trường học — từ giao thông, mạng xã hội đến bản quyền” và
+thông báo ngoài phạm vi nêu trên. Reference reduced form ban đầu được DEC-017
+thay bằng form tham khảo có sanctions; DEC-013 vẫn yêu cầu topic gate chạy trước
+mọi retrieval/search và chỉ official result hợp lệ mới được lưu draft.
+
+**Status:** Done sau DEC-017. Topic/persistence guard vẫn giữ nguyên; reference
+presentation giữ sanctions tham khảo, warning và no-persist đã có regression.
+`lib/chat-topic-scope.ts` triển khai classifier versioned;
+`app/api/chat/route.ts`, `lib/legal-chat.ts` và
+`lib/web-search-candidates.ts` đặt topic/trust-tier guard trước retrieval,
+search và persistence; `lib/chat-answer-presentation.ts` tạo reference form có
+`sanctions` khi search tìm thấy mức phạt; `lib/openai-web-search.ts` giữ output
+provider sau source/presentation guard; `app/page.tsx` nêu đúng ba phạm vi. Focused suite
+`chat-topic-scope`, `image-intent`, `openai-web-search`,
+`web-search-candidates`, `rendered-html`, `telemetry` đạt 152/152; typecheck,
+lint, build và `git diff --check` pass. Full suite đạt 296/299; ba failure còn
+lại là ledger/schema test cũ đang kỳ vọng migration cuối `0005` trong khi repo
+đã có `0006`, không thuộc US-029. PM và code reviewer độc lập đều PASS sau vòng
+sửa cuối.
+
+### [ ] US-030 — Nạp gói dữ liệu pháp luật chính thống vào kho draft
+
+- **Priority:** P0
+- **Persona:** Biên tập viên nội dung
+- **Mô tả:** Là biên tập viên, tôi muốn có một gói câu hỏi thường gặp đã đối
+  chiếu nguồn Chính phủ và được nạp vào kho draft, để tiếp tục biên tập và gửi
+  một người khác duyệt trước khi người dùng có thể tra cứu.
+
+**Acceptance criteria**
+
+- [x] Gói dữ liệu chỉ chứa URL HTTPS qua official-source allowlist hiện hành.
+  Legal candidate có số văn bản, điều/khoản/điểm, ngày ban hành, ngày hiệu lực
+  và ngày kiểm tra; official safety guidance có đơn vị phát hành, ngày đăng và
+  ngày kiểm tra, không bị giả thành citation pháp luật.
+- [x] Bao phủ tối thiểu các intent: xe máy “tống 3/chở ba”, vượt đèn đỏ, thông
+  tin sai sự thật/xúc phạm trên mạng, an toàn khi tài khoản bị chiếm đoạt, trích
+  dẫn học đường, dùng ảnh học đường và remix nhạc.
+- [x] Quy định về mạng xã hội dùng Nghị định 174/2026/NĐ-CP có hiệu lực từ
+  01/07/2026; không nạp Điều 101 Nghị định 15/2020 hoặc mức 5–10 triệu như căn
+  cứ hiện hành cho hành vi mới.
+- [x] Mỗi record có ID/request ID cố định; full-record hash bao phủ intent,
+  topic, loại record, canonical question, alias, snapshot/citation và review
+  note. Chạy import nhiều lần không tạo bản ghi trùng; cùng ID nhưng khác nội
+  dung hoặc thiếu audit binding phải fail closed.
+- [x] Import chỉ tạo `web_search_candidates.lifecycle_status='draft'`, source
+  và audit event `draft_persisted`; không tạo revision, principal, review,
+  `pending_review` hoặc `published`.
+- [x] Không lưu câu hỏi thật, hội thoại hoặc dữ liệu cá nhân của người dùng.
+  Canonical question chỉ tồn tại trong fixture biên tập; alias đã commit được
+  đưa vào editorial tags để RAG có thể match cách hỏi ngắn.
+- [x] Có test cho exact schema fixture, URL/host chính thống, topic/tags, ngày hiệu
+  lực, cấm căn cứ cũ, idempotency, conflict và draft-only.
+- [x] Gói đã được nạp và đếm lại trên D1 local.
+- [ ] Production chỉ được nạp sau khi resolve đúng Sites project/D1 binding;
+  không dùng database ID suy đoán.
+- [ ] PM/source review và code review độc lập không còn blocker/high trong
+  phạm vi gói draft.
+
+**Decision (2026-07-31):** DEC-014 quy định đây là review packet draft-only,
+không phải nội dung pháp luật đã publish. Theo DEC-015, “tài khoản bị chiếm
+đoạt” được phục vụ ngay trong MVP như hướng dẫn an toàn có nguồn Chính phủ,
+không tự động kết luận tội danh/chế tài và không thể đi qua workflow publish
+legal RAG. Mọi câu trả lời có mức phạt vẫn chỉ xuất hiện từ corpus sau biên tập,
+duyệt bốn mắt và public retrieval gate.
+
 ### [ ] US-027 — Tìm nguồn được phép khi kho dữ liệu chưa có câu trả lời
 
 - **Priority:** P0
@@ -230,7 +332,9 @@ và malformed messages.
 - [x] `/api/chat` chỉ gọi web search sau khi cả managed và curated retrieval
   không match; safety intent vẫn chạy trước và không bị thay thế.
 - [x] Web search mặc định tắt, chỉ bật với exact
-  `AI_WEB_SEARCH_ENABLED=true`, có API key và model thuộc exact allowlist.
+  `AI_WEB_SEARCH_ENABLED=true` và có API key. `OPENAI_MODEL` là cấu hình
+  server-only, chấp nhận mọi model ID có định dạng an toàn; model không hỗ trợ
+  Responses API/web-search phải fail closed theo lỗi provider.
 - [x] Request dùng Responses API `web_search`, `tool_choice=required`,
   `store=false`, domain filter cố định phía server và yêu cầu complete sources;
   không nhận domain, instruction, tool hoặc provider URL từ client.
@@ -259,25 +363,28 @@ và malformed messages.
   trong phần diễn giải. Link duy nhất người dùng bấm được phải lấy từ danh sách
   `sources` đã qua exact URL guard tương ứng với `sourceKind`; client không
   render HTML từ answer và có plain-text fallback khi DTO trình bày sai.
-- [x] Direct `web_search` không công khai số tiền, điều-khoản-điểm hoặc ngày
-  pháp lý do model sinh chỉ vì có official URL. Các field này chỉ xuất hiện sau
-  khi được map vào source/provision/sanction record đã review; output trực tiếp
-  có legal numeric/article/date claim phải fail closed.
+- [x] Direct `web_search` được công khai số tiền, số hiệu văn bản,
+  điều-khoản-điểm và ngày pháp lý dưới nhãn “Mức phạt tham khảo — chưa kiểm
+  chứng”. Cảnh báo phải đứng trước nội dung, không được gọi là căn cứ đã xác
+  minh và không được tự đưa vào reviewed RAG.
 - [x] Kết quả từ reference allowlist phải có `sourceKind=reference`, cảnh báo
   luôn thấy “không phải nguồn chính thống, cần xác minh”, link đã qua exact
   HTTPS authority guard và không được persist thành candidate, evidence hoặc
   corpus RAG.
 - [x] Câu hỏi đời thường có chữ số như “đi xe máy tống 3” không bị chặn chỉ vì
-  có số `3`; nhưng output nguồn tham khảo có số tiền, số hiệu văn bản,
-  điều-khoản-điểm, ngày/tuổi hoặc ngưỡng pháp lý không được public: provider
-  text bị bỏ toàn bộ và thay bằng safe fallback cố định, hoặc fail closed nếu
-  source/DTO không hợp lệ.
+  có số `3`. Output official/reference có chi tiết pháp lý định lượng được giữ
+  để tham khảo khi có ít nhất một source link qua exact authority guard; thiếu
+  source hợp lệ hoặc DTO sai vẫn fail closed.
 - [x] Có regression test cho chuỗi tìm kiếm “đi xe máy tống 3”, thứ tự
   official-first/reference-second, nhãn UI, exact-domain guard và không persist
   nguồn tham khảo.
 - [x] Timeout, HTTP lỗi, refusal, malformed/oversized output, model mismatch
   hoặc URL ngoài allowlist đều fail closed. Thiếu official citation chỉ mở lượt
   reference theo DEC-012; lượt reference không hợp lệ vẫn trả `unavailable`.
+- [x] Direct web-search cho phép tối đa 30 giây để hoàn tất hosted search. Nếu
+  provider timeout/lỗi tạm thời, UI phải báo dịch vụ tra cứu chưa hoàn tất và
+  đề nghị thử lại; không được diễn đạt thành “không tìm thấy thông tin”. Có
+  regression cho câu “đi xe máy một bánh”.
 - [x] Có adapter/route/UI tests cho flag off, missing key, success có official
   citation, discovery-only citation, malicious URL, timeout và curated-first.
 - [ ] Trước production phải duyệt data-control/under-18 disclosure, budget,
@@ -291,9 +398,15 @@ URL guard; `thuvienphapluat.vn` là discovery-only; mọi failure tiếp tục
 four-eyes cho đến khi được ingest thành draft riêng.
 
 **Decision bổ sung (2026-07-31):** DEC-012 cho phép lượt reference search thứ
-hai khi lượt official không có kết quả đủ điều kiện. Reference result phải ghi
-rõ không chính thống/cần xác minh, chỉ trả hướng dẫn chung không có chi tiết
-pháp lý định lượng, không persist và không tham gia RAG.
+hai khi lượt official không có kết quả đủ điều kiện. Hạn chế ban đầu chỉ trả
+hướng dẫn chung không có chi tiết định lượng đã được DEC-017 thay đổi; quy tắc
+không chính thống/cần xác minh, không persist và không tham gia RAG vẫn giữ.
+
+**Decision bổ sung (2026-07-31):** DEC-017 thay hẹp giới hạn định lượng của
+DEC-010/DEC-012 cho MVP: official/reference web result được hiển thị mức phạt
+và chi tiết pháp lý dưới nhãn chưa kiểm chứng/chỉ tham khảo khi source link đã
+qua authority guard. Kết quả không trở thành reviewed evidence và reference
+vẫn không được persist.
 
 **Evidence:** `lib/openai-web-search.ts` có strict flag/model/config, redaction,
 fixed hosted-tool request, bounded response parser và exact official citation
@@ -304,7 +417,8 @@ official links; `.env.example` giữ rollback flag mặc định false.
 section DTO, loại markup/URL khỏi prose và chỉ để structured `sources` tạo link.
 `tests/openai-web-search.test.mjs` có regression official-first/reference-second,
 exact reference guard, runtime UI copy/parser, không persist, budget/telemetry
-hai lượt và câu “đi xe máy tống 3”; typecheck, lint và build
+hai lượt, “đi xe máy tống 3”, “đi xe máy một bánh” và provider-failure copy;
+typecheck, lint và build
 pass ngày 2026-07-31. Browser smoke với live web-search xác nhận warning đứng
 trước 4 section, source link thân thiện, không có raw Markdown/URL; viewport
 320px có chat panel 296px và không tràn ngang. Full suite 243/246; ba failure
@@ -317,6 +431,18 @@ Safety/presentation/reference increment cùng ngày nâng focused suite lên
 direct web có amount/article/document/date/age claim hoặc section pháp lý
 canonical bị từ chối `UNVERIFIED_LEGAL_CLAIM`; source Chính phủ đơn thuần không
 được coi là claim validation.
+
+DEC-017 supersede phần fail-closed định lượng nói trên cho MVP. Adapter giờ yêu
+cầu provider dùng section `Mức phạt tham khảo` khi nguồn có mức tiền, giữ
+sanctions cho official/reference dưới warning chưa kiểm chứng và bỏ section khi
+nguồn không có mức phạt. Focused web-search + topic suite đạt **81/81 pass**.
+
+DEC-018 tăng default/config mẫu lên 30.000 ms và tách
+`PROVIDER_TIMEOUT|PROVIDER_ERROR|PROVIDER_REFUSAL` khỏi no-match ở cả UI lẫn
+telemetry. Focused web-search + topic suite đạt **83/83 pass**; typecheck, lint,
+build pass. Live diagnostic đúng câu “đi xe máy một bánh có bị phạt không?” xác
+nhận topic `traffic`, có lượt official thành công sau 17–19 giây và cũng quan
+sát provider error chập chờn; retry copy vì vậy là bắt buộc.
 
 ### [ ] US-028 — Lưu, duyệt và tái sử dụng kết quả tra cứu trực tuyến
 

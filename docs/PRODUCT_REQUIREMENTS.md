@@ -23,6 +23,10 @@ trạng thái. API chat vẫn trả một đoạn văn thay vì dữ liệu có 
 Giúp học sinh hiểu quy định pháp luật liên quan đến mình và biết hành động an
 toàn tiếp theo, mà không biến sản phẩm thành dịch vụ tư vấn pháp lý cá nhân.
 
+Thông điệp phạm vi MVP dành cho người dùng:
+“Tra cứu nhanh các quy định gần gũi với trường học — từ giao thông, mạng xã hội
+đến bản quyền”.
+
 ### 2.2 Nguyên tắc bắt buộc
 
 1. Sản phẩm vận hành theo mô hình RAG-first: dữ liệu đã được kiểm duyệt là
@@ -99,8 +103,8 @@ sau khi có dữ liệu sử dụng thật:
 ### Chủ đề
 
 - Giao thông.
-- Mạng xã hội.
-- Sở hữu trí tuệ.
+- An toàn và ứng xử trên mạng.
+- Bản quyền học đường.
 
 ### Trải nghiệm người dùng
 
@@ -224,6 +228,13 @@ Mỗi kết quả phải hiển thị:
 ### FR-04 — Chatbot
 
 - Nhận tối đa 8 message gần nhất, tối đa 600 ký tự/message trong MVP hiện tại.
+- Trước mọi retrieval hoặc web search, backend phải kiểm tra câu hỏi có thuộc
+  đúng một trong ba phạm vi `giao thông`, `an toàn/ứng xử trên mạng` hoặc
+  `bản quyền học đường`. Câu ngoài phạm vi không được gọi kho dữ liệu, provider
+  AI hoặc web search và chỉ trả thông báo ngắn đã được sản phẩm duyệt.
+- Thông báo ngoài phạm vi là: “Câu hỏi này chưa thuộc phạm vi hỗ trợ của
+  website. Bạn hãy hỏi về an toàn giao thông, ứng xử trên mạng hoặc bản quyền
+  học đường.”
 - Ưu tiên nội dung đã xuất bản trước nhánh AI.
 - Legacy `/api/chat` phân biệt `knowledge`, `web_search` và `unavailable`;
   contract v1 mục tiêu tiếp tục phân biệt `curated`, `ai_assisted` và
@@ -246,10 +257,15 @@ Mỗi kết quả phải hiển thị:
   chứa raw question trước khi trả response. Candidate không trở thành corpus
   RAG cho tới khi editor và reviewer độc lập hoàn tất quy trình bốn mắt.
   Reference result luôn live/no-store và không được persist.
-- `thuvienphapluat.vn` không được dùng làm căn cứ pháp lý cuối cùng. Nguồn này
-  chỉ được dùng ở lượt reference sau official no-result, phải ghi rõ “không
-  chính thống, cần xác minh”, không hiển thị chi tiết pháp lý định lượng và
-  không được persist hoặc tự động đưa vào corpus.
+- `thuvienphapluat.vn` không được dùng làm căn cứ pháp lý đã xác minh. Nguồn
+  này chỉ được dùng ở lượt reference sau official no-result, phải ghi rõ “không
+  chính thống, cần xác minh”. Theo DEC-017, MVP được hiển thị mức phạt và chi
+  tiết pháp lý do AI tra cứu dưới nhãn chỉ tham khảo/chưa kiểm chứng; reference
+  result không được persist hoặc tự động đưa vào corpus.
+- Kết quả chính thức chỉ được lưu thành candidate khi câu hỏi đã qua topic gate,
+  source có `sourceKind=official`, presentation hợp lệ và URL qua exact
+  allowlist. Câu ngoài phạm vi, no-match, provider output sai hoặc reference
+  result tuyệt đối không được lưu.
 - Intent ảnh riêng tư/nhạy cảm phải ưu tiên safety guidance; intent bản quyền
   chỉ match dấu hiệu tác giả/tác phẩm/giấy phép/ghi nguồn. Từ chung “hình ảnh”
   hoặc câu mơ hồ không được tự chọn một nhánh.
@@ -590,8 +606,13 @@ activation; do đó production deployment vẫn bị chặn.
 | 2026-07-31 | DEC-008 | Catalog phân biệt managed success-empty với dependency unavailable; static baseline là normal overlay, còn unavailable dùng degraded fallback. | Degraded trả HTTP 200 + `dataState=degraded` + no-store; reviewed suppression áp dụng cả fallback, managed-only key hợp lệ không phải orphan và local slice không đóng production migration gate. |
 | 2026-07-31 | DEC-009 | AI integration đầu tiên chỉ là offline/local shadow, không import vào chat/API route; dùng `AI_SHADOW_ENABLED=false` mặc định và `OPENAI_API_KEY` server-only hiện có. Exact model allowlist là `gpt-5.4-mini` + snapshot `gpt-5.4-mini-2026-03-17`. | Chỉ non-user technical fixture được gửi với `store:false`, không web/tool/persist. `store:false` không phải ZDR; dữ liệu học sinh cần data-control + under-18 privacy/safety gate. Route shadow còn chờ production bundle + `waitUntil`; direct `ai_assisted` cần gate riêng. |
 | 2026-07-31 | DEC-010 | Khi RAG không match, chủ dự án cho phép direct web-search fallback có kiểm soát. | Chỉ final answer có ít nhất một official `url_citation` qua exact HTTPS authority guard mới được trả với nhãn chưa kiểm duyệt; Thư Viện Pháp Luật discovery-only; flag off hoặc mọi validation/provider failure vẫn `unavailable`. Quyết định này không biến web result thành reviewed corpus và không nới gate của evidence-bound `ai_assisted`. |
-| 2026-07-31 | DEC-012 | Khi official web search không có câu trả lời đủ điều kiện, cho phép thêm một lượt reference search có kiểm soát. | Reference allowlist ban đầu chỉ có `thuvienphapluat.vn`; output phải ghi rõ không chính thống/cần xác minh, không có chi tiết pháp lý định lượng, không persist/candidate/RAG và không được gọi là căn cứ pháp lý. |
+| 2026-07-31 | DEC-012 | Khi official web search không có câu trả lời đủ điều kiện, cho phép thêm một lượt reference search có kiểm soát. | Reference allowlist ban đầu chỉ có `thuvienphapluat.vn`; output phải ghi rõ không chính thống/cần xác minh và không persist/candidate/RAG. Hạn chế định lượng ban đầu được DEC-017 thay đổi. |
 | 2026-07-31 | DEC-011 | Kết quả web qua official guard được lưu thành immutable draft không chứa raw question. | D1 persistence là điều kiện trước khi trả web result; chỉ stable principal + independent reviewer mới publish candidate vào reviewed retrieval. |
+| 2026-07-31 | DEC-014 | Official corpus seed là review packet versioned, import idempotent vào draft-only và bind full-record hash vào audit metadata. | Không auto-publish; legal record đi tiếp qua workflow hiện có, còn canonical question không được lưu vào D1. |
+| 2026-07-31 | DEC-015 | MVP được trả ngay official safety guidance không đưa ra căn cứ, tội danh hoặc mức phạt; không nới gate cho legal candidate. | Hướng dẫn tài khoản bị chiếm có source Chính phủ và form ngắn; API/CMS chặn record này đi vào legal RAG. Quy trình bốn mắt vẫn giữ cho mọi legal citation/sanction. |
+| 2026-07-31 | DEC-016 | Direct web-search chấp nhận mọi `OPENAI_MODEL` có model ID định dạng an toàn thay vì exact allowlist. | Model là cấu hình server-only, không nhận từ request người dùng. Model không có Responses API/web-search capability trả lỗi an toàn; offline evidence/shadow vẫn giữ exact model policy để tái lập evaluation. |
+| 2026-07-31 | DEC-017 | Chủ dự án chấp nhận hiển thị mức phạt/chi tiết pháp lý do web-search trả về dù chưa được kiểm chứng. | Bắt buộc cảnh báo nổi bật “chỉ tham khảo/chưa kiểm chứng”, source link qua exact authority guard và không gọi là reviewed evidence. Official result vẫn chỉ lưu draft; reference không persist/RAG. |
+| 2026-07-31 | DEC-018 | Hosted web-search được chờ tối đa 30 giây và lỗi provider phải được phân biệt với no-match. | Cấu hình mẫu/default dùng 30 giây. Khi provider timeout/error/refusal, end user nhận thông báo dịch vụ tra cứu chưa hoàn tất và có thể thử lại; không nhận thông báo sai rằng nguồn không có dữ liệu. |
 
 ## 16. Open questions cần chủ dự án xác nhận
 

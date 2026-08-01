@@ -25,6 +25,7 @@
     "smoke:ai": "node --env-file=.env.local --experimental-strip-types scripts/smoke-openai-evidence.mjs",
     "smoke:web-search": "node --env-file=.env.local --experimental-strip-types scripts/smoke-openai-web-search.mjs",
     "shadow:ai": "node --env-file=.env.local --experimental-strip-types scripts/shadow-openai-evidence.mjs",
+    "corpus:import:local": "node --experimental-strip-types scripts/import-official-corpus-drafts.mjs",
     "auth:hash": "node --experimental-strip-types scripts/generate-admin-password-hash.mjs",
     "seed": "node --env-file=.env.local --experimental-strip-types scripts/seed-db.mjs",
     "test:seed": "node --experimental-strip-types --test tests/seed-db.test.mjs",

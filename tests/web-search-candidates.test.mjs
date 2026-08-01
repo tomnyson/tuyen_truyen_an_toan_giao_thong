@@ -38,6 +38,7 @@ const {
   normalizeReviewedCandidateSnapshot,
   persistWebSearchCandidate,
   reserveWebSearchBudget,
+  reviewedCandidateMatchesChatTopic,
   resolveEditorialActor,
   saveWebSearchCandidateRevision,
   settleWebSearchBudget,
@@ -64,6 +65,29 @@ const migrations = await Promise.all(
   ),
 );
 const candidateMigration = migrations.at(-1);
+
+test("copyright scope requires a reviewed copyright subtype, not broad intellectual property", () => {
+  const base = {
+    topic: "Sở hữu trí tuệ",
+    title: "Nội dung",
+    answer: "Nội dung",
+    citations: [],
+  };
+  assert.equal(
+    reviewedCandidateMatchesChatTopic(
+      { ...base, tags: ["sáng chế", "nhãn hiệu"] },
+      "copyright",
+    ),
+    false,
+  );
+  assert.equal(
+    reviewedCandidateMatchesChatTopic(
+      { ...base, tags: ["Bản quyền học đường"] },
+      "copyright",
+    ),
+    true,
+  );
+});
 
 class Prepared {
   constructor(database, sql, values = []) {
@@ -132,6 +156,7 @@ function uuidSequence() {
 function validSearchResult() {
   return {
     ok: true,
+    sourceKind: "official",
     answer:
       "Khi đi xe máy, học sinh phải đội mũ bảo hiểm và cài quai đúng cách.",
     warning: "Chưa kiểm duyệt",
@@ -222,6 +247,7 @@ test("web result persists as draft, passes four-eyes and enters reviewed retriev
     const candidateId = await persistWebSearchCandidate(
       "11111111-1111-4111-8111-111111111111",
       validSearchResult(),
+      "traffic",
       { db, randomUUID },
     );
     assert.ok(candidateId);
@@ -291,6 +317,14 @@ test("web result persists as draft, passes four-eyes and enters reviewed retriev
         url: "https://vanban.chinhphu.vn/quy-dinh-mu-bao-hiem",
       },
     ]);
+    assert.equal(
+      await findReviewedWebCandidate(
+        "Học sinh đi xe máy có phải đội mũ bảo hiểm không?",
+        "copyright",
+        { db, now: () => Date.UTC(2026, 6, 31) },
+      ),
+      null,
+    );
 
     const listed = await listWebSearchCandidates({ db });
     assert.equal(listed.candidates.length, 1);
@@ -333,6 +367,7 @@ test("revision rejects a URL not present in immutable intake sources", async () 
     const candidateId = await persistWebSearchCandidate(
       "22222222-2222-4222-8222-222222222222",
       validSearchResult(),
+      "traffic",
       { db, randomUUID },
     );
     const editor = await resolveEditorialActor("editor-a", "editor", { db });
@@ -347,6 +382,32 @@ test("revision rejects a URL not present in immutable intake sources", async () 
         { db, randomUUID },
       ),
       null,
+    );
+  } finally {
+    database.close();
+  }
+});
+
+test("candidate persistence rejects reference results even with an official-looking URL", async () => {
+  const database = createDatabase();
+  const db = new D1Adapter(database);
+  try {
+    assert.equal(
+      await persistWebSearchCandidate(
+        "22222222-2222-4222-8222-222222222222",
+        {
+          ...validSearchResult(),
+          sourceKind: "reference",
+        },
+        "traffic",
+        { db, randomUUID: uuidSequence() },
+      ),
+      null,
+    );
+    assert.equal(
+      database.prepare("SELECT COUNT(*) AS count FROM web_search_candidates").get()
+        .count,
+      0,
     );
   } finally {
     database.close();
@@ -377,6 +438,7 @@ test("authenticated API enforces editor-to-independent-reviewer workflow", async
     const candidateId = await persistWebSearchCandidate(
       "33333333-3333-4333-8333-333333333333",
       validSearchResult(),
+      "traffic",
       { db, randomUUID },
     );
     const editorSession = await createAdminSession("editor");

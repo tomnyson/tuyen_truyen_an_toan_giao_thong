@@ -97,7 +97,8 @@ function reviewedPenalty(item: LawItem) {
 
 const initialChatMessage: ChatMessage = {
   role: "assistant",
-  content: "Chào bạn! Mình là trợ lý tra cứu Luật Học Đường. Bạn có thể hỏi về giao thông hoặc an toàn trên mạng nhé.",
+  content:
+    "Chào bạn! Mình là trợ lý tra cứu Luật Học Đường. Bạn có thể hỏi về an toàn giao thông, ứng xử trên mạng hoặc bản quyền học đường nhé.",
 };
 
 export default function Home() {
@@ -556,7 +557,7 @@ export default function Home() {
                 id="chat-question"
                 value={chatInput}
                 onChange={(event) => setChatInput(event.target.value)}
-                placeholder="Nhập câu hỏi của bạn…"
+                placeholder="Hỏi về giao thông, an toàn/ứng xử trên mạng hoặc bản quyền…"
                 maxLength={600}
                 disabled={isChatLoading}
               />

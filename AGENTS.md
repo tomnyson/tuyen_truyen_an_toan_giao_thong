@@ -29,8 +29,12 @@ must stay traceable to a user story and a technical specification.
   consistent.
 - Code review prioritizes correctness, legal-source integrity, security,
   regressions, and missing tests.
-- Legal citations shown to users must come from reviewed application data. AI
-  output must not invent or silently alter a citation.
+- Legal citations presented as verified application evidence must come from
+  reviewed application data. For MVP, unreviewed web-search output may show a
+  reference fine, document number, provision or effective date only when the
+  response is prominently labelled "chưa kiểm chứng/chỉ tham khảo", keeps its
+  guarded consulted-source link, and is not promoted to reviewed RAG evidence.
+  AI output must not invent or silently alter a citation.
 
 ## Status vocabulary
 
@@ -39,4 +43,3 @@ must stay traceable to a user story and a technical specification.
 - `Partial`: some acceptance criteria have evidence, but the story is incomplete.
 - `Done`: every acceptance criterion is checked and has verification evidence.
 - `Blocked`: progress requires an explicit external decision or dependency.
-

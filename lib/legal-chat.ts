@@ -19,6 +19,7 @@ import {
   type PublicChatAnswer,
   type ReviewedCitationPresentationInput,
 } from "./chat-answer-presentation";
+import { chatTopicLabel, type ChatTopic } from "./chat-topic-scope";
 import type { OfficialSourceLink } from "./official-source-url";
 
 const [helmetLaw, , falseInformationLaw] = laws;
@@ -109,9 +110,55 @@ ${laws.length + 1}. Người từ đủ 14 đến dưới 16 tuổi: không áp 
 ${laws.length + 2}. Tình huống trên website là minh họa giáo dục, không phải hồ sơ xử phạt thực tế.
 `;
 
-export function findCuratedAnswer(question: string): KnowledgeChatAnswer | null {
+export function findCuratedAnswer(
+  question: string,
+): KnowledgeChatAnswer | null {
   const normalized = normalizeVietnamese(question);
 
+  if (
+    (normalized.includes("tai khoan") &&
+      (normalized.includes("hack") ||
+        normalized.includes("chiem") ||
+        normalized.includes("mat"))) ||
+    normalized.includes("lo mat khau")
+  ) {
+    const sections: ChatAnswerSection[] = [
+      {
+        kind: "summary",
+        paragraphs: [
+          "Hãy coi đây là sự cố an toàn tài khoản và xử lý ngay, chưa nên tự kết luận có tội danh hay mức phạt.",
+        ],
+        bullets: [],
+      },
+      {
+        kind: "next_steps",
+        paragraphs: ["Các việc nên làm theo thứ tự:"],
+        bullets: [
+          "Đổi mật khẩu bằng thiết bị tin cậy; không đưa mật khẩu hoặc mã OTP cho người khác.",
+          "Thông báo cho bạn bè, người thân biết tài khoản có thể bị chiếm để tránh bị lừa.",
+          "Không bấm liên kết lạ; lưu ảnh chụp và bằng chứng liên quan.",
+          "Nếu đã mất tài sản, nhanh chóng trình báo cơ quan công an gần nhất.",
+        ],
+      },
+      {
+        kind: "limitations",
+        paragraphs: [
+          "Đây là hướng dẫn an toàn từ nguồn Chính phủ, không phải kết luận pháp lý cho một vụ việc cụ thể.",
+        ],
+        bullets: [],
+      },
+    ];
+    return {
+      answer: flattenChatAnswerSections(sections),
+      sections,
+      sources: [
+        {
+          title: "Công an TP.HCM cảnh báo thủ đoạn chiếm quyền tài khoản",
+          url: "https://tphcm.chinhphu.vn/cong-an-tphcm-canh-bao-thu-doan-lua-dao-ho-tro-cai-dat-sinh-trac-hoc-101240703150617949.htm",
+        },
+      ],
+    };
+  }
   if (normalized.includes("mu bao hiem")) {
     return curatedPresentation(
       helmetLaw,
@@ -266,8 +313,18 @@ async function fetchVerifiedEntryCitations(
 
 export async function findManagedAnswer(
   question: string,
+  topic?: ChatTopic,
 ): Promise<KnowledgeChatAnswer | null> {
-  const ignoredTerms = new Set(["cho", "cua", "duoc", "khong", "nhung", "the", "nao", "voi"]);
+  const ignoredTerms = new Set([
+    "cho",
+    "cua",
+    "duoc",
+    "khong",
+    "nhung",
+    "the",
+    "nao",
+    "voi",
+  ]);
   const terms = normalizeVietnamese(question)
     .split(/[^a-z0-9]+/)
     // Loại term thuần số: năm/số hiệu văn bản trong legal_basis dễ khớp
@@ -280,9 +337,17 @@ export async function findManagedAnswer(
 
   try {
     const db = await getInitializedDb();
-    const entries = await db.select()
+    const entries = await db
+      .select()
       .from(legalEntries)
-      .where(eq(legalEntries.status, "published"))
+      .where(
+        topic
+          ? and(
+              eq(legalEntries.status, "published"),
+              eq(legalEntries.topic, chatTopicLabel(topic)),
+            )
+          : eq(legalEntries.status, "published"),
+      )
       .orderBy(desc(legalEntries.updatedAt))
       .limit(100);
     const ranked = entries
@@ -291,7 +356,10 @@ export async function findManagedAnswer(
         const searchable = normalizeVietnamese(
           `${entry.title} ${entry.topic} ${entry.tags} ${entry.legalBasis}`,
         );
-        return { entry, score: terms.filter((term) => searchable.includes(term)).length };
+        return {
+          entry,
+          score: terms.filter((term) => searchable.includes(term)).length,
+        };
       })
       .sort((left, right) => right.score - left.score);
     const best = ranked[0];

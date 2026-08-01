@@ -174,6 +174,19 @@ test("normalizes IPv4 and IPv6 /64 while ignoring spoofable X-Forwarded-For", as
   database.close();
 });
 
+test("chap nhan header do Vercel dat khi khong di qua Cloudflare", async () => {
+  const { database, limiter } = await setup();
+  const viaVercel = new Request("https://example.test/api", {
+    headers: { "x-vercel-forwarded-for": "203.0.113.77" },
+  });
+  assert.equal((await limiter.consumeChat(viaVercel)).allowed, true);
+  const viaRealIp = new Request("https://example.test/api", {
+    headers: { "x-real-ip": "203.0.113.78" },
+  });
+  assert.equal((await limiter.beforeLogin(viaRealIp, "admin")).allowed, true);
+  database.close();
+});
+
 test("stores only scope-separated HMAC keys, never raw client or username", async () => {
   const { database, limiter } = await setup();
   const incoming = request("2001:db8:abcd:12::99");

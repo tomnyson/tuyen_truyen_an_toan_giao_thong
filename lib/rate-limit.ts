@@ -257,6 +257,24 @@ function rows<Row extends Record<string, unknown>>(result: D1Result | undefined)
   return result.results as Row[];
 }
 
+// Header nhận diện client theo thứ tự tin cậy:
+// 1. cf-connecting-ip — Cloudflare proxy đặt (domain chính đi qua CF).
+// 2. x-vercel-forwarded-for / x-real-ip — Vercel edge đặt khi truy cập
+//    thẳng *.vercel.app; client không tự giả mạo được vì Vercel ghi đè.
+// Tuyệt đối không tin x-forwarded-for thô (giả mạo được).
+function trustedClientHeader(request: Request): string {
+  const candidates = [
+    request.headers.get("cf-connecting-ip"),
+    request.headers.get("x-vercel-forwarded-for"),
+    request.headers.get("x-real-ip"),
+  ];
+  for (const value of candidates) {
+    const first = value?.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return "";
+}
+
 export function createRateLimiter(dependencies: RateLimiterDependencies) {
   const database = dependencies.database;
   const secret =
@@ -324,7 +342,7 @@ export function createRateLimiter(dependencies: RateLimiterDependencies) {
   }
 
   async function loginIdentity(request: Request, username: string): Promise<LoginIdentity> {
-    const client = normalizeClientIp(request.headers.get("cf-connecting-ip") ?? "");
+    const client = normalizeClientIp(trustedClientHeader(request));
     if (!client) throw new Error("Missing trusted client identity.");
     const account = normalizeUsername(username);
     const [clientKey, accountKey, pairAttemptKey, pairPenaltyKey] = await Promise.all([
@@ -543,7 +561,7 @@ export function createRateLimiter(dependencies: RateLimiterDependencies) {
     const requestId = safeRequestId(request);
     try {
       if (!database || !keyPromise) throw new Error("Invalid rate-limit configuration.");
-      const client = normalizeClientIp(request.headers.get("cf-connecting-ip") ?? "");
+      const client = normalizeClientIp(trustedClientHeader(request));
       if (!client) throw new Error("Missing trusted client identity.");
       const [minuteKey, dayKey] = await Promise.all([
         hash(chatMinuteScope, client),

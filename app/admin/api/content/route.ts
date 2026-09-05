@@ -3,6 +3,8 @@ import { getInitializedDb } from "@/db";
 import { legalEntries, showcases } from "@/db/pg-schema";
 import { hasTrustedOrigin, isAdminRequest } from "@/lib/admin-auth";
 import { hasBlockedLegalBasis } from "@/lib/legal-content";
+import { isExactDec004SourceUrl } from "@/lib/public-showcase";
+import { isSupportedShowcaseMediaUrl } from "@/lib/showcase-media";
 
 type Entity = "law" | "showcase";
 const topics = new Set(["Giao thông", "Mạng xã hội", "Sở hữu trí tuệ"]);
@@ -40,14 +42,36 @@ function normalizeLaw(body: Record<string, unknown>) {
   return { ...common, icon: text(body.icon, 8) || "§", title, legalBasis, penalty, remedy, caseStudy, tags: JSON.stringify(tags) };
 }
 
-function normalizeShowcase(body: Record<string, unknown>) {
+type ShowcaseValidation =
+  | { ok: true; values: Record<string, unknown> }
+  | { ok: false; error: string };
+
+function normalizeShowcase(body: Record<string, unknown>): ShowcaseValidation {
   const common = normalizeCommon(body);
   const title = text(body.title, 240);
   const summary = text(body.summary, 2_500);
   const sourceUrl = text(body.sourceUrl, 1_000);
-  if (!common || !title || !summary) return null;
-  if (sourceUrl && !/^https:\/\//i.test(sourceUrl)) return null;
-  return { ...common, title, summary, sourceUrl };
+  const mediaUrl = text(body.mediaUrl, 1_000);
+  if (!common || !title || !summary) {
+    return { ok: false, error: "Vui lòng nhập đầy đủ và đúng định dạng." };
+  }
+  // Ô "nguồn chính thức" chỉ nhận cơ quan ban hành theo DEC-004. Link
+  // YouTube/ảnh phải nằm ở ô media để không bị trình bày như căn cứ pháp lý.
+  if (sourceUrl && !isExactDec004SourceUrl(sourceUrl)) {
+    return {
+      ok: false,
+      error:
+        "URL nguồn chính thức chỉ nhận vbpl.vn, vbpl.moj.gov.vn hoặc chinhphu.vn. Link video/ảnh hãy dán vào ô Ảnh/Video minh họa.",
+    };
+  }
+  if (mediaUrl && !isSupportedShowcaseMediaUrl(mediaUrl)) {
+    return {
+      ok: false,
+      error:
+        "Ảnh/Video minh họa chỉ nhận link YouTube hoặc ảnh https (.jpg, .png, .webp, .gif, .avif).",
+    };
+  }
+  return { ok: true, values: { ...common, title, summary, sourceUrl, mediaUrl } };
 }
 
 async function authorize(request: Request, mutation = false) {
@@ -91,10 +115,15 @@ export async function POST(request: Request) {
     return Response.json({ item }, { status: 201 });
   }
   if (entity === "showcase") {
-    const values = body && normalizeShowcase(body);
-    if (!values) return Response.json({ error: "Vui lòng nhập đầy đủ và đúng định dạng." }, { status: 400 });
+    const parsed = body
+      ? normalizeShowcase(body)
+      : ({ ok: false, error: "Vui lòng nhập đầy đủ và đúng định dạng." } as const);
+    if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
     const db = await getInitializedDb();
-    const [item] = await db.insert(showcases).values(values).returning();
+    const [item] = await db
+      .insert(showcases)
+      .values(parsed.values as typeof showcases.$inferInsert)
+      .returning();
     return Response.json({ item }, { status: 201 });
   }
   return Response.json({ error: "Loại nội dung không hợp lệ." }, { status: 400 });
@@ -122,10 +151,17 @@ export async function PATCH(request: Request) {
     return item ? Response.json({ item }) : Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
   }
   if (entity === "showcase") {
-    const values = normalizeShowcase(body);
-    if (!values) return Response.json({ error: "Vui lòng nhập đầy đủ và đúng định dạng." }, { status: 400 });
+    const parsed = normalizeShowcase(body);
+    if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
     const db = await getInitializedDb();
-    const [item] = await db.update(showcases).set({ ...values, updatedAt: sql`CURRENT_TIMESTAMP` }).where(eq(showcases.id, id)).returning();
+    const [item] = await db
+      .update(showcases)
+      .set({
+        ...(parsed.values as typeof showcases.$inferInsert),
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(eq(showcases.id, id))
+      .returning();
     return item ? Response.json({ item }) : Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
   }
   return Response.json({ error: "Loại nội dung không hợp lệ." }, { status: 400 });

@@ -203,6 +203,7 @@ CREATE TABLE IF NOT EXISTS showcases (
   title text NOT NULL,
   summary text NOT NULL,
   source_url text DEFAULT '' NOT NULL,
+  media_url text DEFAULT '' NOT NULL,
   status text DEFAULT 'draft' NOT NULL,
   created_at text DEFAULT (now())::text NOT NULL,
   updated_at text DEFAULT (now())::text NOT NULL,
@@ -615,6 +616,25 @@ export const pgRateLimitStatements: readonly string[] = [
 
 import { pgWorkflowStatements } from "./pg-workflow";
 
+// Câu lệnh cộng thêm (additive) cho database đã bootstrap ở phiên bản cũ.
+// Mọi lệnh phải idempotent và không được xóa/đổi kiểu cột đang có dữ liệu.
+const pgAdditiveMigrationStatements: readonly string[] = [
+  `ALTER TABLE showcases
+   ADD COLUMN IF NOT EXISTS media_url text DEFAULT '' NOT NULL`,
+];
+
+export const pgSchemaVersionTable = "app_schema_version";
+
+// Tăng giá trị này mỗi khi thêm bảng/cột mới, nếu không database đã tồn tại
+// sẽ bỏ qua bootstrap và thiếu schema mới.
+export const pgSchemaVersion = "2026-09-05-showcase-media-v1";
+
+const createSchemaVersionTable = `
+CREATE TABLE IF NOT EXISTS ${pgSchemaVersionTable} (
+  version text PRIMARY KEY,
+  applied_at text DEFAULT (now())::text NOT NULL
+)`;
+
 export const pgBootstrapStatements: readonly string[] = [
   createLegalSourcesTable,
   createLegalProvisionsTable,
@@ -625,8 +645,16 @@ export const pgBootstrapStatements: readonly string[] = [
   ...triggerStatements,
   ...pgRateLimitStatements,
   ...pgWorkflowStatements,
+  ...pgAdditiveMigrationStatements,
+  createSchemaVersionTable,
+  `INSERT INTO ${pgSchemaVersionTable} (version) VALUES ('${pgSchemaVersion}')
+   ON CONFLICT (version) DO NOTHING`,
 ];
 
-// Bảng cuối cùng của chuỗi bootstrap — dùng làm sentinel: nếu đã tồn tại
-// thì coi như schema đầy đủ, bỏ qua việc chạy lại toàn bộ DDL.
-export const pgBootstrapSentinelTable = "web_search_budget_days";
+// Truy vấn cổng bootstrap: chỉ bỏ qua DDL khi ĐÚNG phiên bản schema hiện tại
+// đã được ghi nhận. Bảng chưa tồn tại thì truy vấn lỗi và caller coi như
+// "chưa sẵn sàng" — an toàn vì toàn bộ DDL đều idempotent.
+export const pgSchemaVersionReadyQuery = `SELECT EXISTS (
+  SELECT 1 FROM ${pgSchemaVersionTable} WHERE version = '${pgSchemaVersion}'
+) AS ready`;
+

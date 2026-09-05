@@ -12,6 +12,11 @@ const {
   projectPublishedShowcases,
 } = await import("../lib/public-showcase.ts");
 const {
+  isSupportedShowcaseMediaUrl,
+  resolveShowcaseMedia,
+  showcaseMediaPreviewUrl,
+} = await import("../lib/showcase-media.ts");
+const {
   handleShowcaseDialogKeyDown,
   restoreShowcaseTriggerFocus,
   ShowcaseDialog,
@@ -33,6 +38,7 @@ function showcase(id, overrides = {}) {
     title: `Tình huống ${id}`,
     summary: `Nội dung đầy đủ ${id}`,
     sourceUrl: officialSource,
+    mediaUrl: "",
     status: "published",
     ...overrides,
   };
@@ -75,7 +81,7 @@ test("public API preserves success-empty instead of inventing fallback cards", a
 test("public API projects one valid published showcase and excludes draft or invalid records", async () => {
   const response = await responseFor([
     showcase(90, { status: "draft" }),
-    showcase(91, { sourceUrl: "https://vbpl.vn.evil.example/source" }),
+    showcase(91, { topic: "Chủ đề lạ" }),
     showcase(92, { summary: "  " }),
     showcase(7),
   ]);
@@ -89,6 +95,8 @@ test("public API projects one valid published showcase and excludes draft or inv
       title: "Tình huống 7",
       summary: "Nội dung đầy đủ 7",
       sourceUrl: officialSource,
+      mediaUrl: "",
+      mediaKind: "none",
     },
   ]);
   assert.equal("status" in body.showcases[0], false);
@@ -139,6 +147,8 @@ test("client parser accepts only the exact public DTO and never promotes eligibi
     title: "Tình huống 3",
     summary: "Nội dung đầy đủ 3",
     sourceUrl: officialSource,
+    mediaUrl: "",
+    mediaKind: "none",
   };
   assert.deepEqual(parsePublicShowcases([publicDto]), [publicDto]);
   assert.equal(
@@ -152,13 +162,11 @@ test("client parser accepts only the exact public DTO and never promotes eligibi
 });
 
 test("gallery renders all DTO fields in API order with stable item IDs", () => {
-  const items = [showcase(30), showcase(10), showcase(20)].map((item) => ({
-    id: item.id,
-    topic: item.topic,
-    title: item.title,
-    summary: item.summary,
-    sourceUrl: item.sourceUrl,
-  }));
+  const items = projectPublishedShowcases([
+    showcase(30),
+    showcase(10),
+    showcase(20),
+  ]);
   const html = renderToStaticMarkup(
     React.createElement(ShowcaseGallery, {
       state: "ready",
@@ -205,6 +213,8 @@ test("detail dialog renders the exact selected item with full source fields", ()
     title: "Đúng tình huống được chọn",
     summary: "Toàn bộ nội dung chi tiết của tình huống được chọn.",
     sourceUrl: "https://chinhphu.vn/nguon-chinh-thuc",
+    mediaUrl: "",
+    mediaKind: "none",
   };
   const html = renderToStaticMarkup(
     React.createElement(ShowcaseDialog, {
@@ -318,4 +328,171 @@ test("focus trap recovers when focus is already outside the dialog", () => {
   assert.equal(prevented, 2);
   assert.equal(firstFocused, 1);
   assert.equal(lastFocused, 1);
+});
+
+
+// --- Bản điều chỉnh 2026-09-05: bug #4 và media minh họa (#2) ---
+
+test("tình huống không có nguồn chính thức vẫn được xuất bản ra công khai", async () => {
+  const response = await responseFor([
+    showcase(41, { sourceUrl: "" }),
+    showcase(42, { sourceUrl: "   " }),
+  ]);
+  const body = await response.json();
+
+  assert.deepEqual(
+    body.showcases.map((item) => [item.id, item.sourceUrl]),
+    [
+      [41, ""],
+      [42, ""],
+    ],
+  );
+});
+
+test("URL ngoài thẩm quyền DEC-004 chỉ mất link nguồn, không làm mất tình huống", async () => {
+  const response = await responseFor([
+    showcase(43, { sourceUrl: "https://vbpl.vn.evil.example/source" }),
+    showcase(44, { sourceUrl: "http://vbpl.vn/khong-https" }),
+  ]);
+  const body = await response.json();
+
+  assert.equal(body.showcases.length, 2);
+  for (const item of body.showcases) {
+    assert.equal(item.sourceUrl, "");
+    assert.equal(item.mediaKind, "none");
+  }
+});
+
+test("link YouTube lỡ nhập ở ô nguồn được cứu thành media minh họa", async () => {
+  const response = await responseFor([
+    showcase(45, { sourceUrl: "https://www.youtube.com/shorts/55seVfrTqTE" }),
+  ]);
+  const [item] = (await response.json()).showcases;
+
+  assert.equal(item.sourceUrl, "");
+  assert.equal(item.mediaKind, "youtube");
+  assert.equal(
+    item.mediaUrl,
+    "https://www.youtube-nocookie.com/embed/55seVfrTqTE",
+  );
+});
+
+test("nguồn chính thức và media minh họa cùng tồn tại độc lập", async () => {
+  const response = await responseFor([
+    showcase(46, {
+      sourceUrl: officialSource,
+      mediaUrl: "https://youtu.be/55seVfrTqTE",
+    }),
+  ]);
+  const [item] = (await response.json()).showcases;
+
+  assert.equal(item.sourceUrl, officialSource);
+  assert.equal(
+    item.mediaUrl,
+    "https://www.youtube-nocookie.com/embed/55seVfrTqTE",
+  );
+});
+
+test("media allowlist chuẩn hóa mọi dạng YouTube và từ chối phần còn lại", () => {
+  for (const url of [
+    "https://www.youtube.com/watch?v=55seVfrTqTE",
+    "https://youtu.be/55seVfrTqTE",
+    "https://www.youtube.com/shorts/55seVfrTqTE",
+    "https://www.youtube.com/embed/55seVfrTqTE",
+    "https://m.youtube.com/watch?v=55seVfrTqTE",
+  ]) {
+    assert.equal(
+      resolveShowcaseMedia(url).embedUrl,
+      "https://www.youtube-nocookie.com/embed/55seVfrTqTE",
+      url,
+    );
+  }
+  for (const url of [
+    "http://www.youtube.com/watch?v=55seVfrTqTE",
+    "https://youtube.com.evil.example/watch?v=55seVfrTqTE",
+    "https://www.youtube.com/watch?v=quá-ngắn",
+    "javascript:alert(1)",
+    "https://evil.example/payload.exe",
+    "",
+  ]) {
+    assert.equal(isSupportedShowcaseMediaUrl(url), false, url);
+  }
+  assert.equal(
+    resolveShowcaseMedia("https://cdn.example/anh-minh-hoa.WEBP").kind,
+    "image",
+  );
+});
+
+test("chuẩn hóa media là idempotent qua vòng server → client", () => {
+  const embed = resolveShowcaseMedia(
+    "https://www.youtube.com/shorts/55seVfrTqTE",
+  ).embedUrl;
+  assert.equal(resolveShowcaseMedia(embed).embedUrl, embed);
+});
+
+test("ảnh xem trước dùng thumbnail YouTube thay vì iframe trên thẻ", () => {
+  assert.equal(
+    showcaseMediaPreviewUrl(
+      "youtube",
+      "https://www.youtube-nocookie.com/embed/55seVfrTqTE",
+    ),
+    "https://i.ytimg.com/vi/55seVfrTqTE/hqdefault.jpg",
+  );
+  assert.equal(
+    showcaseMediaPreviewUrl("image", "https://cdn.example/a.jpg"),
+    "https://cdn.example/a.jpg",
+  );
+  assert.equal(showcaseMediaPreviewUrl("none", ""), "");
+});
+
+test("thẻ không có nguồn chính thức thì không render link nguồn", () => {
+  const [withoutSource] = projectPublishedShowcases([
+    showcase(47, { sourceUrl: "" }),
+  ]);
+  const html = renderToStaticMarkup(
+    React.createElement(ShowcaseGallery, {
+      state: "ready",
+      showcases: [withoutSource],
+    }),
+  );
+
+  assert.match(html, /BIÊN SOẠN NỘI BỘ/);
+  assert.doesNotMatch(html, /<a /);
+  assert.match(html, /data-showcase-id="47"/);
+});
+
+test("modal render iframe no-cookie cho video và img cho ảnh", () => {
+  const [video] = projectPublishedShowcases([
+    showcase(48, { mediaUrl: "https://www.youtube.com/shorts/55seVfrTqTE" }),
+  ]);
+  const videoHtml = renderToStaticMarkup(
+    React.createElement(ShowcaseDialog, { item: video, onClose() {} }),
+  );
+  assert.match(videoHtml, /data-media-kind="youtube"/);
+  assert.match(
+    videoHtml,
+    /src="https:\/\/www\.youtube-nocookie\.com\/embed\/55seVfrTqTE"/,
+  );
+
+  const [image] = projectPublishedShowcases([
+    showcase(49, { mediaUrl: "https://cdn.example/anh.png" }),
+  ]);
+  const imageHtml = renderToStaticMarkup(
+    React.createElement(ShowcaseDialog, { item: image, onClose() {} }),
+  );
+  assert.match(imageHtml, /data-media-kind="image"/);
+  assert.match(imageHtml, /src="https:\/\/cdn\.example\/anh\.png"/);
+  assert.doesNotMatch(imageHtml, /<iframe/);
+});
+
+test("gallery phân biệt trạng thái không khớp bộ lọc với trạng thái rỗng", () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ShowcaseGallery, {
+      state: "no-match",
+      showcases: [],
+    }),
+  );
+  assert.match(html, /data-showcase-state="no-match"/);
+  assert.match(html, /khớp với từ khóa hoặc lĩnh vực/);
+  assert.doesNotMatch(html, /Chưa có tình huống/);
 });

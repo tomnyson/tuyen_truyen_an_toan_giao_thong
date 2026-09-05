@@ -108,6 +108,7 @@ export const showcases = pgTable("showcases", {
   title: text("title").notNull(),
   summary: text("summary").notNull(),
   sourceUrl: text("source_url").notNull().default(""),
+  mediaUrl: text("media_url").notNull().default(""),
   status: text("status", { enum: ["draft", "published"] })
     .notNull()
     .default("draft"),

@@ -9,8 +9,8 @@ import { sql } from "drizzle-orm";
 import { env } from "@/lib/runtime-env";
 import * as schema from "./pg-schema";
 import {
-  pgBootstrapSentinelTable,
   pgBootstrapStatements,
+  pgSchemaVersionReadyQuery,
 } from "./pg-bootstrap";
 
 export type LegalDatabase = NeonHttpDatabase<typeof schema>;
@@ -45,15 +45,17 @@ export async function bootstrapLegalDatabase(database: {
 }
 
 async function ensureBootstrapped(database: LegalDatabase): Promise<void> {
-  // ~100 câu DDL qua HTTP là quá đắt cho mỗi cold start — kiểm tra sentinel
-  // (bảng cuối chuỗi bootstrap) trước, chỉ chạy đủ bộ khi schema còn thiếu.
-  const sentinel = await database.execute(
-    sql.raw(
-      `SELECT to_regclass('public.${pgBootstrapSentinelTable}') IS NOT NULL AS ready`,
-    ),
-  );
-  const ready = (sentinel as { rows?: Array<{ ready?: unknown }> }).rows?.[0]
-    ?.ready;
+  // ~100 câu DDL qua HTTP là quá đắt cho mỗi cold start — hỏi bảng phiên bản
+  // schema trước, chỉ chạy đủ bộ khi phiên bản hiện tại chưa được ghi nhận.
+  // Bảng chưa tồn tại (database cũ hoặc trống) làm truy vấn lỗi; coi như
+  // chưa sẵn sàng và chạy bootstrap — toàn bộ DDL đều idempotent.
+  const ready = await database
+    .execute(sql.raw(pgSchemaVersionReadyQuery))
+    .then(
+      (result) =>
+        (result as { rows?: Array<{ ready?: unknown }> }).rows?.[0]?.ready,
+    )
+    .catch(() => false);
   if (ready === true || ready === "t") return;
   await bootstrapLegalDatabase(database);
 }

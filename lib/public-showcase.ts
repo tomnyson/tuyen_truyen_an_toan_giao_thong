@@ -1,4 +1,8 @@
 import { hasBlockedLegalBasis } from "@/lib/legal-content";
+import {
+  resolveShowcaseMedia,
+  type ShowcaseMediaKind,
+} from "@/lib/showcase-media";
 
 const publicShowcaseTopics = new Set([
   "Giao thông",
@@ -6,12 +10,17 @@ const publicShowcaseTopics = new Set([
   "Sở hữu trí tuệ",
 ]);
 
+// `sourceUrl` rỗng nghĩa là tình huống chưa gắn nguồn chính thức đã duyệt —
+// thẻ vẫn hiển thị, chỉ không có link "Nguồn chính thức". Trước đây record
+// kiểu này bị loại im lặng khỏi API (bug #4 của bản điều chỉnh 2026-09-05).
 export type PublicShowcase = Readonly<{
   id: number;
   topic: string;
   title: string;
   summary: string;
   sourceUrl: string;
+  mediaUrl: string;
+  mediaKind: ShowcaseMediaKind;
 }>;
 
 export type ShowcaseRecord = {
@@ -20,6 +29,7 @@ export type ShowcaseRecord = {
   title: string;
   summary: string;
   sourceUrl: string;
+  mediaUrl?: string;
   status: string;
 };
 
@@ -73,25 +83,36 @@ function projectPublicShowcase(value: unknown): PublicShowcase | null {
   const topic = boundedTrimmedString(value.topic, 80);
   const title = boundedTrimmedString(value.title, 300);
   const summary = boundedTrimmedString(value.summary, 10_000);
-  const sourceUrl = boundedTrimmedString(value.sourceUrl, 2_048);
   if (
     !Number.isSafeInteger(value.id) ||
     (value.id as number) <= 0 ||
     !topic ||
     !publicShowcaseTopics.has(topic) ||
     !title ||
-    !summary ||
-    !sourceUrl ||
-    !isExactDec004SourceUrl(sourceUrl)
+    !summary
   ) {
     return null;
   }
+
+  const rawSourceUrl = boundedTrimmedString(value.sourceUrl, 2_048);
+  // Chỉ URL thuộc thẩm quyền DEC-004 mới được trình bày là nguồn chính thức.
+  const sourceUrl =
+    rawSourceUrl && isExactDec004SourceUrl(rawSourceUrl) ? rawSourceUrl : "";
+  // Dữ liệu cũ để link YouTube/ảnh trong ô "nguồn": cứu về đúng vai trò media
+  // minh họa thay vì loại bỏ cả tình huống.
+  const media = resolveShowcaseMedia(
+    boundedTrimmedString(value.mediaUrl, 2_048) ??
+      (sourceUrl ? "" : (rawSourceUrl ?? "")),
+  );
+
   return Object.freeze({
     id: value.id as number,
     topic,
     title,
     summary,
     sourceUrl,
+    mediaUrl: media.kind === "none" ? "" : media.embedUrl,
+    mediaKind: media.kind,
   });
 }
 
@@ -115,9 +136,17 @@ export function parsePublicShowcases(value: unknown): PublicShowcase[] | null {
     if (!isPlainRecord(item)) return item;
     const keys = Object.keys(item);
     if (
-      keys.length !== 5 ||
+      keys.length !== 7 ||
       !keys.every((key) =>
-        ["id", "topic", "title", "summary", "sourceUrl"].includes(key),
+        [
+          "id",
+          "topic",
+          "title",
+          "summary",
+          "sourceUrl",
+          "mediaUrl",
+          "mediaKind",
+        ].includes(key),
       )
     ) {
       return null;

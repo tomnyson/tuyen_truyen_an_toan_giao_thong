@@ -2290,6 +2290,20 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   chính thống/cần xác minh, không chi tiết pháp lý định lượng và không persist
   thành candidate/evidence/RAG. Official search luôn chạy trước.
 
+- **DEC-013:** ảnh/video minh họa của tình huống là kênh dữ liệu **tách hẳn**
+  khỏi nguồn pháp lý DEC-004. Ô `sourceUrl` chỉ nhận authority DEC-004; ô
+  `mediaUrl` nhận allowlist riêng (YouTube hoặc ảnh HTTPS có đuôi
+  `.jpg/.jpeg/.png/.webp/.gif/.avif`) và luôn được chuẩn hóa thành embed
+  no-cookie hoặc URL ảnh trước khi render. URL không thuộc DEC-004 **không làm
+  mất tình huống**: record vẫn xuất bản, chỉ mất link "Nguồn chính thức". Media
+  không bao giờ được trình bày như căn cứ pháp lý.
+- **DEC-014:** bootstrap schema dùng version gate `app_schema_version` thay cho
+  sentinel table. Mỗi lần thêm bảng/cột phải bump `pgSchemaVersion` trong
+  `db/pg-bootstrap.ts`; nếu không, database đã tồn tại sẽ bỏ qua bootstrap và
+  không nhận được cột mới. Migration bổ sung phải viết dạng
+  `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` để idempotent.
+
+
 ### Điểm còn mở
 
 Các điểm cần product/technical owner chốt trước Sprint 1:

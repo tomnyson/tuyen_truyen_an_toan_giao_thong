@@ -178,6 +178,24 @@ export default function Home() {
     });
   }, [availableLaws, query, topic]);
 
+  // Tình huống cũng phải tìm được bằng ô tra cứu và bộ lọc lĩnh vực — trước
+  // đây gallery bỏ qua hoàn toàn `query`/`topic` (bug #4).
+  const filteredShowcases = useMemo(() => {
+    const q = normalizeVietnamese(query.trim());
+    return managedShowcases.filter((item) => {
+      const matchesTopic = topic === "Tất cả" || item.topic === topic;
+      const haystack = normalizeVietnamese(
+        [item.title, item.summary, item.topic].join(" "),
+      );
+      return matchesTopic && (!q || haystack.includes(q));
+    });
+  }, [managedShowcases, query, topic]);
+
+  const visibleShowcaseState: ShowcaseDataState =
+    showcaseState === "ready" && filteredShowcases.length === 0
+      ? "no-match"
+      : showcaseState;
+
   function scrollToResults() {
     document.getElementById("tra-cuu")?.scrollIntoView({ behavior: "smooth" });
   }
@@ -334,7 +352,17 @@ export default function Home() {
             <span className="section-kicker">TRA CỨU THEO TÌNH HUỐNG</span>
             <h2>Điều bạn cần biết, ngay khi cần.</h2>
           </div>
-          <p>{filteredLaws.length} kết quả phù hợp</p>
+          <p>
+            {filteredLaws.length + filteredShowcases.length} kết quả phù hợp
+            {filteredShowcases.length > 0 && (
+              <>
+                {" · "}
+                <a href="#tinh-huong">
+                  {filteredShowcases.length} tình huống
+                </a>
+              </>
+            )}
+          </p>
         </div>
 
         <div className="filter-bar" role="group" aria-label="Bộ lọc lĩnh vực">
@@ -391,8 +419,8 @@ export default function Home() {
           <p>Các tình huống dưới đây được biên soạn để giáo dục, giúp bạn nhận diện rủi ro trước khi hành động.</p>
         </div>
         <ShowcaseGallery
-          state={showcaseState}
-          showcases={managedShowcases}
+          state={visibleShowcaseState}
+          showcases={filteredShowcases}
         />
       </section>
 

@@ -1,6 +1,6 @@
 # User Stories — Luật Học Đường
 
-> Cập nhật gần nhất: 2026-07-31
+> Cập nhật gần nhất: 2026-09-05
 > Quy ước: checkbox ở tiêu đề chỉ được đánh dấu `[x]` khi tất cả acceptance
 > criteria của story đã có bằng chứng. Story chưa hoàn tất có thể có một số
 > acceptance criteria con đã được đánh dấu.
@@ -1280,3 +1280,145 @@ alias request nhưng ghi nhận actual pinned snapshot
 `gpt-5.4-mini-2026-03-17`, đạt **2/2**, tổng **1.522 tokens** và không ghi
 prompt/evidence/composition; đây chỉ là provider/config evidence. Story giữ
 `Partial`.
+
+## Epic G — Bản điều chỉnh 2026-09-05 (Trợ giúp pháp lý cho HSSV)
+
+> Nguồn yêu cầu: `docs/Điều chỉnh App Hỗ trợ pháp lý cho HSSV.pdf`. Tám hạng mục
+> khách hàng yêu cầu, tách thành story để theo dõi độc lập.
+
+### [ ] US-029 — Đổi định danh sản phẩm thành "Trợ giúp pháp lý cho HSSV"
+
+- **Priority:** P1
+- **Persona:** Học sinh, sinh viên, nhà trường
+- **Mô tả:** Là người dùng, tôi muốn tên ứng dụng phản ánh đúng phạm vi trợ giúp
+  pháp lý cho HSSV thay vì "Luật học đường".
+
+**Acceptance criteria**
+
+- [ ] Brand ở header, footer, `aria-label` và tiêu đề trang dùng tên mới.
+- [ ] Metadata (`title`, `description`, OpenGraph) dùng tên mới.
+- [ ] Lời chào và tiêu đề của trợ lý chat dùng tên mới.
+- [ ] Không còn chuỗi "Luật học đường"/"LUẬT HỌC ĐƯỜNG" trong UI người dùng.
+
+### [ ] US-030 — Tra cứu theo tình huống đời thực với câu trả lời ba phần
+
+- **Priority:** P0
+- **Persona:** Học sinh, sinh viên
+- **Mô tả:** Là học sinh, tôi muốn hỏi bằng tình huống thật ("bị ghép ảnh chế
+  giễu đăng Facebook thì làm gì?") thay vì phải biết số điều luật.
+
+**Acceptance criteria**
+
+- [ ] Tìm kiếm nhận từ khóa và từ viết tắt (ATGT, BLHĐ, ANTT…).
+- [ ] Có gợi ý câu hỏi tình huống mẫu cho từng lĩnh vực.
+- [ ] Kết quả trình bày đúng ba phần theo thứ tự: (1) cách xử lý nhanh,
+  (2) cảnh báo nguy cơ/mức phạt ngắn gọn, (3) trích dẫn luật để đối chiếu.
+- [ ] Nội dung có thể kèm ảnh hoặc video minh họa.
+- [ ] Bộ chủ đề mở rộng đủ cho không gian mạng, bạo lực học đường, ATGT và ANTT.
+
+### [ ] US-031 — Chatbot ưu tiên tài liệu hệ thống, tra cứu AI là bổ sung
+
+- **Priority:** P0
+- **Persona:** Học sinh, sinh viên
+- **Mô tả:** Là người hỏi, tôi muốn chatbot trả lời từ kho tài liệu đã duyệt
+  trước, chỉ khi không có mới tra cứu nguồn ngoài, thay vì từ chối ngay.
+
+**Acceptance criteria**
+
+- [ ] Truy vấn khớp kho nội bộ luôn trả lời từ kho nội bộ trước.
+- [ ] Khi kho nội bộ không khớp mới chuyển sang fallback nguồn ngoài theo
+  DEC-010/DEC-012 và gắn nhãn rõ nguồn.
+- [ ] Câu ngoài phạm vi vẫn fail-closed, không bịa căn cứ pháp lý.
+
+### [x] US-032 — Tình huống đã xuất bản luôn hiển thị và tìm kiếm được
+
+- **Priority:** P0
+- **Persona:** Biên tập viên, học sinh
+- **Mô tả:** Là biên tập viên, tôi muốn tình huống ở trạng thái "Đã xuất bản"
+  hiện đúng trên trang công khai và tìm kiếm được (bug #4 của bản điều chỉnh).
+
+**Acceptance criteria**
+
+- [x] Tình huống published không có nguồn chính thức vẫn hiển thị công khai.
+- [x] URL ngoài thẩm quyền DEC-004 chỉ làm mất link nguồn, không làm mất record.
+- [x] Link YouTube/ảnh lỡ nhập ở ô nguồn được cứu thành media minh họa.
+- [x] Ô "Ảnh/Video minh họa" riêng ở CMS, có allowlist và thông báo lỗi rõ ràng.
+- [x] Ô "nguồn chính thức" từ chối URL ngoài DEC-004 ngay tại API, kèm hướng dẫn.
+- [x] Tình huống chịu cùng bộ lọc từ khóa/lĩnh vực như điều luật.
+- [x] Trạng thái "không khớp bộ lọc" tách khỏi trạng thái "chưa có nội dung".
+- [x] Cột `media_url` được thêm qua migration bổ sung idempotent và version gate.
+
+**Evidence:** `lib/showcase-media.ts`, `lib/public-showcase.ts`,
+`components/ShowcaseGallery.tsx`, `app/page.tsx`,
+`app/admin/api/content/route.ts`, `app/admin/AdminDashboard.tsx`,
+`db/pg-schema.ts`, `db/pg-bootstrap.ts`, `db/index.ts`;
+`tests/public-showcase.test.mjs` **25/25 pass**, full suite
+`node --test tests/*.test.mjs` **275/275 pass**, `tsc --noEmit` và ESLint pass.
+
+### [ ] US-033 — Đếm lượt xem từng nội dung
+
+- **Priority:** P1
+- **Persona:** Biên tập viên, nhà trường
+- **Mô tả:** Là biên tập viên, tôi muốn biết mỗi nội dung được xem bao nhiêu lần
+  để đánh giá hiệu quả tuyên truyền.
+
+**Acceptance criteria**
+
+- [ ] Mỗi điều luật/tình huống có bộ đếm lượt xem lưu bền vững.
+- [ ] Endpoint tăng lượt xem có chống spam (idempotent trong phiên/khoảng thời
+  gian) và không lưu định danh cá nhân.
+- [ ] Số lượt xem hiển thị trên UI công khai và trong CMS.
+- [ ] Bump `pgSchemaVersion` kèm migration bổ sung idempotent.
+
+### [ ] US-034 — Đánh dấu "Nội dung này ý nghĩa" và chia sẻ
+
+- **Priority:** P1
+- **Persona:** Học sinh, sinh viên
+- **Mô tả:** Là người đọc, tôi muốn đánh dấu nội dung hữu ích và chia sẻ nhanh
+  cho bạn bè.
+
+**Acceptance criteria**
+
+- [ ] Nút "Nội dung này ý nghĩa" có trạng thái bật/tắt và tổng lượt.
+- [ ] Nút chia sẻ dùng Web Share API, có fallback copy link.
+- [ ] Thao tác không yêu cầu đăng nhập và không lưu định danh cá nhân.
+
+### [ ] US-035 — Quiz và hệ thống điểm/huy hiệu
+
+- **Priority:** P2
+- **Persona:** Học sinh, giáo viên
+- **Mô tả:** Là học sinh, tôi muốn làm quiz theo chủ đề và tích điểm đổi phần
+  thưởng nhỏ, huy hiệu ảo hoặc điểm rèn luyện.
+
+**Acceptance criteria**
+
+- [ ] Mỗi chủ đề (ATGT, bạo lực học đường, lừa đảo mạng…) có 3–5 câu hỏi.
+- [ ] Kết quả có giải thích đúng/sai kèm căn cứ từ kho nội dung đã duyệt.
+- [ ] Điểm tích lũy lưu bền vững và quy đổi được sang huy hiệu.
+- [ ] CMS quản lý được ngân hàng câu hỏi và cấu hình quy đổi.
+
+### [ ] US-036 — Game nhập vai tình huống
+
+- **Priority:** P2
+- **Persona:** Học sinh
+- **Mô tả:** Là học sinh, tôi muốn chơi tình huống nhập vai (bị rủ đua xe, bị
+  lừa chuyển khoản, chứng kiến bạn bị bắt nạt) và thấy hậu quả từng lựa chọn.
+
+**Acceptance criteria**
+
+- [ ] Mỗi kịch bản có nhiều nhánh lựa chọn dẫn tới kết cục khác nhau.
+- [ ] Mỗi kết cục phân tích hậu quả pháp lý/an toàn kèm căn cứ đã duyệt.
+- [ ] Kịch bản là dữ liệu quản lý được, không hardcode trong component.
+
+### [ ] US-037 — QR code truy cập nhanh trang tra cứu
+
+- **Priority:** P2
+- **Persona:** Nhà trường, học sinh
+- **Mô tả:** Là nhà trường, tôi muốn có QR code để dán tại trường cho HSSV quét
+  vào thẳng trang tra cứu.
+
+**Acceptance criteria**
+
+- [ ] QR trỏ đúng URL public của trang tra cứu.
+- [ ] QR hiển thị được trên trang và tải xuống được ở dạng ảnh in được.
+- [ ] QR sinh phía client hoặc build-time, không phụ thuộc dịch vụ bên thứ ba.

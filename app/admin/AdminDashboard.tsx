@@ -24,6 +24,7 @@ type ShowcaseRow = {
   title: string;
   summary: string;
   sourceUrl: string;
+  mediaUrl: string;
   status: Status;
   updatedAt: string;
 };
@@ -70,7 +71,7 @@ type CandidateRow = {
 };
 
 const emptyLaw = { topic: "Giao thông", icon: "§", title: "", legalBasis: "", penalty: "", remedy: "", caseStudy: "", tags: "", status: "draft" as Status };
-const emptyShowcase = { topic: "Mạng xã hội", title: "", summary: "", sourceUrl: "", status: "draft" as Status };
+const emptyShowcase = { topic: "Mạng xã hội", title: "", summary: "", sourceUrl: "", mediaUrl: "", status: "draft" as Status };
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Entity>("law");
@@ -167,7 +168,14 @@ export default function AdminDashboard() {
   function editShowcase(item: ShowcaseRow) {
     setTab("showcase");
     setEditingId(item.id);
-    setShowcaseForm(item);
+    setShowcaseForm({
+      topic: item.topic,
+      title: item.title,
+      summary: item.summary,
+      sourceUrl: item.sourceUrl ?? "",
+      mediaUrl: item.mediaUrl ?? "",
+      status: item.status,
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -214,7 +222,8 @@ export default function AdminDashboard() {
             <>
               <label>Tiêu đề<input value={showcaseForm.title} onChange={(event) => setShowcaseForm({ ...showcaseForm, title: event.target.value })} required /></label>
               <label>Nội dung tình huống<textarea rows={8} value={showcaseForm.summary} onChange={(event) => setShowcaseForm({ ...showcaseForm, summary: event.target.value })} required /></label>
-              <label>URL nguồn chính thức (nếu có)<input type="url" placeholder="https://..." value={showcaseForm.sourceUrl} onChange={(event) => setShowcaseForm({ ...showcaseForm, sourceUrl: event.target.value })} /></label>
+              <label>URL nguồn chính thức (nếu có)<input type="url" placeholder="https://vbpl.vn/..." value={showcaseForm.sourceUrl} onChange={(event) => setShowcaseForm({ ...showcaseForm, sourceUrl: event.target.value })} /><small>Chỉ nhận vbpl.vn, vbpl.moj.gov.vn, chinhphu.vn.</small></label>
+              <label>Ảnh/Video minh họa (nếu có)<input type="url" placeholder="https://www.youtube.com/shorts/... hoặc https://.../anh.jpg" value={showcaseForm.mediaUrl} onChange={(event) => setShowcaseForm({ ...showcaseForm, mediaUrl: event.target.value })} /><small>Link YouTube hoặc ảnh .jpg/.png/.webp/.gif/.avif.</small></label>
             </>
           )}
           {error && <div className="admin-error" role="alert">{error}</div>}

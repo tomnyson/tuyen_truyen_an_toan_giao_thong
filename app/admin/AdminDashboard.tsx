@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { brandDisplayName, brandMark } from "@/lib/brand";
 
 type Status = "draft" | "published";
 type Entity = "law" | "showcase" | "candidate";
@@ -187,7 +188,7 @@ export default function AdminDashboard() {
   return (
     <main className="admin-dashboard">
       <header className="admin-topbar">
-        <Link className="admin-brand" href="/"><span>L</span><strong>LUẬT HỌC ĐƯỜNG</strong></Link>
+        <Link className="admin-brand" href="/"><span>{brandMark}</span><strong>{brandDisplayName}</strong></Link>
         <div><Link href="/" target="_blank">Xem website ↗</Link><button onClick={logout}>Đăng xuất</button></div>
       </header>
 

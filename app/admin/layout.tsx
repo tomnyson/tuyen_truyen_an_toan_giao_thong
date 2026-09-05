@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { brandName } from "@/lib/brand";
 import "./admin.css";
 
 export const metadata: Metadata = {
-  title: "Quản trị | Luật Học Đường",
+  title: `Quản trị | ${brandName}`,
   robots: { index: false, follow: false },
 };
 

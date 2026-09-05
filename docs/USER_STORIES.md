@@ -1286,7 +1286,7 @@ prompt/evidence/composition; đây chỉ là provider/config evidence. Story gi�
 > Nguồn yêu cầu: `docs/Điều chỉnh App Hỗ trợ pháp lý cho HSSV.pdf`. Tám hạng mục
 > khách hàng yêu cầu, tách thành story để theo dõi độc lập.
 
-### [ ] US-029 — Đổi định danh sản phẩm thành "Trợ giúp pháp lý cho HSSV"
+### [x] US-029 — Đổi định danh sản phẩm thành "Trợ giúp pháp lý cho HSSV"
 
 - **Priority:** P1
 - **Persona:** Học sinh, sinh viên, nhà trường
@@ -1295,10 +1295,17 @@ prompt/evidence/composition; đây chỉ là provider/config evidence. Story gi�
 
 **Acceptance criteria**
 
-- [ ] Brand ở header, footer, `aria-label` và tiêu đề trang dùng tên mới.
-- [ ] Metadata (`title`, `description`, OpenGraph) dùng tên mới.
-- [ ] Lời chào và tiêu đề của trợ lý chat dùng tên mới.
-- [ ] Không còn chuỗi "Luật học đường"/"LUẬT HỌC ĐƯỜNG" trong UI người dùng.
+- [x] Brand ở header, footer, `aria-label` và tiêu đề trang dùng tên mới.
+- [x] Metadata (`title`, `description`, OpenGraph) dùng tên mới.
+- [x] Lời chào và tiêu đề của trợ lý chat dùng tên mới.
+- [x] Không còn chuỗi "Luật học đường"/"LUẬT HỌC ĐƯỜNG" trong UI người dùng.
+- [x] Tên nằm ở một module duy nhất để header/footer/metadata/admin/prompt
+  không lệch nhau.
+
+**Evidence:** `lib/brand.ts`, `app/layout.tsx`, `app/admin/layout.tsx`,
+`app/page.tsx`, `app/admin/AdminDashboard.tsx`, `app/admin/login/LoginForm.tsx`,
+`lib/legal-chat.ts`, `lib/openai-evidence.ts`;
+`tests/rendered-html.test.mjs` **15/15 pass** (gồm assertion `<title>` mới).
 
 ### [ ] US-030 — Tra cứu theo tình huống đời thực với câu trả lời ba phần
 
@@ -1410,7 +1417,7 @@ prompt/evidence/composition; đây chỉ là provider/config evidence. Story gi�
 - [ ] Mỗi kết cục phân tích hậu quả pháp lý/an toàn kèm căn cứ đã duyệt.
 - [ ] Kịch bản là dữ liệu quản lý được, không hardcode trong component.
 
-### [ ] US-037 — QR code truy cập nhanh trang tra cứu
+### [x] US-037 — QR code truy cập nhanh trang tra cứu
 
 - **Priority:** P2
 - **Persona:** Nhà trường, học sinh
@@ -1419,6 +1426,14 @@ prompt/evidence/composition; đây chỉ là provider/config evidence. Story gi�
 
 **Acceptance criteria**
 
-- [ ] QR trỏ đúng URL public của trang tra cứu.
-- [ ] QR hiển thị được trên trang và tải xuống được ở dạng ảnh in được.
-- [ ] QR sinh phía client hoặc build-time, không phụ thuộc dịch vụ bên thứ ba.
+- [x] QR trỏ đúng URL public của trang tra cứu (`NEXT_PUBLIC_SITE_URL` nếu có,
+  nếu không thì origin thật lúc chạy).
+- [x] QR hiển thị được trên trang và tải xuống dạng SVG vector in sắc nét.
+- [x] QR sinh phía client bằng thư viện thuần JS, không gọi dịch vụ sinh QR bên
+  thứ ba nên URL của trường không bị gửi ra ngoài.
+- [x] Chỉ nhận URL `http`/`https` tuyệt đối; `javascript:`/`data:` bị từ chối.
+
+**Evidence:** `lib/qr-code.ts`, `components/SiteQrCode.tsx`, `app/page.tsx`,
+`app/globals.css`; `tests/qr-code.test.mjs` **9/9 pass** (finder pattern, kích
+thước phiên bản hợp lệ, gộp path theo hàng, quiet zone, sanitize `<title>`,
+data URL round-trip và thứ tự ưu tiên site URL).

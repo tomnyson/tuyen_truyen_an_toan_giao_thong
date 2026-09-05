@@ -26,8 +26,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
-| Bản điều chỉnh 2026-09-05 | 1 | 0 | 8 | 0 |
-| **Tổng** | **10** | **18** | **8** | **0** |
+| Bản điều chỉnh 2026-09-05 | 3 | 0 | 6 | 0 |
+| **Tổng** | **12** | **18** | **6** | **0** |
 
 ## Theo dõi theo user story
 
@@ -42,7 +42,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-007 — Fail closed ngoài phạm vi | P0 | Done | Full-stack | Ngoài phạm vi, empty/malformed input và no-ungrounded-provider regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
 | US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Official-first/reference-second, warning/source UI, no-persist reference và direct-claim guard đã verified: focused 28/28, type/lint/build và live browser pass. Full suite 243/246; 3 failure cũ do migration 0006 và ledger expectations. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
 | US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; new revision requires issuedAt while legacy snapshot stays retrievable; focused 5/5, combined 26/26, current full 236/239 (3 migration-ledger failures cũ), type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
-| US-029 — Đổi tên thành Trợ giúp pháp lý cho HSSV | P1 | Todo | Full-stack | Chưa bắt đầu; phạm vi: `app/layout.tsx`, `app/page.tsx`, `app/admin/layout.tsx`, `lib/openai-evidence.ts`, `lib/legal-chat.ts` | 2026-09-05 |
+| US-029 — Đổi tên thành Trợ giúp pháp lý cho HSSV | P1 | Done | Full-stack | `lib/brand.ts` tập trung định danh; header/footer/metadata/admin/prompt dùng chung; rendered 15/15 pass | 2026-09-05 |
 | US-030 — Tra cứu theo tình huống, trả lời ba phần | P0 | Todo | Full-stack + PM | Chưa bắt đầu; cần mở rộng bộ chủ đề và cấu trúc nội dung ba phần | 2026-09-05 |
 | US-031 — Chat ưu tiên kho nội bộ, AI là fallback | P0 | Todo | Full-stack | Chưa bắt đầu; xây trên US-006 và DEC-010/DEC-012 | 2026-09-05 |
 | US-032 — Tình huống published hiển thị và tìm kiếm được | P0 | Done | Full-stack | `lib/showcase-media.ts`, `lib/public-showcase.ts`, `components/ShowcaseGallery.tsx`, `app/page.tsx`, `app/admin/api/content/route.ts`, `db/pg-bootstrap.ts`; focused 25/25, full 275/275, tsc + ESLint pass | 2026-09-05 |
@@ -50,7 +50,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-034 — Yêu thích và chia sẻ nội dung | P1 | Todo | Full-stack | Chưa bắt đầu | 2026-09-05 |
 | US-035 — Quiz, điểm và huy hiệu | P2 | Todo | Full-stack + PM | Chưa bắt đầu; cần ngân hàng câu hỏi quản lý được | 2026-09-05 |
 | US-036 — Game nhập vai tình huống | P2 | Todo | Full-stack + PM | Chưa bắt đầu; kịch bản phải là dữ liệu, không hardcode | 2026-09-05 |
-| US-037 — QR code truy cập nhanh | P2 | Todo | Full-stack | Chưa bắt đầu | 2026-09-05 |
+| US-037 — QR code truy cập nhanh | P2 | Done | Full-stack | `lib/qr-code.ts`, `components/SiteQrCode.tsx`; QR sinh client-side, tải SVG in được; `tests/qr-code.test.mjs` 9/9 pass | 2026-09-05 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
 | US-010 — Auth khu vực quản trị | P0 | Done | Full-stack + Code review | Anonymous redirect, invalid credential, signed session và admin access regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
@@ -788,6 +788,23 @@ này.
   `db/seeds/seed-content.v1.mjs`).
 - Chưa verify trên production Neon: cần deploy để version gate chạy
   `ALTER TABLE` thực tế rồi kiểm tra lại hai tình huống của khách hàng.
+
+### 2026-09-05 — US-029 đổi định danh + US-037 QR truy cập nhanh
+
+- `lib/brand.ts` là nguồn duy nhất cho tên sản phẩm. Trước đó chuỗi "Luật Học
+  Đường" nằm rải rác ở 10 vị trí gồm metadata, header, footer, admin, login và
+  system prompt của chat; đổi tên thủ công từng chỗ là nguồn lệch chắc chắn.
+- Tên hiển thị dài hơn tên cũ nên header ≤650px cho phép xuống dòng thay vì
+  tràn ngang (`app/globals.css`).
+- QR sinh bằng `qrcode-generator` (MIT, thuần JS) chạy trên client; không gọi
+  dịch vụ sinh QR bên thứ ba nên URL nội bộ của trường không rời trình duyệt.
+  Origin đọc qua `useSyncExternalStore` để snapshot server rỗng, tránh lệch
+  hydration và tránh setState trong effect.
+- SVG gộp module liền nhau thành path theo hàng thay vì hàng nghìn `<rect>`;
+  tải xuống bằng data URL vector nên in khổ lớn vẫn sắc nét.
+- `tests/qr-code.test.mjs`: **9/9 pass**. `tests/rendered-html.test.mjs`:
+  **15/15 pass**. Full local suite: **284/284 pass**. `tsc --noEmit`, ESLint
+  (0 error) và `yarn build`: pass.
 
 ## Cách cập nhật tracker
 

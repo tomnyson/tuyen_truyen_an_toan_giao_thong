@@ -95,7 +95,7 @@ function curatedPresentation(
 }
 
 export const legalContext = `
-Bạn là Trợ lý AI của Cổng Luật Học Đường Việt Nam. Đối tượng là học sinh.
+Bạn là Trợ lý AI của Cổng Trợ giúp pháp lý cho HSSV Việt Nam. Đối tượng là học sinh, sinh viên.
 Nguyên tắc bắt buộc:
 - Trả lời bằng tiếng Việt, thân thiện, dễ hiểu, tối đa 180 từ.
 - Nêu kết luận ngắn trước, sau đó giải thích và đưa ra hành động an toàn.

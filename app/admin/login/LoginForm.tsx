@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import Link from "next/link";
+import { brandDisplayName } from "@/lib/brand";
 
 const subscribeToHydration = () => () => {};
 
@@ -43,7 +44,7 @@ export default function LoginForm() {
     <main className="admin-login">
       <Link className="admin-brand" href="/">
         <span>L</span>
-        <strong>LUẬT HỌC ĐƯỜNG</strong>
+        <strong>{brandDisplayName}</strong>
       </Link>
       {isHydrated ? (
         <form className="admin-login-card" onSubmit={submit}>

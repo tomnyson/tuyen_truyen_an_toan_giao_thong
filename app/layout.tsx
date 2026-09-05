@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import { headers } from "next/headers";
+import {
+  brandDescription,
+  brandName,
+  brandPageTitle,
+  brandTagline,
+} from "@/lib/brand";
 import "./globals.css";
 
 const beVietnam = Be_Vietnam_Pro({
@@ -16,15 +22,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const socialImage = `${protocol}://${host}/og.png`;
 
   return {
-    title: "Luật Học Đường | Tra cứu pháp luật dành cho học sinh",
-    description: "Tra cứu nhanh quy định về giao thông, mạng xã hội và sở hữu trí tuệ qua ngôn ngữ dễ hiểu, tình huống gần gũi.",
+    title: brandPageTitle,
+    description: brandDescription,
     icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
     openGraph: {
-      title: "Luật Học Đường",
-      description: "Hiểu luật dễ dàng • Ứng xử an toàn",
-      images: [{ url: socialImage, width: 1792, height: 1024, alt: "Luật Học Đường" }],
+      title: brandName,
+      description: brandTagline,
+      images: [{ url: socialImage, width: 1792, height: 1024, alt: brandName }],
     },
-    twitter: { card: "summary_large_image", title: "Luật Học Đường", description: "Hiểu luật dễ dàng • Ứng xử an toàn", images: [socialImage] },
+    twitter: { card: "summary_large_image", title: brandName, description: brandTagline, images: [socialImage] },
   };
 }
 

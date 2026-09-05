@@ -5,6 +5,13 @@ import {
   ShowcaseGallery,
   type ShowcaseDataState,
 } from "@/components/ShowcaseGallery";
+import { SiteQrCode } from "@/components/SiteQrCode";
+import {
+  brandDisplayName,
+  brandMark,
+  brandName,
+  brandShortName,
+} from "@/lib/brand";
 import {
   chatAnswerSectionTitle,
   parseChatAnswerSections,
@@ -97,7 +104,7 @@ function reviewedPenalty(item: LawItem) {
 
 const initialChatMessage: ChatMessage = {
   role: "assistant",
-  content: "Chào bạn! Mình là trợ lý tra cứu Luật Học Đường. Bạn có thể hỏi về giao thông hoặc an toàn trên mạng nhé.",
+  content: `Chào bạn! Mình là trợ lý ${brandName}. Bạn có thể hỏi về giao thông hoặc an toàn trên mạng nhé.`,
 };
 
 export default function Home() {
@@ -268,9 +275,9 @@ export default function Home() {
   return (
     <main>
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="Luật Học Đường - Trang chủ">
-          <span className="brand-mark">L</span>
-          <span>LUẬT HỌC ĐƯỜNG</span>
+        <a className="brand" href="#top" aria-label={`${brandName} - Trang chủ`}>
+          <span className="brand-mark">{brandMark}</span>
+          <span>{brandDisplayName}</span>
         </a>
         <nav aria-label="Điều hướng chính">
           <a href="#tra-cuu">Tra cứu</a>
@@ -284,7 +291,7 @@ export default function Home() {
 
       <section className="hero" id="top">
         <div className="hero-copy">
-          <div className="eyebrow"><span>●</span> CẨM NANG PHÁP LUẬT CHO HỌC SINH</div>
+          <div className="eyebrow"><span>●</span> CẨM NANG PHÁP LUẬT CHO HỌC SINH, SINH VIÊN</div>
           <h1>
             Hiểu luật dễ dàng.<br />
             <span>Ứng xử an toàn.</span>
@@ -429,6 +436,7 @@ export default function Home() {
           <span className="section-kicker">NGUỒN THAM KHẢO</span>
           <h2>Đọc luật từ nguồn chính thống.</h2>
           <p>Nội dung được diễn giải ngắn gọn để học tập, không thay thế tư vấn pháp lý cho vụ việc cụ thể.</p>
+          <SiteQrCode />
         </div>
         <div className="source-list">
           {sources.map((source, index) => (
@@ -440,7 +448,7 @@ export default function Home() {
       </section>
 
       <footer>
-        <div className="footer-brand"><span className="brand-mark">L</span><strong>LUẬT HỌC ĐƯỜNG</strong></div>
+        <div className="footer-brand"><span className="brand-mark">{brandMark}</span><strong>{brandDisplayName}</strong></div>
         <p>Hiểu luật dễ dàng • Ứng xử an toàn</p>
         <p>Cập nhật nội dung: 07/2026</p>
       </footer>
@@ -492,7 +500,7 @@ export default function Home() {
       {chatOpen && (
         <div className="chat-panel" role="dialog" aria-modal="true" aria-labelledby="chat-title">
           <div className="chat-head">
-            <div><span>TRA CỨU • AN TOÀN</span><h2 id="chat-title">Trợ lý Luật Học Đường</h2></div>
+            <div><span>TRA CỨU • AN TOÀN</span><h2 id="chat-title">Trợ lý {brandShortName}</h2></div>
             <button onClick={() => setChatOpen(false)} aria-label="Đóng trợ lý">×</button>
           </div>
           <div className="chat-body" aria-live="polite">

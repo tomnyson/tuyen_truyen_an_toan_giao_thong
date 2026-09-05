@@ -189,7 +189,7 @@ test("server-renders the student law portal", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Luật Học Đường \| Tra cứu pháp luật dành cho học sinh<\/title>/i);
+  assert.match(html, /<title>Trợ giúp pháp lý cho HSSV \| Tra cứu pháp luật dành cho HSSV<\/title>/i);
   assert.match(html, /Hiểu luật dễ dàng/);
   assert.match(html, /Không đội mũ bảo hiểm/);
   assert.match(html, /Hỏi trợ lý/);

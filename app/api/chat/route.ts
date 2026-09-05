@@ -4,6 +4,7 @@ import {
   classifyImageIntent,
   privacySafetyGuidance,
 } from "@/lib/image-intent";
+import type { AnswerOrigin } from "@/lib/answer-origin";
 import {
   CHAT_ANSWER_SECTION_KINDS,
   projectPublicWebSearchAnswer,
@@ -235,13 +236,20 @@ export function createChatHandler(
           ? null
           : (await managedAnswer(question)) ?? curatedAnswer(question);
       if (knowledgeAnswer) {
+        // US-031: kho nội bộ luôn được trả lời trước và gắn nhãn nguồn rõ ràng.
+        const libraryOrigin: AnswerOrigin = "library";
         const knowledgePayload =
           typeof knowledgeAnswer === "string"
-            ? { answer: knowledgeAnswer, mode: "knowledge" as const }
+            ? {
+                answer: knowledgeAnswer,
+                mode: "knowledge" as const,
+                answerOrigin: libraryOrigin,
+              }
             : {
                 answer: knowledgeAnswer.answer,
                 sections: knowledgeAnswer.sections,
                 mode: "knowledge" as const,
+                answerOrigin: libraryOrigin,
                 sources: parseOfficialSourceLinks(knowledgeAnswer.sources),
               };
         return complete(
@@ -281,6 +289,7 @@ export function createChatHandler(
               answer: presentation.answer,
               sections,
               mode: "knowledge",
+              answerOrigin: "reviewed_web" satisfies AnswerOrigin,
               sources: publicSources,
             }),
             "knowledge",
@@ -381,6 +390,7 @@ export function createChatHandler(
               answer: publicResult.answer,
               sections: publicResult.sections,
               mode: "web_search",
+              answerOrigin: "live_web" satisfies AnswerOrigin,
               sourceKind: "official",
               warning: publicResult.warning,
               sources: publicSources,
@@ -454,6 +464,7 @@ export function createChatHandler(
                   answer: referencePresentation.answer,
                   sections: referencePresentation.sections,
                   mode: "web_search",
+                  answerOrigin: "live_web" satisfies AnswerOrigin,
                   sourceKind: "reference",
                   warning: referenceResult.warning,
                   sources: referenceSources,

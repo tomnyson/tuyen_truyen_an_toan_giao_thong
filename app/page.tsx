@@ -39,6 +39,11 @@ import {
   type OfficialSourceLink,
   type PublicSourceKind,
 } from "@/lib/official-source-url";
+import {
+  answerOriginCopyOf,
+  parseAnswerOrigin,
+  type AnswerOrigin,
+} from "@/lib/answer-origin";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -47,6 +52,7 @@ type ChatMessage = {
   sections?: ChatAnswerSection[];
   sources?: OfficialSourceLink[];
   sourceKind?: PublicSourceKind;
+  answerOrigin?: AnswerOrigin;
 };
 
 type PublishedCitation = {
@@ -253,6 +259,7 @@ function HomeContent() {
         mode?: string;
         warning?: string;
         sourceKind?: string;
+        answerOrigin?: unknown;
         sections?: unknown;
         sources?: unknown;
       };
@@ -281,6 +288,7 @@ function HomeContent() {
           sources: searchedSources.length > 0 ? searchedSources : undefined,
           sourceKind:
             searchedSources.length > 0 ? sourceKind : undefined,
+          answerOrigin: parseAnswerOrigin(data.answerOrigin) ?? undefined,
         },
       ]);
     } catch {
@@ -561,8 +569,21 @@ function HomeContent() {
                   message.sourceKind,
                   Boolean(message.warning),
                 );
+                const originCopy = message.answerOrigin
+                  ? answerOriginCopyOf(message.answerOrigin)
+                  : null;
                 return (
                 <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
+                  {originCopy && (
+                    <p
+                      className="chat-origin"
+                      data-origin={message.answerOrigin}
+                      title={originCopy.detail}
+                    >
+                      <span aria-hidden="true">◆</span>
+                      <span>Nguồn trả lời: {originCopy.label}</span>
+                    </p>
+                  )}
                   {message.warning && (
                     <p className="chat-warning" role="note">
                       <strong>

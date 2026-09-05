@@ -26,8 +26,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
-| Bản điều chỉnh 2026-09-05 | 6 | 0 | 3 | 0 |
-| **Tổng** | **15** | **18** | **3** | **0** |
+| Bản điều chỉnh 2026-09-05 | 7 | 0 | 2 | 0 |
+| **Tổng** | **16** | **18** | **2** | **0** |
 
 ## Theo dõi theo user story
 
@@ -44,7 +44,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; new revision requires issuedAt while legacy snapshot stays retrievable; focused 5/5, combined 26/26, current full 236/239 (3 migration-ledger failures cũ), type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
 | US-029 — Đổi tên thành Trợ giúp pháp lý cho HSSV | P1 | Done | Full-stack | `lib/brand.ts` tập trung định danh; header/footer/metadata/admin/prompt dùng chung; rendered 15/15 pass | 2026-09-05 |
 | US-030 — Tra cứu theo tình huống, trả lời ba phần | P0 | Done | Full-stack + PM | `lib/topics.ts`, `lib/situation-search.ts`, `lib/situation-answer.ts`, `components/SituationAnswer.tsx`, `components/ContentMedia.tsx`, `app/page.tsx`, `app/admin/AdminDashboard.tsx`, `db/pg-bootstrap.ts` (`pgSchemaVersion = 2026-09-05-situation-lookup-v1`); DEC-016; `tests/situation-lookup.test.mjs` 11/11 pass | 2026-09-05 |
-| US-031 — Chat ưu tiên kho nội bộ, AI là fallback | P0 | Todo | Full-stack | Chưa bắt đầu; xây trên US-006 và DEC-010/DEC-012 | 2026-09-05 |
+| US-031 — Chat ưu tiên kho nội bộ, AI là fallback | P0 | Done | Full-stack | `lib/knowledge-router.ts`, `lib/answer-origin.ts`, `lib/legal-chat.ts` (`findLibraryAnswer`), `app/api/chat/route.ts`, `app/page.tsx`; DEC-017; `tests/knowledge-first-chat.test.mjs` 9/9 pass, full 328/328 | 2026-09-05 |
 | US-032 — Tình huống published hiển thị và tìm kiếm được | P0 | Done | Full-stack | `lib/showcase-media.ts`, `lib/public-showcase.ts`, `components/ShowcaseGallery.tsx`, `app/page.tsx`, `app/admin/api/content/route.ts`, `db/pg-bootstrap.ts`; focused 25/25, full 275/275, tsc + ESLint pass | 2026-09-05 |
 | US-033 — Đếm lượt xem nội dung | P1 | Done | Full-stack | `lib/engagement.ts`, `lib/engagement-store.ts`, `app/api/engagement/route.ts`, `components/EngagementBar.tsx`, `app/admin/AdminDashboard.tsx`; `pgSchemaVersion = 2026-09-05-content-engagement-v1`; `tests/engagement.test.mjs` 12/12 pass | 2026-09-05 |
 | US-034 — Yêu thích và chia sẻ nội dung | P1 | Done | Full-stack | `lib/share.ts`, `components/EngagementBar.tsx`, `components/EngagementProvider.tsx`; `tests/share.test.mjs` 6/6 và `tests/engagement-ui.test.mjs` 5/5 pass | 2026-09-05 |
@@ -882,6 +882,44 @@ này.
   (1 warning cũ trong `db/seeds/seed-content.v1.mjs`).
 - Chưa verify trên production Neon: cần deploy để version gate chạy `ALTER TABLE`
   thực tế rồi kiểm tra media của điều luật.
+
+### 2026-09-05 — US-031 chat ưu tiên kho nội bộ, nguồn ngoài là fallback
+
+- **Vấn đề gốc:** chatbot chỉ khớp được nội dung do CMS quản lý bằng bộ so khớp
+  từ khóa thô, còn kho tĩnh `lib/legal-content.ts` không hề nằm trong pipeline.
+  Hệ quả là câu hỏi đời thực thuộc đúng phạm vi vẫn rơi thẳng xuống fallback
+  nguồn ngoài hoặc `unavailable`, trong khi cổng đã có sẵn câu trả lời.
+- **Định tuyến trước, trả lời sau:** `lib/knowledge-router.ts` chỉ làm một việc
+  là xác định câu hỏi thuộc lĩnh vực nào của registry DEC-016, không bao giờ tự
+  sinh nội dung pháp lý. Ngưỡng `minimumRouteScore = 4` chọn từ số đo thật: câu
+  đúng phạm vi đạt 6–12 điểm, câu ngoài phạm vi cao nhất 2 điểm ("xin visa du
+  học Nhật" chỉ trùng âm "học"). Viết tắt được cộng 4 nên gõ mỗi "ATGT" vẫn định
+  tuyến được.
+- **Thứ tự pipeline giữ nguyên:** `findLibraryAnswer` nối vào cuối
+  `findCuratedAnswer`, nên trật tự managed (DB) → curated/kho tĩnh → web
+  candidate đã duyệt → tra cứu trực tiếp (DEC-010) → nguồn tham khảo (DEC-012) →
+  `unavailable` không đổi, và mọi test dependency-injection cũ vẫn kiểm soát
+  được toàn bộ nhánh tĩnh.
+- **Không bịa căn cứ:** khối `legal_basis` chỉ dựng khi điều luật có citation đã
+  duyệt và không vướng `hasBlockedLegalBasis`; `sanctions` chỉ dựng khi có
+  `reviewedSanction`. Thiếu dữ liệu thì `limitations` nói rõ thiếu gì, `sources`
+  bỏ trống thay vì trỏ link đoán.
+- **Tra cứu nội dung CMS chính xác hơn:** `findManagedAnswer` bỏ bộ so khớp từ
+  khóa thô, dùng chung `scoreSituationMatch` của DEC-016 với ngưỡng 2 điểm và
+  tie-break theo thứ tự gốc.
+- **Nhãn nguồn:** `lib/answer-origin.ts` định nghĩa ba nhãn `library` /
+  `reviewed_web` / `live_web`; API trả thêm trường `answerOrigin` (giữ nguyên
+  `mode` để không phá client cũ) và `app/page.tsx` hiển thị nhãn ngay trên bong
+  bóng trả lời, riêng `live_web` nhắc người đọc đối chiếu văn bản gốc.
+- `tests/knowledge-first-chat.test.mjs`: **9/9 pass** (định tuyến đúng lĩnh vực
+  và viết tắt, câu ngoài phạm vi trả `null`, kho nội bộ khớp thì không gọi bất
+  kỳ tra cứu ngoài nào, không khớp mới sang `reviewed_web`, ngoài phạm vi vẫn
+  `mode: "unavailable"`). `tests/openai-web-search.test.mjs`: **28/28 pass**,
+  `tests/rendered-html.test.mjs`: **15/15 pass**. Full suite
+  `node --test tests/*.test.mjs`: **328/328 pass**. ESLint 0 error (1 warning cũ
+  trong `db/seeds/seed-content.v1.mjs`), `tsc --noEmit` sạch.
+- Không đổi schema nên không bump `pgSchemaVersion`; chưa verify trên production
+  vì cần deploy để đo nhãn nguồn trên dữ liệu thật.
 
 ## Cách cập nhật tracker
 

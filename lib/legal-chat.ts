@@ -12,7 +12,14 @@ import {
   normalizeVietnamese,
   type LawItem,
 } from "./legal-content";
+import { routeQuestionToTopic } from "./knowledge-router";
 import {
+  rankBySituation,
+  scoreSituationMatch,
+  searchTokens,
+} from "./situation-search";
+import {
+  CHAT_ANSWER_SECTION_KINDS,
   flattenChatAnswerSections,
   reviewedCitationsToLegalBasisSection,
   type ChatAnswerSection,
@@ -159,7 +166,92 @@ export function findCuratedAnswer(question: string): KnowledgeChatAnswer | null 
       ],
     );
   }
-  return null;
+  return findLibraryAnswer(question);
+}
+
+// Kho nội dung tĩnh của cổng (US-031). Ba nhánh curated ở trên là nội dung
+// biên tập riêng cho ba câu hỏi hay gặp nhất; phần còn lại của kho trước đây
+// không có đường vào chat nên câu hỏi về bạo lực học đường hay an ninh trật tự
+// bị fail-closed dù cổng đã có nội dung. Ở đây câu hỏi được định tuyến về đúng
+// lĩnh vực rồi mới chọn tình huống gần nhất trong lĩnh vực đó.
+export function findLibraryAnswer(question: string): KnowledgeChatAnswer | null {
+  const route = routeQuestionToTopic(question);
+  if (!route) return null;
+
+  const candidates = laws.filter((law) => law.topic === route.topic);
+  const [best] = rankBySituation(candidates, question, (law) =>
+    [law.title, law.topic, law.remedy, law.caseStudy, law.tags.join(" ")].join(" "),
+  );
+  if (!best) return null;
+
+  return libraryPresentation(best);
+}
+
+// Chỉ hiển thị căn cứ/mức phạt khi dữ liệu đã qua kiểm duyệt; phần chưa có nói
+// thẳng là chưa có thay vì suy đoán (cùng nguyên tắc với trang tra cứu).
+function libraryPresentation(law: LawItem): KnowledgeChatAnswer {
+  const citation =
+    law.citation && !hasBlockedLegalBasis(law.legal) ? law.citation : undefined;
+  const sanction = law.reviewedSanction;
+  const sections: ChatAnswerSection[] = [
+    {
+      kind: "summary",
+      paragraphs: [
+        `Nội dung gần nhất trong kho của cổng: ${law.title} (lĩnh vực ${law.topic}).`,
+      ],
+      bullets: [],
+    },
+    { kind: "next_steps", paragraphs: [law.remedy], bullets: [] },
+    { kind: "examples", paragraphs: [law.caseStudy], bullets: [] },
+  ];
+  if (citation) {
+    const legalBasis = reviewedCitationsToLegalBasisSection([
+      {
+        title: citation.title,
+        documentNumber: citation.documentNumber,
+        issuedAt: citation.issuedAt,
+        article: citation.article,
+        clause: citation.clause,
+        point: citation.point,
+        effectiveFrom: citation.effectiveFrom,
+        lastVerifiedAt: citation.lastVerifiedAt,
+      },
+    ]);
+    if (legalBasis) sections.push(legalBasis);
+  }
+  if (sanction) {
+    sections.push({
+      kind: "sanctions",
+      paragraphs: [
+        `${sanction.summary} Đối tượng tham khảo: ${sanction.subject}`,
+      ],
+      bullets: sanction.conditions,
+    });
+  }
+  const limitations = [
+    ...(citation ? [] : ["Đang kiểm chứng căn cứ hiện hành cho tình huống này."]),
+    ...(sanction ? [] : ["Chưa công bố mức tham khảo vì dữ liệu xử phạt chưa qua kiểm duyệt bốn mắt."]),
+    "Mức áp dụng thực tế còn phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể.",
+  ];
+  sections.push({ kind: "limitations", paragraphs: limitations, bullets: [] });
+
+  const ordered = sections.sort(
+    (left, right) =>
+      CHAT_ANSWER_SECTION_KINDS.indexOf(left.kind) -
+      CHAT_ANSWER_SECTION_KINDS.indexOf(right.kind),
+  );
+  return {
+    answer: flattenChatAnswerSections(ordered),
+    sections: ordered,
+    sources: citation
+      ? [
+          {
+            title: `${citation.documentNumber} — ${citation.title}`,
+            url: citation.officialUrl,
+          },
+        ]
+      : undefined,
+  };
 }
 
 export function buildManagedAnswerSections(
@@ -267,16 +359,11 @@ async function fetchVerifiedEntryCitations(
 export async function findManagedAnswer(
   question: string,
 ): Promise<KnowledgeChatAnswer | null> {
-  const ignoredTerms = new Set(["cho", "cua", "duoc", "khong", "nhung", "the", "nao", "voi"]);
-  const terms = normalizeVietnamese(question)
-    .split(/[^a-z0-9]+/)
-    // Loại term thuần số: năm/số hiệu văn bản trong legal_basis dễ khớp
-    // nhầm với số vô tình xuất hiện trong câu hỏi (ví dụ "2026").
-    .filter(
-      (term) =>
-        term.length >= 3 && !/^\d+$/.test(term) && !ignoredTerms.has(term),
-    );
-  if (!terms.length) return null;
+  // Ngưỡng khớp tối thiểu: một từ trùng nhau không đủ để khẳng định câu hỏi
+  // thuộc về một entry đã xuất bản; dưới ngưỡng thì trả null để pipeline đi
+  // tiếp sang fallback thay vì trả nhầm nội dung.
+  const minimumManagedScore = 2;
+  if (searchTokens(question).length === 0) return null;
 
   try {
     const db = await getInitializedDb();
@@ -287,15 +374,23 @@ export async function findManagedAnswer(
       .limit(100);
     const ranked = entries
       .filter((entry) => !hasBlockedLegalBasis(entry.legalBasis))
-      .map((entry) => {
-        const searchable = normalizeVietnamese(
-          `${entry.title} ${entry.topic} ${entry.tags} ${entry.legalBasis}`,
-        );
-        return { entry, score: terms.filter((term) => searchable.includes(term)).length };
-      })
-      .sort((left, right) => right.score - left.score);
+      .map((entry, index) => ({
+        entry,
+        index,
+        // Câu hỏi đời thực và từ viết tắt đều phải chạm được tới entry, nên
+        // dùng cùng bộ chấm điểm với trang tra cứu (US-030).
+        score: scoreSituationMatch(
+          `${entry.title} ${entry.topic} ${entry.tags} ${entry.legalBasis} ${entry.remedy} ${entry.caseStudy}`,
+          question,
+        ),
+      }))
+      .sort((left, right) =>
+        left.score === right.score
+          ? left.index - right.index
+          : right.score - left.score,
+      );
     const best = ranked[0];
-    if (!best || best.score < Math.min(2, terms.length)) return null;
+    if (!best || best.score < minimumManagedScore) return null;
 
     const verifiedCitations = await fetchVerifiedEntryCitations(
       db,

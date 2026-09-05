@@ -788,6 +788,7 @@ test("chat remains curated-first and does not search on a local match", async ()
   assert.deepEqual(await response.json(), {
     answer: "Câu trả lời đã duyệt.",
     mode: "knowledge",
+    answerOrigin: "library",
   });
   assert.equal(webCalls, 0);
 });
@@ -886,6 +887,7 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
       },
     ],
     mode: "web_search",
+    answerOrigin: "live_web",
     sourceKind: "official",
     warning: "Chưa kiểm duyệt.",
     sources: [

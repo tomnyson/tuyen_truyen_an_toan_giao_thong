@@ -2332,6 +2332,25 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   minh họa của điều luật dùng lại đúng allowlist DEC-013 và vẫn tách hẳn khỏi
   nguồn pháp lý DEC-004.
 
+- **DEC-017:** chatbot trả lời theo thứ tự "kho nội bộ trước, nguồn ngoài sau".
+  Pipeline giữ nguyên các chặng DEC-010/DEC-012 nhưng chèn thêm nhánh kho tĩnh
+  vào cuối chặng curated: `lib/knowledge-router.ts` định tuyến câu hỏi về đúng
+  lĩnh vực của registry DEC-016 rồi `findLibraryAnswer` dựng câu trả lời từ
+  `lib/legal-content.ts`. Ngưỡng định tuyến là 4 điểm (viết tắt được cộng 4 nên
+  gõ "ATGT" vẫn đủ): đo trên bộ câu hỏi thật, câu đúng phạm vi đạt từ 6 điểm,
+  câu ngoài phạm vi cao nhất 2 điểm — khoảng cách này giữ cho câu như "xin visa
+  du học Nhật" (chỉ trùng âm "học") không bị kéo vào kho nội bộ. Dưới ngưỡng thì
+  router trả `null` và pipeline đi tiếp sang fallback nguồn ngoài, cuối cùng vẫn
+  fail-closed `unavailable`. Câu trả lời từ kho nội bộ chỉ gắn `legal_basis` khi
+  có citation đã duyệt và không vướng `hasBlockedLegalBasis`, chỉ gắn `sanctions`
+  khi có `reviewedSanction`; thiếu dữ liệu thì khối `limitations` nói rõ thiếu gì
+  thay vì suy đoán. Tra cứu nội dung do CMS quản lý (`findManagedAnswer`) dùng
+  chung bộ chấm điểm âm tiết DEC-016 với ngưỡng 2 điểm, bỏ hẳn bộ so khớp từ
+  khóa thô cũ. Mỗi câu trả lời kèm nhãn nguồn `answerOrigin`
+  (`library` / `reviewed_web` / `live_web`, xem `lib/answer-origin.ts`) và giao
+  diện hiển thị nhãn này ngay trên bong bóng trả lời để người đọc biết mức độ
+  tin cậy; `mode` của API giữ nguyên để không phá client cũ.
+
 
 ### Điểm còn mở
 

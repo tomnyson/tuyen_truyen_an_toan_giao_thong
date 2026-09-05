@@ -229,6 +229,10 @@ footer { border-top: 2px solid var(--ink); padding: 34px clamp(24px, 7vw, 110px)
 .chat-warning { display: grid; gap: 3px; margin-bottom: 12px !important; padding: 9px 10px; border: 1px solid rgba(20, 27, 45, 0.35); border-radius: 9px; background: rgba(255, 255, 255, .58); white-space: normal; }
 .chat-warning strong { font-size: 10px; letter-spacing: .3px; text-transform: uppercase; }
 .chat-warning span { color: #424a5d; }
+.chat-origin { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px !important; padding: 4px 9px; border: 1px solid rgba(20, 27, 45, .28); border-radius: 999px; background: rgba(255, 255, 255, .62); font-size: 10px; letter-spacing: .3px; text-transform: uppercase; white-space: normal; }
+.chat-origin[data-origin="library"] { border-color: rgba(44, 141, 114, .55); color: #1f6a55; }
+.chat-origin[data-origin="reviewed_web"] { border-color: rgba(20, 27, 45, .4); }
+.chat-origin[data-origin="live_web"] { border-color: rgba(212, 156, 0, .65); color: #7a5a00; }
 .chat-answer-sections { display: grid; gap: 12px; white-space: normal; }
 .chat-answer-sections section { display: grid; gap: 5px; }
 .chat-answer-section { padding: 10px; border: 1px solid rgba(20, 27, 45, .22); border-radius: 10px; background: rgba(255, 255, 255, .52); }

@@ -1341,7 +1341,7 @@ tới khi có căn cứ đã duyệt. `tests/situation-lookup.test.mjs` **11/11 
 `tests/pg-bootstrap.test.mjs` **8/8 pass**, full suite `yarn test`
 **319/319 pass**, ESLint 0 error.
 
-### [ ] US-031 — Chatbot ưu tiên tài liệu hệ thống, tra cứu AI là bổ sung
+### [x] US-031 — Chatbot ưu tiên tài liệu hệ thống, tra cứu AI là bổ sung
 
 - **Priority:** P0
 - **Persona:** Học sinh, sinh viên
@@ -1350,10 +1350,38 @@ tới khi có căn cứ đã duyệt. `tests/situation-lookup.test.mjs` **11/11 
 
 **Acceptance criteria**
 
-- [ ] Truy vấn khớp kho nội bộ luôn trả lời từ kho nội bộ trước.
-- [ ] Khi kho nội bộ không khớp mới chuyển sang fallback nguồn ngoài theo
+- [x] Truy vấn khớp kho nội bộ luôn trả lời từ kho nội bộ trước.
+- [x] Khi kho nội bộ không khớp mới chuyển sang fallback nguồn ngoài theo
   DEC-010/DEC-012 và gắn nhãn rõ nguồn.
-- [ ] Câu ngoài phạm vi vẫn fail-closed, không bịa căn cứ pháp lý.
+- [x] Câu ngoài phạm vi vẫn fail-closed, không bịa căn cứ pháp lý.
+
+**Evidence:**
+
+- `lib/knowledge-router.ts` — định tuyến câu hỏi về đúng lĩnh vực của registry
+  DEC-016 trước khi tra kho tĩnh; ngưỡng `minimumRouteScore = 4`, viết tắt cộng
+  4 điểm nên "ATGT"/"BLHĐ" vẫn định tuyến được, còn câu ngoài phạm vi (cao nhất
+  2 điểm) trả `null`.
+- `lib/legal-chat.ts` — `findLibraryAnswer` dựng câu trả lời từ
+  `lib/legal-content.ts` và được nối vào cuối `findCuratedAnswer` nên thứ tự
+  managed → curated/kho tĩnh → nguồn ngoài giữ nguyên; `findManagedAnswer` đổi
+  sang bộ chấm điểm âm tiết DEC-016 (ngưỡng 2 điểm) thay cho so khớp từ khóa thô.
+- `lib/answer-origin.ts`, `app/api/chat/route.ts`, `app/page.tsx`,
+  `app/globals.css` — nhãn nguồn `library` / `reviewed_web` / `live_web` trả về
+  theo từng nhánh và hiển thị ngay trên bong bóng trả lời; `mode` của API không
+  đổi.
+- Không bịa căn cứ: `legal_basis` chỉ dựng khi có citation đã duyệt và không
+  vướng `hasBlockedLegalBasis`, `sanctions` chỉ dựng khi có `reviewedSanction`,
+  còn lại `limitations` nói rõ "Đang kiểm chứng căn cứ hiện hành" / "Chưa công
+  bố mức tham khảo".
+- Quyết định kiến trúc: **DEC-017** trong `docs/TECHNICAL_SPEC.md`.
+- `tests/knowledge-first-chat.test.mjs` **9/9 pass** (định tuyến đúng lĩnh vực,
+  câu ngoài phạm vi không bị kéo vào kho nội bộ, kho nội bộ khớp thì
+  `webCalls === 0` và `answerOrigin === "library"`, không khớp mới sang
+  `reviewed_web`, ngoài phạm vi vẫn `mode: "unavailable"`).
+- `tests/openai-web-search.test.mjs` **28/28 pass**,
+  `tests/rendered-html.test.mjs` **15/15 pass**, full suite
+  `node --test tests/*.test.mjs` **328/328 pass**, ESLint 0 error,
+  `tsc --noEmit` sạch.
 
 ### [x] US-032 — Tình huống đã xuất bản luôn hiển thị và tìm kiếm được
 

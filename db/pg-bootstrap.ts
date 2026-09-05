@@ -239,7 +239,112 @@ CREATE TABLE IF NOT EXISTS content_engagement_marks (
     CHECK (mark_key ~ '^[0-9a-f]{64}$')
 )`;
 
+// Game hóa (US-035 quiz/điểm/huy hiệu, US-036 nhập vai). Ngân hàng câu hỏi,
+// kịch bản và cấu hình quy đổi đều là dữ liệu do CMS quản lý.
+const createQuizQuestionsTable = `
+CREATE TABLE IF NOT EXISTS quiz_questions (
+  id serial PRIMARY KEY,
+  topic text NOT NULL,
+  prompt text NOT NULL,
+  options text NOT NULL,
+  correct_index integer DEFAULT 0 NOT NULL,
+  explanation text NOT NULL,
+  legal_basis text NOT NULL,
+  source_url text DEFAULT '' NOT NULL,
+  points integer DEFAULT 10 NOT NULL,
+  status text DEFAULT 'draft' NOT NULL,
+  created_at text DEFAULT (now())::text NOT NULL,
+  updated_at text DEFAULT (now())::text NOT NULL,
+  CONSTRAINT quiz_questions_status_check
+    CHECK (status IN ('draft', 'published')),
+  CONSTRAINT quiz_questions_correct_index_check
+    CHECK (correct_index >= 0 AND correct_index < 4),
+  CONSTRAINT quiz_questions_points_check
+    CHECK (points >= 1 AND points <= 100)
+)`;
+
+const createRoleplayScenariosTable = `
+CREATE TABLE IF NOT EXISTS roleplay_scenarios (
+  id serial PRIMARY KEY,
+  topic text NOT NULL,
+  title text NOT NULL,
+  intro text NOT NULL,
+  start_key text NOT NULL,
+  status text DEFAULT 'draft' NOT NULL,
+  created_at text DEFAULT (now())::text NOT NULL,
+  updated_at text DEFAULT (now())::text NOT NULL,
+  CONSTRAINT roleplay_scenarios_status_check
+    CHECK (status IN ('draft', 'published')),
+  CONSTRAINT roleplay_scenarios_start_key_check
+    CHECK (start_key ~ '^[a-z0-9][a-z0-9-]{0,39}$')
+)`;
+
+const createRoleplayNodesTable = `
+CREATE TABLE IF NOT EXISTS roleplay_nodes (
+  scenario_id integer NOT NULL REFERENCES roleplay_scenarios (id) ON DELETE CASCADE,
+  node_key text NOT NULL,
+  kind text DEFAULT 'step' NOT NULL,
+  text text NOT NULL,
+  choices text DEFAULT '[]' NOT NULL,
+  consequence text DEFAULT '' NOT NULL,
+  legal_basis text DEFAULT '' NOT NULL,
+  source_url text DEFAULT '' NOT NULL,
+  outcome_kind text,
+  points integer DEFAULT 1 NOT NULL,
+  created_at text DEFAULT (now())::text NOT NULL,
+  CONSTRAINT roleplay_nodes_pk PRIMARY KEY (scenario_id, node_key),
+  CONSTRAINT roleplay_nodes_node_key_check
+    CHECK (node_key ~ '^[a-z0-9][a-z0-9-]{0,39}$'),
+  CONSTRAINT roleplay_nodes_kind_check
+    CHECK (kind IN ('step', 'outcome')),
+  CONSTRAINT roleplay_nodes_outcome_kind_check
+    CHECK (outcome_kind IS NULL OR outcome_kind IN ('safe', 'risky', 'harmful')),
+  CONSTRAINT roleplay_nodes_points_check
+    CHECK (points >= 1 AND points <= 100)
+)`;
+
+// Cấu hình quy đổi điểm sang huy hiệu.
+const createGameBadgesTable = `
+CREATE TABLE IF NOT EXISTS game_badges (
+  code text PRIMARY KEY,
+  name text NOT NULL,
+  icon text DEFAULT '★' NOT NULL,
+  description text DEFAULT '' NOT NULL,
+  threshold_points integer NOT NULL,
+  updated_at text DEFAULT (now())::text NOT NULL,
+  CONSTRAINT game_badges_code_check
+    CHECK (code ~ '^[a-z0-9][a-z0-9-]{0,39}$'),
+  CONSTRAINT game_badges_threshold_check
+    CHECK (threshold_points > 0)
+)`;
+
+// Tiến độ người chơi: khóa là SHA-256 của token ngẫu nhiên do trình duyệt tự
+// sinh, không lưu bất kỳ định danh cá nhân nào.
+const createGameProgressTable = `
+CREATE TABLE IF NOT EXISTS game_progress (
+  player_key text PRIMARY KEY,
+  points integer DEFAULT 0 NOT NULL,
+  updated_at text DEFAULT (now())::text NOT NULL,
+  CONSTRAINT game_progress_player_key_check
+    CHECK (player_key ~ '^[0-9a-f]{64}$'),
+  CONSTRAINT game_progress_points_check
+    CHECK (points >= 0)
+)`;
+
+// Dấu chống cộng điểm trùng cho mỗi (người chơi, câu hỏi/kết cục).
+const createGameAwardsTable = `
+CREATE TABLE IF NOT EXISTS game_awards (
+  award_key text PRIMARY KEY,
+  created_at text DEFAULT (now())::text NOT NULL,
+  CONSTRAINT game_awards_key_check
+    CHECK (award_key ~ '^[0-9a-f]{64}$')
+)`;
+
 const indexStatements = [
+  `CREATE INDEX IF NOT EXISTS quiz_questions_topic_status_idx
+   ON quiz_questions (topic, status)`,
+  `CREATE INDEX IF NOT EXISTS roleplay_nodes_scenario_idx
+   ON roleplay_nodes (scenario_id)`,
   `CREATE INDEX IF NOT EXISTS content_engagement_marks_expires_at_idx
    ON content_engagement_marks (expires_at)
    WHERE expires_at IS NOT NULL`,
@@ -660,7 +765,7 @@ export const pgSchemaVersionTable = "app_schema_version";
 
 // Tăng giá trị này mỗi khi thêm bảng/cột mới, nếu không database đã tồn tại
 // sẽ bỏ qua bootstrap và thiếu schema mới.
-export const pgSchemaVersion = "2026-09-05-situation-lookup-v1";
+export const pgSchemaVersion = "2026-09-05-gamification-v1";
 
 const createSchemaVersionTable = `
 CREATE TABLE IF NOT EXISTS ${pgSchemaVersionTable} (
@@ -676,6 +781,12 @@ export const pgBootstrapStatements: readonly string[] = [
   createLegalEntryCitationsTable,
   createContentEngagementTable,
   createContentEngagementMarksTable,
+  createQuizQuestionsTable,
+  createRoleplayScenariosTable,
+  createRoleplayNodesTable,
+  createGameBadgesTable,
+  createGameProgressTable,
+  createGameAwardsTable,
   ...indexStatements,
   ...triggerStatements,
   ...pgRateLimitStatements,

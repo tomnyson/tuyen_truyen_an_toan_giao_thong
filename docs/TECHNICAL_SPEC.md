@@ -2352,6 +2352,36 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   tin cậy; `mode` của API giữ nguyên để không phá client cũ.
 
 
+- **DEC-018:** phần game hóa (quiz US-035 và nhập vai US-036) chấm điểm hoàn
+  toàn ở server và không tự chế căn cứ pháp lý.
+  - *Chiếu công khai:* `GET /api/game` trả câu hỏi qua `toPublicQuizQuestion`
+    nên payload không chứa `correctIndex` lẫn `explanation`; đáp án đúng và giải
+    thích chỉ về theo từng lượt `POST` sau khi người chơi đã chọn.
+  - *Căn cứ:* quy tắc hiển thị căn cứ nằm ở `reviewedLegalBasisOf` trong
+    `lib/legal-content.ts` và dùng chung cho trang chủ, quiz, kịch bản. Seed chỉ
+    trỏ id điều luật; điều luật chưa có citation bốn mắt hiện "Đang kiểm chứng
+    căn cứ hiện hành". CMS chặn xuất bản khi căn cứ vướng
+    `hasBlockedLegalBasis`.
+  - *Riêng tư (kế thừa DEC-015):* database chỉ lưu
+    `SHA-256("gamification-v1 player <token>")` cho tiến độ và
+    `SHA-256("gamification-v1 award quiz|roleplay <ref> <token>")` cho chống
+    cộng trùng. Token do trình duyệt sinh, không có IP/user-agent/định danh cá
+    nhân nào được lưu.
+  - *Một câu lệnh cho mỗi lượt cộng điểm:* `neon-http` không có transaction nên
+    nhận phần thưởng và cộng điểm gộp trong một CTE ghi dữ liệu; `game_awards`
+    với `ON CONFLICT (award_key) DO NOTHING` là chốt duy nhất quyết định lượt đó
+    có được cộng hay không.
+  - *Kịch bản là dữ liệu:* `validateRoleplayScenario` chạy ở cả CMS lẫn lúc đọc
+    từ DB, chặn nhánh trỏ tới nút không tồn tại, nút không tới được từ nút bắt
+    đầu, `step` dưới hai lựa chọn và kết cục thiếu hậu quả hoặc căn cứ. Component
+    `RoleplayPanel` chỉ đi trên đồ thị, không chứa nhánh nào.
+  - *Degrade:* thiếu database thì GET vẫn trả nội dung seed để phần chơi không
+    trắng màn hình; chỉ thao tác tích điểm trả 503
+    `GAME_DEPENDENCY_UNAVAILABLE`.
+  - *Schema:* sáu bảng `quiz_questions`, `roleplay_scenarios`, `roleplay_nodes`,
+    `game_badges`, `game_progress`, `game_awards` thêm theo DEC-014 với
+    `pgSchemaVersion = 2026-09-05-gamification-v1`.
+
 ### Điểm còn mở
 
 Các điểm cần product/technical owner chốt trước Sprint 1:

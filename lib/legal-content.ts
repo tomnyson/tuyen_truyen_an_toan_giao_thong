@@ -151,6 +151,27 @@ export const sources = [
   },
 ];
 
+// Quy tac trinh bay can cu da duyet, dung chung cho trang chu, quiz va game
+// nhap vai: entry chua co citation bon mat thi khong bao gio duoc dung ra mot
+// cau can cu — hien thi dung trang thai "dang kiem chung".
+export function reviewedLegalBasisOf(item: LawItem) {
+  if (item.verified) return item.legal;
+  if (!item.citation) return "Đang kiểm chứng căn cứ hiện hành";
+  const provision = [
+    item.citation.point ? `Điểm ${item.citation.point}` : "",
+    `khoản ${item.citation.clause}`,
+    `Điều ${item.citation.article}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return `${provision} Nghị định ${item.citation.documentNumber}`;
+}
+
+export function reviewedPenaltyOf(item: LawItem) {
+  if (item.verified) return item.penalty;
+  return item.reviewedSanction?.summary ?? "Chưa công bố mức tham khảo";
+}
+
 export function hasBlockedLegalBasis(value: string) {
   const compact = normalizeVietnamese(value).replace(/[^a-z0-9]+/g, "");
   return (

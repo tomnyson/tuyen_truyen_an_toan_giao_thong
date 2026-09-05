@@ -153,6 +153,106 @@ export const contentEngagementMarks = pgTable("content_engagement_marks", {
     .default(sql`(now())::text`),
 });
 
+// Game hóa (US-035, US-036). Ngân hàng câu hỏi, kịch bản nhập vai và cấu hình
+// quy đổi huy hiệu đều là dữ liệu quản lý được qua CMS.
+export const quizQuestions = pgTable("quiz_questions", {
+  id: serial("id").primaryKey(),
+  topic: text("topic").notNull(),
+  prompt: text("prompt").notNull(),
+  // Danh sách đáp án lưu dạng chuỗi JSON, cùng quy ước với cột `tags`.
+  options: text("options").notNull(),
+  correctIndex: integer("correct_index").notNull().default(0),
+  explanation: text("explanation").notNull(),
+  legalBasis: text("legal_basis").notNull(),
+  sourceUrl: text("source_url").notNull().default(""),
+  points: integer("points").notNull().default(10),
+  status: text("status", { enum: ["draft", "published"] })
+    .notNull()
+    .default("draft"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(now())::text`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
+export const roleplayScenarios = pgTable("roleplay_scenarios", {
+  id: serial("id").primaryKey(),
+  topic: text("topic").notNull(),
+  title: text("title").notNull(),
+  intro: text("intro").notNull(),
+  startKey: text("start_key").notNull(),
+  status: text("status", { enum: ["draft", "published"] })
+    .notNull()
+    .default("draft"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(now())::text`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
+export const roleplayNodes = pgTable(
+  "roleplay_nodes",
+  {
+    scenarioId: integer("scenario_id")
+      .notNull()
+      .references(() => roleplayScenarios.id, { onDelete: "cascade" }),
+    nodeKey: text("node_key").notNull(),
+    kind: text("kind", { enum: ["step", "outcome"] })
+      .notNull()
+      .default("step"),
+    text: text("text").notNull(),
+    choices: text("choices").notNull().default("[]"),
+    consequence: text("consequence").notNull().default(""),
+    legalBasis: text("legal_basis").notNull().default(""),
+    sourceUrl: text("source_url").notNull().default(""),
+    outcomeKind: text("outcome_kind", {
+      enum: ["safe", "risky", "harmful"],
+    }),
+    points: integer("points").notNull().default(1),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(now())::text`),
+  },
+  (table) => [
+    primaryKey({
+      name: "roleplay_nodes_pk",
+      columns: [table.scenarioId, table.nodeKey],
+    }),
+  ],
+);
+
+export const gameBadges = pgTable("game_badges", {
+  code: text("code").primaryKey(),
+  name: text("name").notNull(),
+  icon: text("icon").notNull().default("★"),
+  description: text("description").notNull().default(""),
+  thresholdPoints: integer("threshold_points").notNull(),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
+// Tiến độ người chơi: khóa là hash một chiều của token ngẫu nhiên do trình
+// duyệt tự sinh — không có định danh cá nhân nào trong bảng này.
+export const gameProgress = pgTable("game_progress", {
+  playerKey: text("player_key").primaryKey(),
+  points: integer("points").notNull().default(0),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
+export const gameAwards = pgTable("game_awards", {
+  awardKey: text("award_key").primaryKey(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
 export const legalEntryCitations = pgTable(
   "legal_entry_citations",
   {

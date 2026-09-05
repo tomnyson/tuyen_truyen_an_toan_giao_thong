@@ -326,3 +326,73 @@ footer { border-top: 2px solid var(--ink); padding: 34px clamp(24px, 7vw, 110px)
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* Khu vực rèn luyện: quiz và nhập vai (US-035, US-036). */
+.game-section { padding: 90px clamp(24px, 7vw, 110px); background: var(--paper); border-top: 2px solid var(--line); }
+.game-section .section-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.game-section h2 { font-size: clamp(32px, 3.6vw, 50px); line-height: 1.05; letter-spacing: -2px; margin: 12px 0 0; }
+.game-points { display: grid; gap: 2px; text-align: right; margin: 0; }
+.game-points span { font-size: 12px; font-weight: 800; letter-spacing: 1.4px; color: var(--blue); }
+.game-points strong { font-size: 38px; line-height: 1; letter-spacing: -2px; }
+.game-intro { max-width: 640px; margin: 18px 0 0; font-size: 15px; line-height: 1.65; }
+.game-badges { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 0; }
+.game-badge { display: inline-flex; align-items: center; gap: 8px; border: 2px dashed rgba(24, 33, 59, .35); border-radius: 999px; padding: 7px 14px; font-weight: 700; font-size: 13px; color: rgba(24, 33, 59, .6); background: transparent; }
+.game-badge small { font-weight: 700; font-size: 11px; opacity: .75; }
+.game-badge.earned { border-style: solid; border-color: var(--ink); background: var(--yellow); color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.game-next-badge { margin: 12px 0 0; font-size: 13px; font-weight: 700; color: var(--blue-dark); }
+.game-modes { display: flex; gap: 10px; margin: 28px 0 0; flex-wrap: wrap; }
+.game-mode, .game-topic { border: 2px solid var(--ink); background: var(--paper); border-radius: 12px; padding: 9px 16px; font-weight: 800; font-size: 14px; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+.game-mode:hover, .game-topic:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+.game-mode.active { background: var(--blue); color: white; box-shadow: 3px 3px 0 var(--ink); }
+.game-topic { font-size: 13px; padding: 7px 13px; border-radius: 999px; }
+.game-topic.active { background: var(--mint); box-shadow: 3px 3px 0 var(--ink); }
+.game-topics { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 0; }
+.game-progress-line { margin: 16px 0 0; font-size: 13px; font-weight: 700; color: var(--blue); }
+.game-pending, .game-empty { margin: 18px 0 0; font-size: 14px; font-weight: 700; color: rgba(24, 33, 59, .7); }
+.game-error { margin: 16px 0 0; border: 2px solid var(--coral); border-radius: 12px; padding: 12px 14px; background: rgba(255, 114, 94, .12); font-size: 14px; font-weight: 700; }
+
+.quiz-list { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 18px; }
+.quiz-item { border: 2px solid var(--ink); border-radius: 18px; background: var(--cream); padding: clamp(18px, 3vw, 26px); box-shadow: 5px 5px 0 var(--ink); }
+.quiz-prompt { margin: 0 0 14px; font-size: clamp(16px, 1.6vw, 19px); font-weight: 800; line-height: 1.4; }
+.quiz-options { display: grid; gap: 9px; }
+.quiz-option { display: flex; align-items: center; gap: 11px; text-align: left; border: 2px solid var(--ink); border-radius: 12px; background: var(--paper); padding: 11px 14px; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+.quiz-option:hover:enabled { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+.quiz-option:disabled { cursor: default; }
+.quiz-option-mark { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 8px; background: var(--yellow); font-weight: 900; font-size: 12px; }
+.quiz-option.correct { background: var(--mint); }
+.quiz-option.wrong { background: rgba(255, 114, 94, .25); }
+.quiz-feedback { margin: 15px 0 0; border-left: 4px solid var(--blue); padding: 4px 0 4px 14px; display: grid; gap: 8px; font-size: 14px; line-height: 1.6; }
+.quiz-feedback.wrong { border-left-color: var(--coral); }
+.quiz-feedback p { margin: 0; }
+.quiz-verdict { font-weight: 900; letter-spacing: -.3px; }
+.quiz-basis { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 13px; }
+.quiz-basis span { font-weight: 800; letter-spacing: 1.2px; font-size: 11px; color: var(--blue); }
+.quiz-basis a { text-decoration: underline; font-weight: 700; }
+
+.roleplay-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 24px 0 0; }
+.roleplay-card { border: 2px solid var(--ink); border-radius: 18px; background: var(--cream); padding: 22px; box-shadow: 5px 5px 0 var(--ink); display: grid; gap: 10px; align-content: start; }
+.roleplay-card h3, .roleplay-stage h3 { margin: 0; font-size: 20px; letter-spacing: -.8px; }
+.roleplay-card p, .roleplay-stage p { margin: 0; font-size: 14px; line-height: 1.6; }
+.roleplay-topic { font-size: 11px !important; font-weight: 900; letter-spacing: 1.4px; color: var(--blue); }
+.roleplay-card button, .roleplay-choices button { border: 2px solid var(--ink); border-radius: 12px; background: var(--yellow); padding: 10px 15px; font-weight: 800; font-size: 14px; cursor: pointer; text-align: left; transition: transform .15s ease, box-shadow .15s ease; }
+.roleplay-card button { justify-self: start; }
+.roleplay-card button:hover, .roleplay-choices button:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+.roleplay-stage { margin: 24px 0 0; border: 2px solid var(--ink); border-radius: 20px; background: var(--cream); padding: clamp(20px, 3vw, 30px); box-shadow: 6px 6px 0 var(--ink); display: grid; gap: 14px; }
+.roleplay-stage[data-outcome="safe"] { background: var(--mint); }
+.roleplay-stage[data-outcome="risky"] { background: #fff2c9; }
+.roleplay-stage[data-outcome="harmful"] { background: rgba(255, 114, 94, .18); }
+.roleplay-stage-head { display: flex; justify-content: space-between; align-items: start; gap: 16px; flex-wrap: wrap; }
+.roleplay-reset { border: 2px solid var(--ink); border-radius: 12px; background: var(--paper); padding: 8px 13px; font-weight: 800; font-size: 13px; cursor: pointer; }
+.roleplay-step-count { font-size: 11px !important; font-weight: 900; letter-spacing: 1.4px; color: var(--blue-dark); }
+.roleplay-text { font-size: clamp(16px, 1.7vw, 19px) !important; font-weight: 700; line-height: 1.5 !important; }
+.roleplay-choices { display: grid; gap: 10px; }
+.roleplay-outcome { display: grid; gap: 12px; }
+.roleplay-outcome-label { display: grid; gap: 3px; }
+.roleplay-outcome-label strong { font-size: 16px; letter-spacing: -.5px; }
+.roleplay-award { font-weight: 900; color: var(--blue-dark); }
+
+@media (max-width: 720px) {
+  .game-section { padding: 70px 20px; }
+  .game-points { text-align: left; }
+  .quiz-option { align-items: flex-start; }
+}

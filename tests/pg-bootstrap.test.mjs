@@ -39,6 +39,7 @@ const { PGlite } = await import("@electric-sql/pglite");
 const { drizzle } = await import("drizzle-orm/pglite");
 const { sql } = await import("drizzle-orm");
 const { bootstrapLegalDatabase } = await import("../db/index.ts");
+const { pgSchemaVersion } = await import("../db/pg-bootstrap.ts");
 
 const client = new PGlite();
 const db = drizzle(client);
@@ -86,6 +87,12 @@ test("bootstrap ap duoc va idempotent", async () => {
     "web_search_budget_days",
     "content_engagement",
     "content_engagement_marks",
+    "quiz_questions",
+    "roleplay_scenarios",
+    "roleplay_nodes",
+    "game_badges",
+    "game_progress",
+    "game_awards",
   ]) {
     assert.ok(names.includes(expected), `thieu bang ${expected}`);
   }
@@ -236,4 +243,57 @@ test("doi source het hieu luc thi provision published bi thu hoi", async () => {
     "SELECT review_status FROM legal_entry_citations WHERE provision_id = 1",
   ));
   assert.equal(citation.rows[0].review_status, "legacy_unverified");
+});
+
+test("bang game hoa: khoa nguoi choi la hash, moi phan thuong chi cong mot lan", async () => {
+  const playerKey = "d".repeat(64);
+  await assert.rejects(
+    db.execute(sql.raw(
+      "INSERT INTO game_progress (player_key, points) VALUES ('khong-phai-hash', 10)",
+    )),
+    rejectsWith(/game_progress_player_key_check|violates check constraint/),
+  );
+  await db.execute(sql.raw(
+    `INSERT INTO game_progress (player_key, points) VALUES ('${playerKey}', 10)`,
+  ));
+  const awardKey = "e".repeat(64);
+  await db.execute(sql.raw(
+    `INSERT INTO game_awards (award_key) VALUES ('${awardKey}')`,
+  ));
+  const claimed = await db.execute(sql.raw(
+    `INSERT INTO game_awards (award_key) VALUES ('${awardKey}')
+     ON CONFLICT (award_key) DO NOTHING RETURNING award_key`,
+  ));
+  assert.equal(claimed.rows.length, 0);
+});
+
+test("nut kich ban gan voi kich ban va co rang buoc loai ket cuc", async () => {
+  await db.execute(sql.raw(`
+    INSERT INTO roleplay_scenarios (id, topic, title, intro, start_key, status)
+    VALUES (1, 'Giao thông', 'Kich ban', 'Gioi thieu', 'bat-dau', 'draft')`));
+  await db.execute(sql.raw(`
+    INSERT INTO roleplay_nodes (scenario_id, node_key, kind, text)
+    VALUES (1, 'bat-dau', 'step', 'mo ta')`));
+  await assert.rejects(
+    db.execute(sql.raw(`
+      INSERT INTO roleplay_nodes (scenario_id, node_key, kind, text, outcome_kind)
+      VALUES (1, 'ket-cuc', 'outcome', 'ket cuc', 'khong-hop-le')`)),
+    rejectsWith(/outcome_kind|violates check constraint/),
+  );
+  await assert.rejects(
+    db.execute(sql.raw(`
+      INSERT INTO roleplay_nodes (scenario_id, node_key, kind, text)
+      VALUES (999, 'mo-coi', 'step', 'mo ta')`)),
+    rejectsWith(/foreign key/),
+  );
+  // Xóa kịch bản kéo theo toàn bộ nút, không để lại nút mồ côi.
+  await db.execute(sql.raw("DELETE FROM roleplay_scenarios WHERE id = 1"));
+  const left = await db.execute(sql.raw(
+    "SELECT node_key FROM roleplay_nodes WHERE scenario_id = 1",
+  ));
+  assert.equal(left.rows.length, 0);
+});
+
+test("phien ban schema da tang cho phan game hoa", () => {
+  assert.equal(pgSchemaVersion, "2026-09-05-gamification-v1");
 });

@@ -26,7 +26,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
-| Bản điều chỉnh 2026-09-05 | 7 | 0 | 2 | 0 |
+| Bản điều chỉnh 2026-09-05 | 9 | 0 | 0 | 0 |
 | **Tổng** | **16** | **18** | **2** | **0** |
 
 ## Theo dõi theo user story
@@ -48,8 +48,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-032 — Tình huống published hiển thị và tìm kiếm được | P0 | Done | Full-stack | `lib/showcase-media.ts`, `lib/public-showcase.ts`, `components/ShowcaseGallery.tsx`, `app/page.tsx`, `app/admin/api/content/route.ts`, `db/pg-bootstrap.ts`; focused 25/25, full 275/275, tsc + ESLint pass | 2026-09-05 |
 | US-033 — Đếm lượt xem nội dung | P1 | Done | Full-stack | `lib/engagement.ts`, `lib/engagement-store.ts`, `app/api/engagement/route.ts`, `components/EngagementBar.tsx`, `app/admin/AdminDashboard.tsx`; `pgSchemaVersion = 2026-09-05-content-engagement-v1`; `tests/engagement.test.mjs` 12/12 pass | 2026-09-05 |
 | US-034 — Yêu thích và chia sẻ nội dung | P1 | Done | Full-stack | `lib/share.ts`, `components/EngagementBar.tsx`, `components/EngagementProvider.tsx`; `tests/share.test.mjs` 6/6 và `tests/engagement-ui.test.mjs` 5/5 pass | 2026-09-05 |
-| US-035 — Quiz, điểm và huy hiệu | P2 | Todo | Full-stack + PM | Chưa bắt đầu; cần ngân hàng câu hỏi quản lý được | 2026-09-05 |
-| US-036 — Game nhập vai tình huống | P2 | Todo | Full-stack + PM | Chưa bắt đầu; kịch bản phải là dữ liệu, không hardcode | 2026-09-05 |
+| US-035 — Quiz, điểm và huy hiệu | P2 | Done | Full-stack + PM | `lib/gamification.ts`, `lib/quiz-content.ts` (17 câu, 3–5 câu mỗi lĩnh vực), `lib/game-store.ts`, `app/api/game/route.ts`, `app/admin/api/game/route.ts`, `app/admin/GameManager.tsx`, `components/QuizPanel.tsx`; `pgSchemaVersion = 2026-09-05-gamification-v1`; DEC-018; `tests/gamification.test.mjs` 11/11 và `tests/game-api.test.mjs` 8/8 pass | 2026-09-05 |
+| US-036 — Game nhập vai tình huống | P2 | Done | Full-stack + PM | `lib/roleplay.ts`, `lib/roleplay-content.ts` (3 kịch bản), `components/RoleplayPanel.tsx`, CRUD kịch bản trong `app/admin/api/game/route.ts`; kịch bản là dữ liệu, component chỉ đi trên đồ thị; `tests/roleplay.test.mjs` 7/7 pass | 2026-09-05 |
 | US-037 — QR code truy cập nhanh | P2 | Done | Full-stack | `lib/qr-code.ts`, `components/SiteQrCode.tsx`; QR sinh client-side, tải SVG in được; `tests/qr-code.test.mjs` 9/9 pass | 2026-09-05 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
@@ -761,6 +761,45 @@ này.
   Sites control plane chứng minh migration ledger apply 0000→0003 trước
   activation. Sidecar chưa phải authenticated RBAC runtime và chưa làm graph
   đủ điều kiện RAG.
+
+### 2026-09-05 — US-035 quiz/điểm/huy hiệu + US-036 game nhập vai
+
+- **Căn cứ không được tự chế (DEC-018):** quy tắc hiển thị căn cứ chuyển vào
+  `lib/legal-content.ts` (`reviewedLegalBasisOf`, `reviewedPenaltyOf`) và dùng
+  chung cho trang chủ, quiz và kịch bản nhập vai. Seed quiz/kịch bản chỉ trỏ id
+  điều luật rồi lấy chuỗi căn cứ qua hàm này, nên lĩnh vực chưa có trích dẫn bốn
+  mắt hiện "Đang kiểm chứng căn cứ hiện hành" thay vì một điều khoản viết tay.
+- **Chấm điểm ở server:** payload `/api/game` (GET) đã bỏ `correctIndex` và
+  `explanation` bằng `toPublicQuizQuestion`; đáp án đúng chỉ về theo từng lượt
+  trả lời. Nhập vai chỉ cộng điểm khi nút thật sự là `outcome`, nên gửi thẳng mã
+  nút giữa chừng không tích được điểm.
+- **Riêng tư, dùng lại DEC-015:** token trình duyệt (`ensureClientId`) chia sẻ
+  với bộ đếm tương tác; database chỉ lưu
+  `SHA-256("gamification-v1 player <token>")` và khóa phần thưởng
+  `SHA-256("gamification-v1 award quiz|roleplay <ref> <token>")`. Không có định
+  danh cá nhân nào của học sinh chạm database.
+- **Cộng điểm đúng một lần:** `neon-http` không có transaction nên nhận phần
+  thưởng và cộng điểm gộp trong một CTE ghi dữ liệu; `game_awards` là chốt duy
+  nhất (`ON CONFLICT DO NOTHING`), trả lại `awarded=false` cho lần lặp.
+- **Kịch bản là dữ liệu:** `validateRoleplayScenario` chặn đồ thị hỏng (nhánh
+  trỏ tới nút không tồn tại, nút không tới được, `step` dưới 2 lựa chọn, kết cục
+  thiếu hậu quả/căn cứ) ở cả CMS lẫn lúc đọc từ DB. Kiểm thử này bắt được một
+  nhánh cụt trong kịch bản seed đầu tiên ("đứng xa quay clip") và nhánh đó đã
+  được bổ sung nút thật.
+- **Chạy được cả khi mất database:** GET `/api/game` degrade về nội dung seed,
+  chỉ phần tích điểm cần database và trả 503 `GAME_DEPENDENCY_UNAVAILABLE`.
+- **Migration:** sáu bảng mới (`quiz_questions`, `roleplay_scenarios`,
+  `roleplay_nodes`, `game_badges`, `game_progress`, `game_awards`) thêm vào
+  `pgBootstrapStatements` dạng `CREATE TABLE IF NOT EXISTS` kèm CHECK cho
+  trạng thái, loại kết cục và khóa 64 hex; version gate bump lên
+  `pgSchemaVersion = 2026-09-05-gamification-v1` theo DEC-014.
+- `tests/gamification.test.mjs` **11/11 pass**, `tests/roleplay.test.mjs`
+  **7/7 pass**, `tests/game-api.test.mjs` **8/8 pass**,
+  `tests/pg-bootstrap.test.mjs` **11/11 pass**. Full local suite
+  `node --test tests/*.test.mjs`: **357/357 pass**. `npx tsc --noEmit`: pass.
+  ESLint trên các file mới: 0 error. `npm run build`: pass.
+- Chưa verify trên production Neon: cần deploy để version gate tạo sáu bảng mới
+  rồi kiểm tra tích điểm và CMS chạy thật.
 
 ### 2026-09-05 — US-033 đếm lượt xem + US-034 yêu thích và chia sẻ
 

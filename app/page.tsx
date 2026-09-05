@@ -7,6 +7,7 @@ import {
 } from "@/components/ShowcaseGallery";
 import { SiteQrCode } from "@/components/SiteQrCode";
 import { ContentMedia } from "@/components/ContentMedia";
+import { GameZone } from "@/components/GameZone";
 import { SituationAnswer } from "@/components/SituationAnswer";
 import { EngagementProvider } from "@/components/EngagementProvider";
 import { EngagementBar, EngagementStat } from "@/components/EngagementBar";
@@ -21,7 +22,13 @@ import {
   parseChatAnswerSections,
   type ChatAnswerSection,
 } from "@/lib/chat-answer-presentation";
-import { laws, sources, type LawItem } from "@/lib/legal-content";
+import {
+  laws,
+  reviewedLegalBasisOf as reviewedLegalBasis,
+  reviewedPenaltyOf as reviewedPenalty,
+  sources,
+  type LawItem,
+} from "@/lib/legal-content";
 import {
   filterTopics,
   situationSuggestions,
@@ -91,26 +98,6 @@ function parseTags(value: string) {
   } catch {
     return [];
   }
-}
-
-function reviewedLegalBasis(item: LawItem) {
-  // Entry đã có citation bốn mắt: hiển thị đúng câu căn cứ do biên tập viên
-  // soạn (bao quát cả Luật/Bộ luật/VBHN, không chỉ Nghị định).
-  if (item.verified) return item.legal;
-  if (!item.citation) return "Đang kiểm chứng căn cứ hiện hành";
-  const provision = [
-    item.citation.point ? `Điểm ${item.citation.point}` : "",
-    `khoản ${item.citation.clause}`,
-    `Điều ${item.citation.article}`,
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return `${provision} Nghị định ${item.citation.documentNumber}`;
-}
-
-function reviewedPenalty(item: LawItem) {
-  if (item.verified) return item.penalty;
-  return item.reviewedSanction?.summary ?? "Chưa công bố mức tham khảo";
 }
 
 const initialChatMessage: ChatMessage = {
@@ -311,6 +298,7 @@ function HomeContent() {
         <nav aria-label="Điều hướng chính">
           <a href="#tra-cuu">Tra cứu</a>
           <a href="#tinh-huong">Tình huống</a>
+          <a href="#ren-luyen">Rèn luyện</a>
           <a href="#nguon">Nguồn luật</a>
         </nav>
         <button className="header-cta" onClick={() => setChatOpen(true)}>
@@ -476,6 +464,8 @@ function HomeContent() {
           showcases={filteredShowcases}
         />
       </section>
+
+      <GameZone />
 
       <section className="source-section" id="nguon">
         <div>

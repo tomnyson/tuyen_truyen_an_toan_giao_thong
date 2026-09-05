@@ -1455,7 +1455,7 @@ người dùng đóng bảng chia sẻ không bị coi là lỗi),
 `tests/engagement-ui.test.mjs` **5/5 pass** (nút có `aria-pressed`, thanh tương
 tác đứng trước ghi chú pháp lý, thẻ danh sách chỉ hiển thị số liệu).
 
-### [ ] US-035 — Quiz và hệ thống điểm/huy hiệu
+### [x] US-035 — Quiz và hệ thống điểm/huy hiệu
 
 - **Priority:** P2
 - **Persona:** Học sinh, giáo viên
@@ -1464,12 +1464,25 @@ tác đứng trước ghi chú pháp lý, thẻ danh sách chỉ hiển thị s�
 
 **Acceptance criteria**
 
-- [ ] Mỗi chủ đề (ATGT, bạo lực học đường, lừa đảo mạng…) có 3–5 câu hỏi.
-- [ ] Kết quả có giải thích đúng/sai kèm căn cứ từ kho nội dung đã duyệt.
-- [ ] Điểm tích lũy lưu bền vững và quy đổi được sang huy hiệu.
-- [ ] CMS quản lý được ngân hàng câu hỏi và cấu hình quy đổi.
+- [x] Mỗi chủ đề (ATGT, bạo lực học đường, lừa đảo mạng…) có 3–5 câu hỏi.
+- [x] Kết quả có giải thích đúng/sai kèm căn cứ từ kho nội dung đã duyệt.
+- [x] Điểm tích lũy lưu bền vững và quy đổi được sang huy hiệu.
+- [x] CMS quản lý được ngân hàng câu hỏi và cấu hình quy đổi.
 
-### [ ] US-036 — Game nhập vai tình huống
+**Evidence:** `lib/gamification.ts`, `lib/quiz-content.ts` (17 câu seed, 3–5 câu
+mỗi lĩnh vực), `lib/game-store.ts`, `app/api/game/route.ts`,
+`app/admin/api/game/route.ts`, `app/admin/GameManager.tsx`,
+`components/QuizPanel.tsx`, `components/GameZone.tsx`, `db/pg-schema.ts`,
+`db/pg-bootstrap.ts` (`quiz_questions`, `game_badges`, `game_progress`,
+`game_awards`); `tests/gamification.test.mjs` **11/11 pass**,
+`tests/game-api.test.mjs` **8/8 pass**, `tests/pg-bootstrap.test.mjs` **11/11
+pass**. Chấm điểm nằm hoàn toàn ở server: payload công khai không có
+`correctIndex`/`explanation`, mỗi câu chỉ cộng điểm một lần cho mỗi trình duyệt
+nhờ khóa phần thưởng dạng hash. Căn cứ hiển thị lấy qua
+`reviewedLegalBasisOf` nên câu hỏi thuộc lĩnh vực chưa có trích dẫn bốn mắt
+hiện “Đang kiểm chứng căn cứ hiện hành” thay vì trích dẫn tự chế.
+
+### [x] US-036 — Game nhập vai tình huống
 
 - **Priority:** P2
 - **Persona:** Học sinh
@@ -1478,9 +1491,20 @@ tác đứng trước ghi chú pháp lý, thẻ danh sách chỉ hiển thị s�
 
 **Acceptance criteria**
 
-- [ ] Mỗi kịch bản có nhiều nhánh lựa chọn dẫn tới kết cục khác nhau.
-- [ ] Mỗi kết cục phân tích hậu quả pháp lý/an toàn kèm căn cứ đã duyệt.
-- [ ] Kịch bản là dữ liệu quản lý được, không hardcode trong component.
+- [x] Mỗi kịch bản có nhiều nhánh lựa chọn dẫn tới kết cục khác nhau.
+- [x] Mỗi kết cục phân tích hậu quả pháp lý/an toàn kèm căn cứ đã duyệt.
+- [x] Kịch bản là dữ liệu quản lý được, không hardcode trong component.
+
+**Evidence:** `lib/roleplay.ts` (kiểu đồ thị + `validateRoleplayScenario`),
+`lib/roleplay-content.ts` (3 kịch bản seed: đua xe, lừa chuyển khoản, chứng
+kiến bạn bị vây đánh — mỗi kịch bản có kết cục an toàn/rủi ro/nghiêm trọng),
+`components/RoleplayPanel.tsx` (chỉ đi trên dữ liệu, không chứa nhánh nào),
+`app/admin/GameManager.tsx` và `app/admin/api/game/route.ts` (CRUD kịch bản,
+chặn lưu khi đồ thị có ngõ cụt hoặc nút không tới được),
+`db/pg-bootstrap.ts` (`roleplay_scenarios`, `roleplay_nodes` xóa theo tầng);
+`tests/roleplay.test.mjs` **7/7 pass**, `tests/game-api.test.mjs` **8/8 pass**.
+Điểm chỉ cộng khi server xác nhận nút là kết cục, nên gửi thẳng mã nút giữa
+chừng không giúp tích điểm.
 
 ### [x] US-037 — QR code truy cập nhanh trang tra cứu
 

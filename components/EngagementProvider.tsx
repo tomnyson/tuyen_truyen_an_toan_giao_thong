@@ -80,7 +80,9 @@ function writeStorage(key: string, value: string): void {
   }
 }
 
-function ensureClientId(): string {
+// Dùng chung cho phần game hóa (US-035, US-036): một token ngẫu nhiên duy
+// nhất cho mỗi trình duyệt, server chỉ thấy bản hash của nó.
+export function ensureClientId(): string {
   const stored = readStorage(clientIdStorageKey);
   if (isEngagementClientId(stored)) return stored;
   const created = createEngagementClientId((size) =>

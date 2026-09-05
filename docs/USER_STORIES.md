@@ -1362,7 +1362,7 @@ prompt/evidence/composition; đây chỉ là provider/config evidence. Story gi�
 `tests/public-showcase.test.mjs` **25/25 pass**, full suite
 `node --test tests/*.test.mjs` **275/275 pass**, `tsc --noEmit` và ESLint pass.
 
-### [ ] US-033 — Đếm lượt xem từng nội dung
+### [x] US-033 — Đếm lượt xem từng nội dung
 
 - **Priority:** P1
 - **Persona:** Biên tập viên, nhà trường
@@ -1371,13 +1371,24 @@ prompt/evidence/composition; đây chỉ là provider/config evidence. Story gi�
 
 **Acceptance criteria**
 
-- [ ] Mỗi điều luật/tình huống có bộ đếm lượt xem lưu bền vững.
-- [ ] Endpoint tăng lượt xem có chống spam (idempotent trong phiên/khoảng thời
+- [x] Mỗi điều luật/tình huống có bộ đếm lượt xem lưu bền vững.
+- [x] Endpoint tăng lượt xem có chống spam (idempotent trong phiên/khoảng thời
   gian) và không lưu định danh cá nhân.
-- [ ] Số lượt xem hiển thị trên UI công khai và trong CMS.
-- [ ] Bump `pgSchemaVersion` kèm migration bổ sung idempotent.
+- [x] Số lượt xem hiển thị trên UI công khai và trong CMS.
+- [x] Bump `pgSchemaVersion` kèm migration bổ sung idempotent.
 
-### [ ] US-034 — Đánh dấu "Nội dung này ý nghĩa" và chia sẻ
+**Evidence:** `lib/engagement.ts`, `lib/engagement-store.ts`,
+`app/api/engagement/route.ts`, `components/EngagementProvider.tsx`,
+`components/EngagementBar.tsx`, `components/ShowcaseGallery.tsx`,
+`app/page.tsx`, `app/admin/AdminDashboard.tsx`, `db/pg-schema.ts`,
+`db/pg-bootstrap.ts` (`pgSchemaVersion = 2026-09-05-content-engagement-v1`);
+chống trùng bằng mark key SHA-256 (DEC-015) nên bảng `content_engagement_marks`
+không chứa IP, user-agent hay bất kỳ định danh nào;
+`tests/engagement.test.mjs` **12/12 pass** trên PGlite (cùng trình duyệt trong
+ngày chỉ đếm một lần, trình duyệt khác vẫn đếm, hôm sau đếm lại, nội dung chưa
+xuất bản không tạo bộ đếm).
+
+### [x] US-034 — Đánh dấu "Nội dung này ý nghĩa" và chia sẻ
 
 - **Priority:** P1
 - **Persona:** Học sinh, sinh viên
@@ -1386,9 +1397,17 @@ prompt/evidence/composition; đây chỉ là provider/config evidence. Story gi�
 
 **Acceptance criteria**
 
-- [ ] Nút "Nội dung này ý nghĩa" có trạng thái bật/tắt và tổng lượt.
-- [ ] Nút chia sẻ dùng Web Share API, có fallback copy link.
-- [ ] Thao tác không yêu cầu đăng nhập và không lưu định danh cá nhân.
+- [x] Nút "Nội dung này ý nghĩa" có trạng thái bật/tắt và tổng lượt.
+- [x] Nút chia sẻ dùng Web Share API, có fallback copy link.
+- [x] Thao tác không yêu cầu đăng nhập và không lưu định danh cá nhân.
+
+**Evidence:** `lib/share.ts`, `components/EngagementBar.tsx`,
+`components/EngagementProvider.tsx` (trạng thái yêu thích nằm trong
+localStorage của chính máy người dùng, server chỉ giữ mark key băm);
+`tests/share.test.mjs` **6/6 pass** (ưu tiên Web Share, fallback copy link,
+người dùng đóng bảng chia sẻ không bị coi là lỗi),
+`tests/engagement-ui.test.mjs` **5/5 pass** (nút có `aria-pressed`, thanh tương
+tác đứng trước ghi chú pháp lý, thẻ danh sách chỉ hiển thị số liệu).
 
 ### [ ] US-035 — Quiz và hệ thống điểm/huy hiệu
 

@@ -6,6 +6,8 @@ import {
   type ShowcaseDataState,
 } from "@/components/ShowcaseGallery";
 import { SiteQrCode } from "@/components/SiteQrCode";
+import { EngagementProvider } from "@/components/EngagementProvider";
+import { EngagementBar } from "@/components/EngagementBar";
 import {
   brandDisplayName,
   brandMark,
@@ -107,7 +109,15 @@ const initialChatMessage: ChatMessage = {
   content: `Chào bạn! Mình là trợ lý ${brandName}. Bạn có thể hỏi về giao thông hoặc an toàn trên mạng nhé.`,
 };
 
-export default function Home() {
+// Entry lấy từ database được dịch id để không đè lên nội dung seed tĩnh; bộ
+// đếm tương tác chỉ áp dụng cho entry có thật trong database.
+const managedLawIdOffset = 100_000;
+
+function managedLawId(id: number): number | null {
+  return id > managedLawIdOffset ? id - managedLawIdOffset : null;
+}
+
+function HomeContent() {
   const [topic, setTopic] = useState<Topic>("Tất cả");
   const [query, setQuery] = useState("");
   const [selectedLaw, setSelectedLaw] = useState<LawItem | null>(null);
@@ -134,7 +144,7 @@ export default function Home() {
           const firstCitation = item.citations?.[0];
           const verified = (item.citations?.length ?? 0) > 0;
           return {
-            id: 100_000 + item.id,
+            id: managedLawIdOffset + item.id,
             topic: item.topic,
             icon: item.icon,
             title: item.title,
@@ -492,6 +502,13 @@ export default function Home() {
             >
               Hỏi AI về tình huống này →
             </button>
+            {managedLawId(selectedLaw.id) !== null && (
+              <EngagementBar
+                entityType="law"
+                entityId={managedLawId(selectedLaw.id) as number}
+                title={selectedLaw.title}
+              />
+            )}
             <p className="modal-note">Tình huống được biên soạn để giáo dục, không phải hồ sơ xử phạt có thật. Mức áp dụng thực tế phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể.</p>
           </section>
         </div>
@@ -603,5 +620,14 @@ export default function Home() {
         </div>
       )}
     </main>
+  );
+}
+
+// Provider bọc ngoài để mọi phần của trang dùng chung bộ đếm tương tác.
+export default function Home() {
+  return (
+    <EngagementProvider>
+      <HomeContent />
+    </EngagementProvider>
   );
 }

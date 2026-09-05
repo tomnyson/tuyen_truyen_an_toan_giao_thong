@@ -84,6 +84,8 @@ test("bootstrap ap duoc va idempotent", async () => {
     "web_search_candidate_revisions",
     "web_search_candidate_events",
     "web_search_budget_days",
+    "content_engagement",
+    "content_engagement_marks",
   ]) {
     assert.ok(names.includes(expected), `thieu bang ${expected}`);
   }

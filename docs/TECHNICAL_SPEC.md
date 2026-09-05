@@ -2303,6 +2303,20 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   không nhận được cột mới. Migration bổ sung phải viết dạng
   `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` để idempotent.
 
+- **DEC-015:** bộ đếm tương tác (lượt xem, "Nội dung này ý nghĩa") không lưu bất
+  kỳ định danh cá nhân nào. Trình duyệt tự sinh token ngẫu nhiên 128 bit giữ
+  trong localStorage; server chỉ lưu
+  `SHA-256("engagement-v1 <loại> <id> view|favorite <ngày|permanent> <token>")`
+  trong `content_engagement_marks` — không IP, không user-agent, không session.
+  Mark lượt xem có TTL 2 ngày và được dọn cơ hội; mark yêu thích vĩnh viễn để
+  bật/tắt đối xứng. Mỗi thao tác là một câu lệnh duy nhất dạng data-modifying
+  CTE vì driver `neon-http` không hỗ trợ transaction. Đánh đổi đã chấp nhận:
+  client có thể tự sinh token khác để đẩy số lên; với bộ đếm thông tin công khai
+  thì rủi ro này thấp hơn hẳn chi phí và nghĩa vụ pháp lý của việc xử lý IP.
+  Chống spam nằm trong `content_engagement_marks`, không thêm scope rate limit
+  (ràng buộc `rate_limit_buckets_scope_check` liệt kê cứng và không nới được
+  bằng migration bổ sung).
+
 
 ### Điểm còn mở
 

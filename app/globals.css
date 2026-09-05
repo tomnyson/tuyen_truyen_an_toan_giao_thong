@@ -159,6 +159,24 @@ td:first-child { display: grid; grid-template-columns: 32px 1fr; gap: 10px; alig
 .qr-download:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .qr-download.is-disabled { background: var(--cream); box-shadow: none; color: #7b8296; }
 
+/* Tuong tac cong khai: luot xem, "Noi dung nay y nghia", chia se (US-033/034) */
+.engagement-stat { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-size: 11px; font-weight: 800; opacity: .72; }
+.engagement-metric { display: inline-flex; align-items: center; gap: 5px; }
+.engagement-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1.5px dashed rgba(24, 33, 59, .28); font-size: 11px; font-weight: 800; }
+.engagement-bar .engagement-metric { opacity: .72; margin-right: auto; }
+.engagement-favorite, .engagement-share { display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid var(--ink); border-radius: 9px; padding: 9px 12px; background: var(--paper); font-size: 11px; font-weight: 900; cursor: pointer; transition: background .18s ease, transform .18s ease, box-shadow .18s ease; }
+.engagement-favorite:hover, .engagement-share:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
+.engagement-favorite:hover { background: var(--yellow); }
+.engagement-share:hover { background: var(--mint); }
+.engagement-favorite:focus-visible, .engagement-share:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.engagement-favorite[aria-pressed="true"] { background: var(--yellow); box-shadow: 3px 3px 0 var(--ink); }
+.engagement-count { border-left: 1.5px solid rgba(24, 33, 59, .25); padding-left: 7px; font-variant-numeric: tabular-nums; }
+.engagement-status { flex-basis: 100%; min-height: 14px; font-weight: 700; opacity: .7; }
+@media (prefers-reduced-motion: reduce) {
+  .engagement-favorite, .engagement-share { transition: none; }
+  .engagement-favorite:hover, .engagement-share:hover { transform: none; }
+}
+
 footer { border-top: 2px solid var(--ink); padding: 34px clamp(24px, 7vw, 110px); display: flex; align-items: center; justify-content: space-between; gap: 20px; background: var(--paper); font-size: 11px; }
 .footer-brand .brand-mark { width: 31px; height: 31px; font-size: 16px; }
 

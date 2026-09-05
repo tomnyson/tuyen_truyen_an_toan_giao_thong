@@ -120,6 +120,37 @@ export const showcases = pgTable("showcases", {
     .default(sql`(now())::text`),
 });
 
+// Bộ đếm tương tác công khai (US-033, US-034). Bảng chỉ chứa số đếm, không
+// chứa bất kỳ định danh người dùng nào.
+export const contentEngagement = pgTable(
+  "content_engagement",
+  {
+    entityType: text("entity_type", { enum: ["law", "showcase"] }).notNull(),
+    entityId: integer("entity_id").notNull(),
+    viewCount: integer("view_count").notNull().default(0),
+    favoriteCount: integer("favorite_count").notNull().default(0),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(now())::text`),
+  },
+  (table) => [
+    primaryKey({
+      name: "content_engagement_pk",
+      columns: [table.entityType, table.entityId],
+    }),
+  ],
+);
+
+// Khóa chống đếm trùng: SHA-256 của (nội dung + loại tương tác + mốc ngày +
+// token ngẫu nhiên do trình duyệt tự sinh). Không suy ngược ra người dùng.
+export const contentEngagementMarks = pgTable("content_engagement_marks", {
+  markKey: text("mark_key").primaryKey(),
+  expiresAt: integer("expires_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
 export const legalEntryCitations = pgTable(
   "legal_entry_citations",
   {

@@ -26,8 +26,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
-| Bản điều chỉnh 2026-09-05 | 3 | 0 | 6 | 0 |
-| **Tổng** | **12** | **18** | **6** | **0** |
+| Bản điều chỉnh 2026-09-05 | 5 | 0 | 4 | 0 |
+| **Tổng** | **14** | **18** | **4** | **0** |
 
 ## Theo dõi theo user story
 
@@ -46,8 +46,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-030 — Tra cứu theo tình huống, trả lời ba phần | P0 | Todo | Full-stack + PM | Chưa bắt đầu; cần mở rộng bộ chủ đề và cấu trúc nội dung ba phần | 2026-09-05 |
 | US-031 — Chat ưu tiên kho nội bộ, AI là fallback | P0 | Todo | Full-stack | Chưa bắt đầu; xây trên US-006 và DEC-010/DEC-012 | 2026-09-05 |
 | US-032 — Tình huống published hiển thị và tìm kiếm được | P0 | Done | Full-stack | `lib/showcase-media.ts`, `lib/public-showcase.ts`, `components/ShowcaseGallery.tsx`, `app/page.tsx`, `app/admin/api/content/route.ts`, `db/pg-bootstrap.ts`; focused 25/25, full 275/275, tsc + ESLint pass | 2026-09-05 |
-| US-033 — Đếm lượt xem nội dung | P1 | Todo | Full-stack | Chưa bắt đầu; cần bump `pgSchemaVersion` theo DEC-014 | 2026-09-05 |
-| US-034 — Yêu thích và chia sẻ nội dung | P1 | Todo | Full-stack | Chưa bắt đầu | 2026-09-05 |
+| US-033 — Đếm lượt xem nội dung | P1 | Done | Full-stack | `lib/engagement.ts`, `lib/engagement-store.ts`, `app/api/engagement/route.ts`, `components/EngagementBar.tsx`, `app/admin/AdminDashboard.tsx`; `pgSchemaVersion = 2026-09-05-content-engagement-v1`; `tests/engagement.test.mjs` 12/12 pass | 2026-09-05 |
+| US-034 — Yêu thích và chia sẻ nội dung | P1 | Done | Full-stack | `lib/share.ts`, `components/EngagementBar.tsx`, `components/EngagementProvider.tsx`; `tests/share.test.mjs` 6/6 và `tests/engagement-ui.test.mjs` 5/5 pass | 2026-09-05 |
 | US-035 — Quiz, điểm và huy hiệu | P2 | Todo | Full-stack + PM | Chưa bắt đầu; cần ngân hàng câu hỏi quản lý được | 2026-09-05 |
 | US-036 — Game nhập vai tình huống | P2 | Todo | Full-stack + PM | Chưa bắt đầu; kịch bản phải là dữ liệu, không hardcode | 2026-09-05 |
 | US-037 — QR code truy cập nhanh | P2 | Done | Full-stack | `lib/qr-code.ts`, `components/SiteQrCode.tsx`; QR sinh client-side, tải SVG in được; `tests/qr-code.test.mjs` 9/9 pass | 2026-09-05 |
@@ -761,6 +761,43 @@ này.
   Sites control plane chứng minh migration ledger apply 0000→0003 trước
   activation. Sidecar chưa phải authenticated RBAC runtime và chưa làm graph
   đủ điều kiện RAG.
+
+### 2026-09-05 — US-033 đếm lượt xem + US-034 yêu thích và chia sẻ
+
+- **Thiết kế riêng tư (DEC-015):** trình duyệt tự sinh token ngẫu nhiên 128 bit
+  và chỉ giữ trong localStorage; server lưu duy nhất
+  `SHA-256("engagement-v1 <loại> <id> view|favorite <ngày|permanent> <token>")`.
+  Không có IP, không user-agent, không định danh cá nhân nào chạm database, nên
+  không phát sinh nghĩa vụ lưu trữ dữ liệu cá nhân của học sinh.
+- **Chống trùng:** mark lượt xem hết hạn sau 2 ngày và được dọn cơ hội (2% số
+  lần ghi) qua `pruneEngagementMarks`; mark yêu thích là vĩnh viễn nên bật/tắt
+  đối xứng tuyệt đối, không bao giờ lệch bộ đếm.
+- **Một câu lệnh cho mỗi thao tác:** driver `neon-http` không có transaction,
+  nên nhận mark và tăng bộ đếm gộp trong một data-modifying CTE
+  (`WITH claimed AS (INSERT ... RETURNING) ... `). Semantics đã kiểm chứng trên
+  PostgreSQL thật bằng PGlite: câu `SELECT` cuối không thấy được bản ghi CTE vừa
+  chèn nên phải `COALESCE(bumped, current, 0)`.
+- **Không mở scope rate limit:** ràng buộc `rate_limit_buckets_scope_check` liệt
+  kê cứng 5 scope và không nới được bằng `ADD COLUMN IF NOT EXISTS`; chống spam
+  đặt hẳn trong `content_engagement_marks` nên không đụng bảng rate limit.
+- **Va chạm id:** điều luật seed tĩnh dùng id 1..N còn điều luật quản lý trong
+  DB được offset `+100_000` ở `app/page.tsx`. Thanh tương tác chỉ hiện cho điều
+  luật quản lý (`managedLawId`) để không đếm nhầm vào record khác.
+- **Hiển thị:** thẻ tình huống có `EngagementStat` (chỉ số liệu), hộp thoại có
+  `EngagementBar` (lượt xem + nút "Nội dung này ý nghĩa" `aria-pressed` + chia
+  sẻ + vùng `role="status"`); CMS hiện "N lượt xem · M thấy ý nghĩa" trên từng
+  thẻ điều luật và tình huống.
+- **Migration:** hai bảng mới `content_engagement`, `content_engagement_marks`
+  thêm vào `pgBootstrapStatements` dạng `CREATE TABLE IF NOT EXISTS`, có CHECK
+  ràng buộc loại/id/bộ đếm và CHECK mark key đúng 64 hex; version gate bump lên
+  `pgSchemaVersion = 2026-09-05-content-engagement-v1` theo DEC-014.
+- `tests/engagement.test.mjs` **12/12 pass**, `tests/share.test.mjs` **6/6
+  pass**, `tests/engagement-ui.test.mjs` **5/5 pass**. Full local suite
+  `node --test tests/*.test.mjs`: **307/307 pass**.
+  `node_modules/.bin/tsc --noEmit`: pass. `yarn lint`: 0 error (1 warning cũ
+  trong `db/seeds/seed-content.v1.mjs`).
+- Chưa verify trên production Neon: cần deploy để version gate tạo hai bảng mới
+  rồi kiểm tra bộ đếm chạy thật.
 
 ### 2026-09-05 — US-032 bug tình huống không hiển thị + media minh họa
 

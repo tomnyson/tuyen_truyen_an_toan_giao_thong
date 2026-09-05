@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { PublicShowcase } from "@/lib/public-showcase";
 import { showcaseMediaPreviewUrl } from "@/lib/showcase-media";
+import { EngagementBar, EngagementStat } from "./EngagementBar";
 
 export type ShowcaseDataState =
   | "loading"
@@ -187,6 +188,11 @@ export function ShowcaseDialog({
             Xem nguồn chính thức <span aria-hidden="true">↗</span>
           </a>
         )}
+        <EngagementBar
+          entityType="showcase"
+          entityId={item.id}
+          title={item.title}
+        />
         <p className="modal-note">
           Nội dung được biên soạn để giáo dục và không thay thế tư vấn pháp lý
           cho vụ việc cụ thể.
@@ -305,6 +311,7 @@ export function ShowcaseGallery({
             )}
             <h3>{item.title}</h3>
             <p className="case-summary">{item.summary}</p>
+            <EngagementStat entityType="showcase" entityId={item.id} />
             <div className="showcase-actions">
               <button
                 aria-haspopup="dialog"

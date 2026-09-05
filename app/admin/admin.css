@@ -68,3 +68,5 @@
   .admin-tabs { overflow-x: auto; }
   .admin-tabs button { white-space: nowrap; }
 }
+
+.admin-engagement { margin: 4px 0 0; font-size: 11px; font-weight: 700; opacity: .62; }

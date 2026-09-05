@@ -1,6 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  engagementCountKey,
+  formatEngagementCount,
+  parseEngagementCounts,
+  toEngagementCountMap,
+  type EngagementCount,
+} from "@/lib/engagement";
 import Link from "next/link";
 import { brandDisplayName, brandMark } from "@/lib/brand";
 
@@ -84,6 +91,9 @@ export default function AdminDashboard() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [engagement, setEngagement] = useState<
+    ReadonlyMap<string, EngagementCount>
+  >(() => new Map());
 
   const loadContent = useCallback(async () => {
     const response = await fetch("/admin/api/content", { cache: "no-store" });
@@ -116,6 +126,27 @@ export default function AdminDashboard() {
       .catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : "Không thể tải dữ liệu."))
       .finally(() => setIsLoading(false));
   }, []);
+
+  // Bộ đếm tương tác công khai (US-033/US-034) cũng hiển thị trong CMS để biên
+  // tập viên biết nội dung nào đang được đọc và được đánh giá là ý nghĩa.
+  useEffect(() => {
+    let active = true;
+    fetch("/api/engagement", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { counts?: unknown } | null) => {
+        const counts = parseEngagementCounts(body?.counts ?? []);
+        if (active && counts) setEngagement(toEngagementCountMap(counts));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function engagementLabel(entityType: EngagementCount["entityType"], id: number) {
+    const count = engagement.get(engagementCountKey(entityType, id));
+    return `${formatEngagementCount(count?.viewCount ?? 0)} lượt xem · ${formatEngagementCount(count?.favoriteCount ?? 0)} thấy ý nghĩa`;
+  }
 
   function resetForm() {
     setEditingId(null);
@@ -235,9 +266,9 @@ export default function AdminDashboard() {
         <section className="admin-list">
           <div className="admin-section-title"><div><p className="admin-kicker">KHO NỘI DUNG</p><h2>{tab === "law" ? `${laws.length} điều luật` : `${showcases.length} tình huống`}</h2></div></div>
           {isLoading ? <p>Đang tải dữ liệu…</p> : tab === "law" ? laws.map((item) => (
-            <article className="admin-item" key={item.id}><div className="admin-item-head"><span className={`admin-status ${item.status}`}>{item.status === "published" ? "Đã xuất bản" : "Bản nháp"}</span><small>{item.topic}</small></div><h3>{item.title}</h3><p>{item.legalBasis}</p><div className="admin-actions"><button onClick={() => editLaw(item)}>Chỉnh sửa</button><button className="danger" onClick={() => void remove("law", item.id)}>Xóa</button></div></article>
+            <article className="admin-item" key={item.id}><div className="admin-item-head"><span className={`admin-status ${item.status}`}>{item.status === "published" ? "Đã xuất bản" : "Bản nháp"}</span><small>{item.topic}</small></div><h3>{item.title}</h3><p className="admin-engagement">{engagementLabel("law", item.id)}</p><p>{item.legalBasis}</p><div className="admin-actions"><button onClick={() => editLaw(item)}>Chỉnh sửa</button><button className="danger" onClick={() => void remove("law", item.id)}>Xóa</button></div></article>
           )) : showcases.map((item) => (
-            <article className="admin-item" key={item.id}><div className="admin-item-head"><span className={`admin-status ${item.status}`}>{item.status === "published" ? "Đã xuất bản" : "Bản nháp"}</span><small>{item.topic}</small></div><h3>{item.title}</h3><p>{item.summary}</p><div className="admin-actions"><button onClick={() => editShowcase(item)}>Chỉnh sửa</button><button className="danger" onClick={() => void remove("showcase", item.id)}>Xóa</button></div></article>
+            <article className="admin-item" key={item.id}><div className="admin-item-head"><span className={`admin-status ${item.status}`}>{item.status === "published" ? "Đã xuất bản" : "Bản nháp"}</span><small>{item.topic}</small></div><h3>{item.title}</h3><p className="admin-engagement">{engagementLabel("showcase", item.id)}</p><p>{item.summary}</p><div className="admin-actions"><button onClick={() => editShowcase(item)}>Chỉnh sửa</button><button className="danger" onClick={() => void remove("showcase", item.id)}>Xóa</button></div></article>
           ))}
           {!isLoading && (tab === "law" ? laws.length === 0 : showcases.length === 0) && <div className="admin-empty"><strong>Chưa có nội dung</strong><p>Hãy dùng biểu mẫu bên trái để tạo mục đầu tiên.</p></div>}
         </section>

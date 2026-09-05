@@ -211,7 +211,37 @@ CREATE TABLE IF NOT EXISTS showcases (
     CHECK (status IN ('draft', 'published'))
 )`;
 
+// Bộ đếm tương tác công khai (US-033 lượt xem, US-034 "Nội dung này ý nghĩa").
+// Bảng đếm không lưu định danh người dùng; bảng mark chỉ lưu hash một chiều.
+const createContentEngagementTable = `
+CREATE TABLE IF NOT EXISTS content_engagement (
+  entity_type text NOT NULL,
+  entity_id integer NOT NULL,
+  view_count integer DEFAULT 0 NOT NULL,
+  favorite_count integer DEFAULT 0 NOT NULL,
+  updated_at text DEFAULT (now())::text NOT NULL,
+  CONSTRAINT content_engagement_pk PRIMARY KEY (entity_type, entity_id),
+  CONSTRAINT content_engagement_entity_type_check
+    CHECK (entity_type IN ('law', 'showcase')),
+  CONSTRAINT content_engagement_entity_id_check
+    CHECK (entity_id > 0),
+  CONSTRAINT content_engagement_counts_check
+    CHECK (view_count >= 0 AND favorite_count >= 0)
+)`;
+
+const createContentEngagementMarksTable = `
+CREATE TABLE IF NOT EXISTS content_engagement_marks (
+  mark_key text PRIMARY KEY,
+  expires_at integer,
+  created_at text DEFAULT (now())::text NOT NULL,
+  CONSTRAINT content_engagement_marks_key_check
+    CHECK (mark_key ~ '^[0-9a-f]{64}$')
+)`;
+
 const indexStatements = [
+  `CREATE INDEX IF NOT EXISTS content_engagement_marks_expires_at_idx
+   ON content_engagement_marks (expires_at)
+   WHERE expires_at IS NOT NULL`,
   `CREATE UNIQUE INDEX IF NOT EXISTS legal_sources_document_number_unique
    ON legal_sources (document_number)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS legal_sources_official_url_unique
@@ -627,7 +657,7 @@ export const pgSchemaVersionTable = "app_schema_version";
 
 // Tăng giá trị này mỗi khi thêm bảng/cột mới, nếu không database đã tồn tại
 // sẽ bỏ qua bootstrap và thiếu schema mới.
-export const pgSchemaVersion = "2026-09-05-showcase-media-v1";
+export const pgSchemaVersion = "2026-09-05-content-engagement-v1";
 
 const createSchemaVersionTable = `
 CREATE TABLE IF NOT EXISTS ${pgSchemaVersionTable} (
@@ -641,6 +671,8 @@ export const pgBootstrapStatements: readonly string[] = [
   createLegalEntriesTable,
   createShowcasesTable,
   createLegalEntryCitationsTable,
+  createContentEngagementTable,
+  createContentEngagementMarksTable,
   ...indexStatements,
   ...triggerStatements,
   ...pgRateLimitStatements,

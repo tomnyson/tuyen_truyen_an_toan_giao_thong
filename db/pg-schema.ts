@@ -83,6 +83,8 @@ export const legalEntries = pgTable("legal_entries", {
   remedy: text("remedy").notNull(),
   caseStudy: text("case_study").notNull(),
   tags: text("tags").notNull().default("[]"),
+  // Ảnh/video minh họa tình huống (US-030); rỗng nghĩa là chưa có media.
+  mediaUrl: text("media_url").notNull().default(""),
   status: text("status", { enum: ["draft", "published"] })
     .notNull()
     .default("draft"),

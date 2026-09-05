@@ -1,6 +1,7 @@
 import { env } from "@/lib/runtime-env";
 import { createNeonD1Database, type NeonD1Database } from "./neon-d1";
 import { normalizeVietnamese } from "./legal-content";
+import { contentTopicNames, type ContentTopic } from "./topics";
 import {
   canonicalOfficialSourceUrl,
   parseOfficialSourceLinks,
@@ -14,11 +15,7 @@ export const WEB_SEARCH_BUDGET_POLICY_VERSION = "web-search-budget-v1";
 export const REVIEWED_WEB_RETRIEVAL_POLICY_VERSION =
   "reviewed-web-candidate-v1";
 
-const topics = new Set([
-  "Giao thông",
-  "Mạng xã hội",
-  "Sở hữu trí tuệ",
-]);
+const topics = new Set<string>(contentTopicNames);
 const staffRoles = new Set(["editor", "reviewer", "admin"]);
 const freshnessDays = 365;
 
@@ -50,7 +47,7 @@ export type ReviewedCandidateCitation = {
 };
 
 export type ReviewedCandidateSnapshot = {
-  topic: "Giao thông" | "Mạng xã hội" | "Sở hữu trí tuệ";
+  topic: ContentTopic;
   title: string;
   answer: string;
   tags: string[];

@@ -3,12 +3,7 @@ import {
   resolveShowcaseMedia,
   type ShowcaseMediaKind,
 } from "@/lib/showcase-media";
-
-const publicShowcaseTopics = new Set([
-  "Giao thông",
-  "Mạng xã hội",
-  "Sở hữu trí tuệ",
-]);
+import { isContentTopic } from "@/lib/topics";
 
 // `sourceUrl` rỗng nghĩa là tình huống chưa gắn nguồn chính thức đã duyệt —
 // thẻ vẫn hiển thị, chỉ không có link "Nguồn chính thức". Trước đây record
@@ -87,7 +82,7 @@ function projectPublicShowcase(value: unknown): PublicShowcase | null {
     !Number.isSafeInteger(value.id) ||
     (value.id as number) <= 0 ||
     !topic ||
-    !publicShowcaseTopics.has(topic) ||
+    !isContentTopic(topic) ||
     !title ||
     !summary
   ) {

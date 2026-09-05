@@ -2318,6 +2318,21 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   bằng migration bổ sung).
 
 
+- **DEC-016:** tra cứu công khai đi theo tình huống đời thực, không theo số điều
+  luật. Bộ lĩnh vực là một registry duy nhất trong `lib/topics.ts` (tên, biểu
+  tượng, từ viết tắt, từ khóa, câu hỏi mẫu); mọi nơi cần danh sách lĩnh vực —
+  trang chủ, CMS, validation API, projector showcase, pipeline web candidate —
+  đều đọc từ đây thay vì khai báo lại. Truy vấn được chuẩn hóa bỏ dấu và mở rộng
+  theo từ viết tắt (ATGT, BLHĐ, ANTT, MXH, SHTT) rồi chấm điểm theo âm tiết;
+  âm tiết ngắn dưới 4 ký tự không được khớp chuỗi con để tránh dương tính giả.
+  Kết quả luôn hiển thị đúng ba phần theo thứ tự: (1) cách xử lý nhanh,
+  (2) cảnh báo nguy cơ/mức phạt, (3) trích dẫn luật để đối chiếu. Khi thiếu dữ
+  liệu, hai phần sau nói rõ "Chưa công bố mức tham khảo" và "Đang kiểm chứng căn
+  cứ hiện hành" — **không bao giờ suy đoán căn cứ hoặc mức phạt**. Ảnh/video
+  minh họa của điều luật dùng lại đúng allowlist DEC-013 và vẫn tách hẳn khỏi
+  nguồn pháp lý DEC-004.
+
+
 ### Điểm còn mở
 
 Các điểm cần product/technical owner chốt trước Sprint 1:

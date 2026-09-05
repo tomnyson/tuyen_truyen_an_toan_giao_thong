@@ -5,10 +5,13 @@ import { hasTrustedOrigin, isAdminRequest } from "@/lib/admin-auth";
 import { hasBlockedLegalBasis } from "@/lib/legal-content";
 import { isExactDec004SourceUrl } from "@/lib/public-showcase";
 import { isSupportedShowcaseMediaUrl } from "@/lib/showcase-media";
+import { isContentTopic } from "@/lib/topics";
 
 type Entity = "law" | "showcase";
-const topics = new Set(["Giao thông", "Mạng xã hội", "Sở hữu trí tuệ"]);
 const statuses = new Set(["draft", "published"]);
+const mediaError =
+  "Ảnh/Video minh họa chỉ nhận link YouTube hoặc ảnh https (.jpg, .png, .webp, .gif, .avif).";
+const requiredError = "Vui lòng nhập đầy đủ và đúng định dạng.";
 
 function text(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
@@ -22,38 +25,60 @@ function parseId(value: unknown) {
 function normalizeCommon(body: Record<string, unknown>) {
   const topic = text(body.topic, 80);
   const status = text(body.status, 20);
-  if (!topics.has(topic) || !statuses.has(status)) return null;
+  // Bộ lĩnh vực lấy từ `lib/topics.ts` để CMS không lệch với trang công khai.
+  if (!isContentTopic(topic) || !statuses.has(status)) return null;
   return { topic, status: status as "draft" | "published" };
 }
 
-function normalizeLaw(body: Record<string, unknown>) {
+type ContentValidation =
+  | { ok: true; values: Record<string, unknown> }
+  | { ok: false; error: string };
+
+function normalizeLaw(body: Record<string, unknown>): ContentValidation {
   const common = normalizeCommon(body);
   const title = text(body.title, 240);
   const legalBasis = text(body.legalBasis, 500);
   const penalty = text(body.penalty, 500);
   const remedy = text(body.remedy, 1_000);
   const caseStudy = text(body.caseStudy, 2_500);
-  if (!common || !title || !legalBasis || !penalty || !remedy || !caseStudy) return null;
+  const mediaUrl = text(body.mediaUrl, 1_000);
+  if (!common || !title || !legalBasis || !penalty || !remedy || !caseStudy) {
+    return { ok: false, error: requiredError };
+  }
+  // Ảnh/video chỉ minh họa tình huống, dùng chung allowlist với showcase để
+  // không có link lạ nào lọt vào trang công khai (US-030).
+  if (mediaUrl && !isSupportedShowcaseMediaUrl(mediaUrl)) {
+    return { ok: false, error: mediaError };
+  }
   const tags = text(body.tags, 500)
     .split(",")
     .map((tag) => tag.trim().replace(/^#/, ""))
     .filter(Boolean)
     .slice(0, 12);
-  return { ...common, icon: text(body.icon, 8) || "§", title, legalBasis, penalty, remedy, caseStudy, tags: JSON.stringify(tags) };
+  return {
+    ok: true,
+    values: {
+      ...common,
+      icon: text(body.icon, 8) || "§",
+      title,
+      legalBasis,
+      penalty,
+      remedy,
+      caseStudy,
+      mediaUrl,
+      tags: JSON.stringify(tags),
+    },
+  };
 }
 
-type ShowcaseValidation =
-  | { ok: true; values: Record<string, unknown> }
-  | { ok: false; error: string };
-
-function normalizeShowcase(body: Record<string, unknown>): ShowcaseValidation {
+function normalizeShowcase(body: Record<string, unknown>): ContentValidation {
   const common = normalizeCommon(body);
   const title = text(body.title, 240);
   const summary = text(body.summary, 2_500);
   const sourceUrl = text(body.sourceUrl, 1_000);
   const mediaUrl = text(body.mediaUrl, 1_000);
   if (!common || !title || !summary) {
-    return { ok: false, error: "Vui lòng nhập đầy đủ và đúng định dạng." };
+    return { ok: false, error: requiredError };
   }
   // Ô "nguồn chính thức" chỉ nhận cơ quan ban hành theo DEC-004. Link
   // YouTube/ảnh phải nằm ở ô media để không bị trình bày như căn cứ pháp lý.
@@ -65,11 +90,7 @@ function normalizeShowcase(body: Record<string, unknown>): ShowcaseValidation {
     };
   }
   if (mediaUrl && !isSupportedShowcaseMediaUrl(mediaUrl)) {
-    return {
-      ok: false,
-      error:
-        "Ảnh/Video minh họa chỉ nhận link YouTube hoặc ảnh https (.jpg, .png, .webp, .gif, .avif).",
-    };
+    return { ok: false, error: mediaError };
   }
   return { ok: true, values: { ...common, title, summary, sourceUrl, mediaUrl } };
 }
@@ -102,8 +123,11 @@ export async function POST(request: Request) {
   const entity = body?.entity as Entity | undefined;
 
   if (entity === "law") {
-    const values = body && normalizeLaw(body);
-    if (!values) return Response.json({ error: "Vui lòng nhập đầy đủ và đúng định dạng." }, { status: 400 });
+    const parsed = body
+      ? normalizeLaw(body)
+      : ({ ok: false, error: requiredError } as const);
+    if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
+    const values = parsed.values as typeof legalEntries.$inferInsert;
     if (values.status === "published" && hasBlockedLegalBasis(values.legalBasis)) {
       return Response.json(
         { error: "Không thể xuất bản nội dung dùng căn cứ đã hết hiệu lực." },
@@ -117,7 +141,7 @@ export async function POST(request: Request) {
   if (entity === "showcase") {
     const parsed = body
       ? normalizeShowcase(body)
-      : ({ ok: false, error: "Vui lòng nhập đầy đủ và đúng định dạng." } as const);
+      : ({ ok: false, error: requiredError } as const);
     if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
     const db = await getInitializedDb();
     const [item] = await db
@@ -138,8 +162,9 @@ export async function PATCH(request: Request) {
   if (!body || !id) return Response.json({ error: "ID không hợp lệ." }, { status: 400 });
 
   if (entity === "law") {
-    const values = normalizeLaw(body);
-    if (!values) return Response.json({ error: "Vui lòng nhập đầy đủ và đúng định dạng." }, { status: 400 });
+    const parsed = normalizeLaw(body);
+    if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
+    const values = parsed.values as typeof legalEntries.$inferInsert;
     if (values.status === "published" && hasBlockedLegalBasis(values.legalBasis)) {
       return Response.json(
         { error: "Không thể xuất bản nội dung dùng căn cứ đã hết hiệu lực." },

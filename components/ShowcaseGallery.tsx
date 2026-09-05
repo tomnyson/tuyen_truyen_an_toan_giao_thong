@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { PublicShowcase } from "@/lib/public-showcase";
 import { showcaseMediaPreviewUrl } from "@/lib/showcase-media";
+import { ContentMedia } from "./ContentMedia";
 import { EngagementBar, EngagementStat } from "./EngagementBar";
 
 export type ShowcaseDataState =
@@ -99,39 +100,16 @@ export function restoreShowcaseTriggerFocus(
   schedule(() => trigger?.focus());
 }
 
-// Media minh họa: ảnh render bằng <img>, video YouTube bằng iframe
-// no-cookie. URL đã được `resolveShowcaseMedia` chuẩn hóa từ allowlist nên
-// không có chuỗi tùy ý nào lọt vào src.
+// Media minh họa dùng chung với kết quả tra cứu — xem `ContentMedia`.
 export function ShowcaseMedia({ item }: { item: PublicShowcase }) {
-  if (item.mediaKind === "image") {
-    return (
-      <figure className="showcase-media" data-media-kind="image">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={item.mediaUrl}
-          alt={`Ảnh minh họa tình huống: ${item.title}`}
-          loading="lazy"
-          width={960}
-          height={540}
-        />
-      </figure>
-    );
-  }
-  if (item.mediaKind === "youtube") {
-    return (
-      <figure className="showcase-media" data-media-kind="youtube">
-        <iframe
-          src={item.mediaUrl}
-          title={`Video minh họa tình huống: ${item.title}`}
-          loading="lazy"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture"
-        />
-      </figure>
-    );
-  }
-  return null;
+  return (
+    <ContentMedia
+      kind={item.mediaKind}
+      url={item.mediaUrl}
+      imageAlt={`Ảnh minh họa tình huống: ${item.title}`}
+      videoTitle={`Video minh họa tình huống: ${item.title}`}
+    />
+  );
 }
 
 type ShowcaseDialogProps = {

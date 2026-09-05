@@ -10,6 +10,7 @@ import {
 } from "@/lib/engagement";
 import Link from "next/link";
 import { brandDisplayName, brandMark } from "@/lib/brand";
+import { contentTopics } from "@/lib/topics";
 
 type Status = "draft" | "published";
 type Entity = "law" | "showcase" | "candidate";
@@ -23,6 +24,7 @@ type LawRow = {
   remedy: string;
   caseStudy: string;
   tags: string;
+  mediaUrl: string;
   status: Status;
   updatedAt: string;
 };
@@ -78,7 +80,7 @@ type CandidateRow = {
   }>;
 };
 
-const emptyLaw = { topic: "Giao thông", icon: "§", title: "", legalBasis: "", penalty: "", remedy: "", caseStudy: "", tags: "", status: "draft" as Status };
+const emptyLaw = { topic: "Giao thông", icon: "§", title: "", legalBasis: "", penalty: "", remedy: "", caseStudy: "", tags: "", mediaUrl: "", status: "draft" as Status };
 const emptyShowcase = { topic: "Mạng xã hội", title: "", summary: "", sourceUrl: "", mediaUrl: "", status: "draft" as Status };
 
 export default function AdminDashboard() {
@@ -193,7 +195,11 @@ export default function AdminDashboard() {
   function editLaw(item: LawRow) {
     setTab("law");
     setEditingId(item.id);
-    setLawForm({ ...item, tags: JSON.parse(item.tags || "[]").join(", ") });
+    setLawForm({
+      ...item,
+      tags: JSON.parse(item.tags || "[]").join(", "),
+      mediaUrl: item.mediaUrl ?? "",
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -238,7 +244,7 @@ export default function AdminDashboard() {
         <form className="admin-editor" onSubmit={save}>
           <div className="admin-section-title"><div><p className="admin-kicker">{editingId ? "CHỈNH SỬA" : "THÊM MỚI"}</p><h2>{tab === "law" ? "Nội dung pháp luật" : "Tình huống cảnh báo"}</h2></div>{editingId && <button type="button" className="admin-link-button" onClick={resetForm}>Hủy sửa</button>}</div>
           <div className="admin-form-grid">
-            <label>Lĩnh vực<select value={tab === "law" ? lawForm.topic : showcaseForm.topic} onChange={(event) => tab === "law" ? setLawForm({ ...lawForm, topic: event.target.value }) : setShowcaseForm({ ...showcaseForm, topic: event.target.value })}><option>Giao thông</option><option>Mạng xã hội</option><option>Sở hữu trí tuệ</option></select></label>
+            <label>Lĩnh vực<select value={tab === "law" ? lawForm.topic : showcaseForm.topic} onChange={(event) => tab === "law" ? setLawForm({ ...lawForm, topic: event.target.value }) : setShowcaseForm({ ...showcaseForm, topic: event.target.value })}>{contentTopics.map((item) => (<option key={item.name}>{item.name}</option>))}</select></label>
             <label>Trạng thái<select value={tab === "law" ? lawForm.status : showcaseForm.status} onChange={(event) => tab === "law" ? setLawForm({ ...lawForm, status: event.target.value as Status }) : setShowcaseForm({ ...showcaseForm, status: event.target.value as Status })}><option value="draft">Bản nháp</option><option value="published">Đã xuất bản</option></select></label>
           </div>
           {tab === "law" ? (
@@ -249,6 +255,7 @@ export default function AdminDashboard() {
               <label>Biện pháp khắc phục<textarea value={lawForm.remedy} onChange={(event) => setLawForm({ ...lawForm, remedy: event.target.value })} required /></label>
               <label>Tình huống minh họa<textarea rows={5} value={lawForm.caseStudy} onChange={(event) => setLawForm({ ...lawForm, caseStudy: event.target.value })} required /></label>
               <label>Thẻ — cách nhau bằng dấu phẩy<input placeholder="facebook, tin-sai" value={lawForm.tags} onChange={(event) => setLawForm({ ...lawForm, tags: event.target.value })} /></label>
+              <label>Ảnh/Video minh họa (nếu có)<input type="url" placeholder="https://www.youtube.com/shorts/... hoặc https://.../anh.jpg" value={lawForm.mediaUrl} onChange={(event) => setLawForm({ ...lawForm, mediaUrl: event.target.value })} /><small>Link YouTube hoặc ảnh .jpg/.png/.webp/.gif/.avif.</small></label>
             </>
           ) : (
             <>
@@ -434,7 +441,7 @@ function CandidatePanel() {
             <button type="button" className="admin-link-button" onClick={() => setEditing(null)}>Hủy</button>
           </div>
           <div className="admin-form-grid">
-            <label>Lĩnh vực<select value={draft.topic} onChange={(event) => setDraft({ ...draft, topic: event.target.value })}><option>Giao thông</option><option>Mạng xã hội</option><option>Sở hữu trí tuệ</option></select></label>
+            <label>Lĩnh vực<select value={draft.topic} onChange={(event) => setDraft({ ...draft, topic: event.target.value })}>{contentTopics.map((item) => (<option key={item.name}>{item.name}</option>))}</select></label>
             <label>Tiêu đề<input required value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></label>
           </div>
           <label>Câu trả lời đã biên tập<textarea rows={8} required value={draft.answer} onChange={(event) => setDraft({ ...draft, answer: event.target.value })} /></label>

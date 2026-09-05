@@ -6,8 +6,10 @@ import {
   type ShowcaseDataState,
 } from "@/components/ShowcaseGallery";
 import { SiteQrCode } from "@/components/SiteQrCode";
+import { ContentMedia } from "@/components/ContentMedia";
+import { SituationAnswer } from "@/components/SituationAnswer";
 import { EngagementProvider } from "@/components/EngagementProvider";
-import { EngagementBar } from "@/components/EngagementBar";
+import { EngagementBar, EngagementStat } from "@/components/EngagementBar";
 import {
   brandDisplayName,
   brandMark,
@@ -19,14 +21,14 @@ import {
   parseChatAnswerSections,
   type ChatAnswerSection,
 } from "@/lib/chat-answer-presentation";
+import { laws, sources, type LawItem } from "@/lib/legal-content";
 import {
-  laws,
-  normalizeVietnamese,
-  sources,
-  topics,
-  type LawItem,
+  filterTopics,
+  situationSuggestions,
   type Topic,
-} from "@/lib/legal-content";
+} from "@/lib/topics";
+import { rankBySituation } from "@/lib/situation-search";
+import { resolveShowcaseMedia } from "@/lib/showcase-media";
 import {
   parsePublicShowcases,
   type PublicShowcase,
@@ -70,6 +72,7 @@ type PublishedContent = {
     remedy: string;
     caseStudy: string;
     tags: string;
+    mediaUrl?: string;
     citations?: PublishedCitation[];
   }>;
   showcases?: unknown;
@@ -143,6 +146,7 @@ function HomeContent() {
         setManagedLaws((content.laws ?? []).map((item) => {
           const firstCitation = item.citations?.[0];
           const verified = (item.citations?.length ?? 0) > 0;
+          const media = resolveShowcaseMedia(item.mediaUrl);
           return {
             id: managedLawIdOffset + item.id,
             topic: item.topic,
@@ -153,6 +157,8 @@ function HomeContent() {
             remedy: item.remedy,
             caseStudy: item.caseStudy,
             tags: parseTags(item.tags),
+            mediaUrl: media.embedUrl,
+            mediaKind: media.kind,
             verified,
             citation: firstCitation
               ? {
@@ -184,28 +190,33 @@ function HomeContent() {
 
   const availableLaws = useMemo(() => [...managedLaws, ...laws], [managedLaws]);
 
+  // Xếp hạng theo tình huống: người dùng gõ nguyên câu hỏi đời thực hoặc từ
+  // viết tắt (ATGT, BLHĐ…) đều phải ra kết quả, kết quả khớp nhiều lên trước.
   const filteredLaws = useMemo(() => {
-    const q = normalizeVietnamese(query.trim());
-    return availableLaws.filter((item) => {
-      const matchesTopic = topic === "Tất cả" || item.topic === topic;
-      const haystack = normalizeVietnamese(
-        [item.title, item.legal, item.topic, item.tags.join(" ")].join(" "),
-      );
-      return matchesTopic && (!q || haystack.includes(q));
-    });
+    const byTopic = availableLaws.filter(
+      (item) => topic === "Tất cả" || item.topic === topic,
+    );
+    return rankBySituation(byTopic, query, (item) =>
+      [
+        item.title,
+        item.legal,
+        item.topic,
+        item.remedy,
+        item.caseStudy,
+        item.tags.join(" "),
+      ].join(" "),
+    );
   }, [availableLaws, query, topic]);
 
   // Tình huống cũng phải tìm được bằng ô tra cứu và bộ lọc lĩnh vực — trước
   // đây gallery bỏ qua hoàn toàn `query`/`topic` (bug #4).
   const filteredShowcases = useMemo(() => {
-    const q = normalizeVietnamese(query.trim());
-    return managedShowcases.filter((item) => {
-      const matchesTopic = topic === "Tất cả" || item.topic === topic;
-      const haystack = normalizeVietnamese(
-        [item.title, item.summary, item.topic].join(" "),
-      );
-      return matchesTopic && (!q || haystack.includes(q));
-    });
+    const byTopic = managedShowcases.filter(
+      (item) => topic === "Tất cả" || item.topic === topic,
+    );
+    return rankBySituation(byTopic, query, (item) =>
+      [item.title, item.summary, item.topic].join(" "),
+    );
   }, [managedShowcases, query, topic]);
 
   const visibleShowcaseState: ShowcaseDataState =
@@ -319,14 +330,14 @@ function HomeContent() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && scrollToResults()}
-                placeholder='Thử: “không đội mũ bảo hiểm”'
+                placeholder='Thử: “bị ghép ảnh chế giễu thì làm gì?” hoặc “ATGT”'
               />
               <button onClick={scrollToResults}>Tra cứu</button>
             </div>
           </div>
           <div className="quick-links">
-            <span>Gợi ý:</span>
-            {['mũ bảo hiểm', 'ảnh riêng tư', 'tin sai sự thật'].map((suggestion) => (
+            <span>Tình huống thường gặp:</span>
+            {situationSuggestions(topic).map((suggestion) => (
               <button key={suggestion} onClick={() => { setQuery(suggestion); scrollToResults(); }}>
                 {suggestion}
               </button>
@@ -350,7 +361,7 @@ function HomeContent() {
       </section>
 
       <section className="topic-strip" aria-label="Chọn lĩnh vực">
-        {topics.slice(1).map((item, index) => (
+        {filterTopics.slice(1).map((item, index) => (
           <button
             key={item.name}
             className={topic === item.name ? "topic-card active" : "topic-card"}
@@ -383,7 +394,7 @@ function HomeContent() {
         </div>
 
         <div className="filter-bar" role="group" aria-label="Bộ lọc lĩnh vực">
-          {topics.map((item) => (
+          {filterTopics.map((item) => (
             <button
               key={item.name}
               className={topic === item.name ? "active" : ""}
@@ -395,35 +406,52 @@ function HomeContent() {
         </div>
 
         {filteredLaws.length ? (
-          <div className="law-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Hành vi</th>
-                  <th>Căn cứ pháp lý</th>
-                  <th>Mức phạt tham khảo</th>
-                  <th>Việc nên làm</th>
-                  <th><span className="sr-only">Xem chi tiết</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLaws.map((item) => (
-                  <tr key={item.id}>
-                    <td data-label="Hành vi"><span className="row-icon">{item.icon}</span><strong>{item.title}</strong></td>
-                    <td data-label="Căn cứ pháp lý">{reviewedLegalBasis(item)}</td>
-                    <td data-label="Mức phạt tham khảo"><span className="penalty">{reviewedPenalty(item)}</span></td>
-                    <td data-label="Việc nên làm">{item.remedy}</td>
-                    <td className="row-action"><button className="detail-button" onClick={() => setSelectedLaw(item)} aria-label={`Xem tình huống: ${item.title}`}>→</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="situation-list">
+            {filteredLaws.map((item) => {
+              const engagementId = managedLawId(item.id);
+              return (
+                <article className="situation-card" key={item.id}>
+                  <header>
+                    <span className="row-icon" aria-hidden="true">{item.icon}</span>
+                    <div>
+                      <span className="situation-topic">{item.topic}</span>
+                      <h3>{item.title}</h3>
+                    </div>
+                  </header>
+                  <ContentMedia
+                    kind={item.mediaKind ?? "none"}
+                    url={item.mediaUrl ?? ""}
+                    imageAlt={`Ảnh minh họa tình huống: ${item.title}`}
+                    videoTitle={`Video minh họa tình huống: ${item.title}`}
+                    className="situation-media"
+                  />
+                  <SituationAnswer
+                    remedy={item.remedy}
+                    penalty={reviewedPenalty(item)}
+                    legalBasis={reviewedLegalBasis(item)}
+                    citationUrl={item.citation?.officialUrl}
+                  />
+                  <footer className="situation-actions">
+                    {engagementId !== null && (
+                      <EngagementStat entityType="law" entityId={engagementId} />
+                    )}
+                    <button
+                      className="situation-detail"
+                      onClick={() => setSelectedLaw(item)}
+                      aria-label={`Xem tình huống: ${item.title}`}
+                    >
+                      Xem tình huống minh họa <span aria-hidden="true">→</span>
+                    </button>
+                  </footer>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div className="empty-state">
             <span>⌕</span>
             <h3>Chưa tìm thấy tình huống này</h3>
-            <p>Thử một từ khóa ngắn hơn như “mũ bảo hiểm”, “Facebook” hoặc “ảnh riêng tư”.</p>
+            <p>Thử mô tả ngắn gọn hơn, ví dụ “bị bắt nạt”, “mũ bảo hiểm” hoặc gõ tắt “BLHĐ”, “ATGT”.</p>
             <button onClick={() => { setQuery(""); setTopic("Tất cả"); }}>Xem tất cả</button>
           </div>
         )}
@@ -473,6 +501,12 @@ function HomeContent() {
             <button className="modal-close" onClick={() => setSelectedLaw(null)} aria-label="Đóng">×</button>
             <span className="modal-topic">{selectedLaw.topic}</span>
             <h2 id="modal-title">{selectedLaw.title}</h2>
+            <ContentMedia
+              kind={selectedLaw.mediaKind ?? "none"}
+              url={selectedLaw.mediaUrl ?? ""}
+              imageAlt={`Ảnh minh họa tình huống: ${selectedLaw.title}`}
+              videoTitle={`Video minh họa tình huống: ${selectedLaw.title}`}
+            />
             <div className="modal-facts">
               <div>
                 <span>Căn cứ</span>

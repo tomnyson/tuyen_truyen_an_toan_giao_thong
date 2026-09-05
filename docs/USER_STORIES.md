@@ -1307,7 +1307,7 @@ prompt/evidence/composition; đây chỉ là provider/config evidence. Story gi�
 `lib/legal-chat.ts`, `lib/openai-evidence.ts`;
 `tests/rendered-html.test.mjs` **15/15 pass** (gồm assertion `<title>` mới).
 
-### [ ] US-030 — Tra cứu theo tình huống đời thực với câu trả lời ba phần
+### [x] US-030 — Tra cứu theo tình huống đời thực với câu trả lời ba phần
 
 - **Priority:** P0
 - **Persona:** Học sinh, sinh viên
@@ -1316,12 +1316,30 @@ prompt/evidence/composition; đây chỉ là provider/config evidence. Story gi�
 
 **Acceptance criteria**
 
-- [ ] Tìm kiếm nhận từ khóa và từ viết tắt (ATGT, BLHĐ, ANTT…).
-- [ ] Có gợi ý câu hỏi tình huống mẫu cho từng lĩnh vực.
-- [ ] Kết quả trình bày đúng ba phần theo thứ tự: (1) cách xử lý nhanh,
+- [x] Tìm kiếm nhận từ khóa và từ viết tắt (ATGT, BLHĐ, ANTT…).
+- [x] Có gợi ý câu hỏi tình huống mẫu cho từng lĩnh vực.
+- [x] Kết quả trình bày đúng ba phần theo thứ tự: (1) cách xử lý nhanh,
   (2) cảnh báo nguy cơ/mức phạt ngắn gọn, (3) trích dẫn luật để đối chiếu.
-- [ ] Nội dung có thể kèm ảnh hoặc video minh họa.
-- [ ] Bộ chủ đề mở rộng đủ cho không gian mạng, bạo lực học đường, ATGT và ANTT.
+- [x] Nội dung có thể kèm ảnh hoặc video minh họa.
+- [x] Bộ chủ đề mở rộng đủ cho không gian mạng, bạo lực học đường, ATGT và ANTT.
+
+**Evidence:** `lib/topics.ts` (registry lĩnh vực duy nhất: viết tắt, từ khóa,
+câu hỏi mẫu), `lib/situation-search.ts` (chuẩn hóa bỏ dấu, mở rộng viết tắt,
+chấm điểm và xếp hạng ổn định), `lib/situation-answer.ts` +
+`components/SituationAnswer.tsx` (ba phần cố định thứ tự),
+`components/ContentMedia.tsx` (ảnh/video dùng chung theo allowlist DEC-013),
+`app/page.tsx` (bảng luật thành danh sách thẻ tình huống, gợi ý câu hỏi theo
+lĩnh vực), `app/admin/AdminDashboard.tsx` +
+`app/admin/api/content/route.ts` (lĩnh vực đọc từ registry, ô media cho điều
+luật có allowlist), `lib/legal-content.ts`, `lib/public-showcase.ts`,
+`lib/web-search-candidates.ts`, `db/pg-schema.ts`, `db/pg-bootstrap.ts`
+(`pgSchemaVersion = 2026-09-05-situation-lookup-v1`, `legal_entries.media_url`
+thêm bằng `ADD COLUMN IF NOT EXISTS`); DEC-016 trong `docs/TECHNICAL_SPEC.md`.
+Hai lĩnh vực mới (bạo lực học đường, an ninh trật tự) chỉ ship bước xử lý an
+toàn, giữ "Đang kiểm chứng căn cứ hiện hành"/"Chưa công bố mức tham khảo" cho
+tới khi có căn cứ đã duyệt. `tests/situation-lookup.test.mjs` **11/11 pass**,
+`tests/pg-bootstrap.test.mjs` **8/8 pass**, full suite `yarn test`
+**319/319 pass**, ESLint 0 error.
 
 ### [ ] US-031 — Chatbot ưu tiên tài liệu hệ thống, tra cứu AI là bổ sung
 

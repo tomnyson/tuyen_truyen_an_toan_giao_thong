@@ -1,12 +1,11 @@
-export type Topic =
-  | "Tất cả"
-  | "Giao thông"
-  | "Mạng xã hội"
-  | "Sở hữu trí tuệ";
+import type { ShowcaseMediaKind } from "./showcase-media";
+import type { ContentTopic } from "./topics";
+
+export type { ContentTopic, Topic } from "./topics";
 
 export type LawItem = {
   id: number;
-  topic: Exclude<Topic, "Tất cả">;
+  topic: ContentTopic;
   icon: string;
   title: string;
   legal: string;
@@ -14,6 +13,10 @@ export type LawItem = {
   remedy: string;
   caseStudy: string;
   tags: string[];
+  // Ảnh/video minh họa đã qua allowlist `resolveShowcaseMedia`; media không
+  // bao giờ là căn cứ pháp lý, chỉ để trực quan hóa tình huống (US-030).
+  mediaUrl?: string;
+  mediaKind?: ShowcaseMediaKind;
   // true khi entry có citation đã duyệt bốn mắt trong D1/Postgres — UI được
   // phép hiển thị trực tiếp legal/penalty do biên tập viên soạn.
   verified?: boolean;
@@ -35,13 +38,6 @@ export type LawItem = {
     conditions: string[];
   };
 };
-
-export const topics: { name: Topic; icon: string; detail: string }[] = [
-  { name: "Tất cả", icon: "⌕", detail: "Mọi chủ đề" },
-  { name: "Giao thông", icon: "◉", detail: "Xe điện & xe máy" },
-  { name: "Mạng xã hội", icon: "@", detail: "Ứng xử trên mạng" },
-  { name: "Sở hữu trí tuệ", icon: "©", detail: "Bản quyền & đạo văn" },
-];
 
 export const laws: LawItem[] = [
   {
@@ -111,6 +107,36 @@ export const laws: LawItem[] = [
     caseStudy:
       "Một ảnh chụp riêng tư bị chuyển tiếp trong nhóm lớp. Dù không phải người chụp, người tiếp tục phát tán vẫn có thể phải chịu trách nhiệm.",
     tags: ["quyenriengtu", "zalo", "baolucmang"],
+  },
+  // Hai entry dưới đây chưa gắn căn cứ đã duyệt: `legal`/`penalty` giữ nguyên
+  // trạng thái "đang kiểm chứng" để UI không trình bày mức xử lý chưa rà soát.
+  // Phần hướng dẫn xử lý là khuyến nghị an toàn, không phải kết luận pháp lý.
+  // Chỉ được nối thêm vào cuối mảng: `lib/legal-chat.ts` destructure theo vị trí.
+  {
+    id: 5,
+    topic: "Bạo lực học đường",
+    icon: "⚠",
+    title: "Bị bắt nạt, đe dọa hoặc chứng kiến bạn bị đánh trong trường",
+    legal: "Đang kiểm chứng căn cứ hiện hành",
+    penalty: "Chưa công bố mức tham khảo",
+    remedy:
+      "Rời khỏi nơi xô xát, không quay clip để đăng lại, lưu bằng chứng (tin nhắn, ảnh) và báo ngay giáo viên chủ nhiệm, phụ huynh hoặc tổng đài bảo vệ trẻ em 111.",
+    caseStudy:
+      "Một nhóm bạn liên tục nhắn tin đe dọa và cô lập một học sinh trong lớp. Việc im lặng khiến sự việc kéo dài; khi báo giáo viên chủ nhiệm kèm ảnh chụp tin nhắn, nhà trường mới có cơ sở xử lý.",
+    tags: ["baoluchocduong", "batnat", "tongdai111"],
+  },
+  {
+    id: 6,
+    topic: "An ninh trật tự",
+    icon: "▣",
+    title: "Bị rủ tụ tập đua xe, gây rối hoặc mang hung khí",
+    legal: "Đang kiểm chứng căn cứ hiện hành",
+    penalty: "Chưa công bố mức tham khảo",
+    remedy:
+      "Từ chối tham gia và rời khỏi nhóm, không giữ hay mang hộ hung khí, báo cho phụ huynh, nhà trường hoặc cơ quan công an gần nhất (113) khi thấy nguy cơ mất an toàn.",
+    caseStudy:
+      "Một học sinh được rủ đi cổ vũ đua xe ban đêm và giữ hộ balo cho bạn. Cả người tham gia lẫn người giúp sức đều có thể phát sinh trách nhiệm, tùy hành vi và tình tiết cụ thể.",
+    tags: ["anninhtrattu", "duaxe", "hungkhi"],
   },
 ];
 

@@ -26,8 +26,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
-| Bản điều chỉnh 2026-09-05 | 5 | 0 | 4 | 0 |
-| **Tổng** | **14** | **18** | **4** | **0** |
+| Bản điều chỉnh 2026-09-05 | 6 | 0 | 3 | 0 |
+| **Tổng** | **15** | **18** | **3** | **0** |
 
 ## Theo dõi theo user story
 
@@ -43,7 +43,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-027 — Allowed-source web fallback | P0 | Partial | Full-stack + PM + Code review | Official-first/reference-second, warning/source UI, no-persist reference và direct-claim guard đã verified: focused 28/28, type/lint/build và live browser pass. Full suite 243/246; 3 failure cũ do migration 0006 và ledger expectations. Còn canonical US-004, production data-control, under-18 disclosure, D1/Logs smoke và rollout review | 2026-07-31 |
 | US-028 — Persist/review/reuse web candidate | P0 | Partial | Full-stack + PM + Code review | D1 immutable draft/source/revision/audit/budget; multi-account stable principal + D1 RBAC; CMS four-eyes/history; published/current retrieval; new revision requires issuedAt while legacy snapshot stays retrievable; focused 5/5, combined 26/26, current full 236/239 (3 migration-ledger failures cũ), type/lint/build pass. Production migration/principal/privacy/Logs/D1 smoke còn mở | 2026-07-31 |
 | US-029 — Đổi tên thành Trợ giúp pháp lý cho HSSV | P1 | Done | Full-stack | `lib/brand.ts` tập trung định danh; header/footer/metadata/admin/prompt dùng chung; rendered 15/15 pass | 2026-09-05 |
-| US-030 — Tra cứu theo tình huống, trả lời ba phần | P0 | Todo | Full-stack + PM | Chưa bắt đầu; cần mở rộng bộ chủ đề và cấu trúc nội dung ba phần | 2026-09-05 |
+| US-030 — Tra cứu theo tình huống, trả lời ba phần | P0 | Done | Full-stack + PM | `lib/topics.ts`, `lib/situation-search.ts`, `lib/situation-answer.ts`, `components/SituationAnswer.tsx`, `components/ContentMedia.tsx`, `app/page.tsx`, `app/admin/AdminDashboard.tsx`, `db/pg-bootstrap.ts` (`pgSchemaVersion = 2026-09-05-situation-lookup-v1`); DEC-016; `tests/situation-lookup.test.mjs` 11/11 pass | 2026-09-05 |
 | US-031 — Chat ưu tiên kho nội bộ, AI là fallback | P0 | Todo | Full-stack | Chưa bắt đầu; xây trên US-006 và DEC-010/DEC-012 | 2026-09-05 |
 | US-032 — Tình huống published hiển thị và tìm kiếm được | P0 | Done | Full-stack | `lib/showcase-media.ts`, `lib/public-showcase.ts`, `components/ShowcaseGallery.tsx`, `app/page.tsx`, `app/admin/api/content/route.ts`, `db/pg-bootstrap.ts`; focused 25/25, full 275/275, tsc + ESLint pass | 2026-09-05 |
 | US-033 — Đếm lượt xem nội dung | P1 | Done | Full-stack | `lib/engagement.ts`, `lib/engagement-store.ts`, `app/api/engagement/route.ts`, `components/EngagementBar.tsx`, `app/admin/AdminDashboard.tsx`; `pgSchemaVersion = 2026-09-05-content-engagement-v1`; `tests/engagement.test.mjs` 12/12 pass | 2026-09-05 |
@@ -842,6 +842,46 @@ này.
 - `tests/qr-code.test.mjs`: **9/9 pass**. `tests/rendered-html.test.mjs`:
   **15/15 pass**. Full local suite: **284/284 pass**. `tsc --noEmit`, ESLint
   (0 error) và `yarn build`: pass.
+
+### 2026-09-05 — US-030 tra cứu theo tình huống, câu trả lời ba phần
+
+- **Vấn đề gốc:** trang chủ bắt người dùng đọc bảng theo "điều luật" và chỉ khớp
+  chuỗi con thô, nên câu hỏi đời thực ("bị bắt nạt thì làm gì?") hoặc từ viết
+  tắt quen thuộc (ATGT, BLHĐ) đều không ra kết quả. Danh sách lĩnh vực còn bị
+  khai báo lại ở bốn chỗ (trang chủ, CMS, validation API, projector showcase) —
+  mỗi lần thêm lĩnh vực là một lần lệch chắc chắn.
+- **Registry lĩnh vực:** `lib/topics.ts` giữ tên, biểu tượng, từ viết tắt, từ
+  khóa và câu hỏi mẫu; mọi consumer runtime đọc từ đây (DEC-016). Bộ lĩnh vực mở
+  rộng từ 3 lên 5 để phủ đủ không gian mạng, bạo lực học đường, ATGT và ANTT.
+  `lib/catalog-resolver.ts` giữ nguyên vì chỉ còn test dùng, không phải app code.
+- **Tìm kiếm:** `lib/situation-search.ts` chuẩn hóa NFD bỏ dấu, đổi đ→d, loại từ
+  đệm, mở rộng viết tắt sang từ khóa lĩnh vực rồi chấm điểm theo âm tiết. Âm tiết
+  ngắn dưới 4 ký tự không khớp chuỗi con, nên "ảnh" không còn dính vào "đánh".
+  Xếp hạng ổn định: cùng điểm thì giữ thứ tự gốc, truy vấn rỗng trả nguyên danh
+  sách.
+- **Ba phần cố định:** `lib/situation-answer.ts` luôn dựng đúng thứ tự xử lý
+  nhanh → nguy cơ/mức phạt → trích dẫn luật, kể cả khi thiếu dữ liệu. Thiếu thì
+  nói thẳng "Chưa công bố mức tham khảo"/"Đang kiểm chứng căn cứ hiện hành"; hai
+  điều luật seed của lĩnh vực mới chỉ có bước xử lý an toàn, không gắn căn cứ
+  chưa duyệt.
+- **Media:** `components/ContentMedia.tsx` dùng chung cho tình huống và điều
+  luật; điều luật có ô "Ảnh/Video minh họa" riêng trong CMS, đi qua đúng
+  allowlist DEC-013 nên không URL tùy ý nào tới được `src`. Media vẫn tách hẳn
+  khỏi nguồn pháp lý DEC-004.
+- **Migration:** `legal_entries.media_url` thêm bằng
+  `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, `pgSchemaVersion` bump lên
+  `2026-09-05-situation-lookup-v1` theo DEC-014.
+- **UI:** bảng luật thành danh sách thẻ tình huống (bỏ hẳn `<table>` và CSS
+  bảng), gợi ý câu hỏi mẫu đổi theo lĩnh vực đang chọn, dải lĩnh vực đổi sang
+  lưới auto-fit để chứa 5 mục.
+- `tests/situation-lookup.test.mjs`: **11/11 pass** (registry, viết tắt từng
+  lĩnh vực, câu hỏi nguyên câu, loại dương tính giả âm tiết ngắn, thứ tự ba
+  phần, fallback không bịa căn cứ, render `SituationAnswer`/`ContentMedia`).
+  `tests/pg-bootstrap.test.mjs`: **8/8 pass** (thêm kiểm tra cột `media_url`).
+  Full suite `yarn test` (gồm `yarn build`): **319/319 pass**. ESLint: 0 error
+  (1 warning cũ trong `db/seeds/seed-content.v1.mjs`).
+- Chưa verify trên production Neon: cần deploy để version gate chạy `ALTER TABLE`
+  thực tế rồi kiểm tra media của điều luật.
 
 ## Cách cập nhật tracker
 

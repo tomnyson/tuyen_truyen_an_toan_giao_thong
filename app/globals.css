@@ -64,7 +64,7 @@ h1 span::after { content: ""; position: absolute; height: 12px; background: var(
 .age-grid span { font-size: 11px; line-height: 1.4; display: block; }
 .hero-card > p { margin: 17px 0 0; font-size: 10px; line-height: 1.5; opacity: .75; }
 
-.topic-strip { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); background: var(--paper); }
+.topic-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); background: var(--paper); }
 .topic-card { min-height: 118px; border: 0; border-right: 2px solid var(--ink); background: transparent; padding: 20px clamp(22px, 4vw, 62px); display: grid; grid-template-columns: 46px 1fr auto; align-items: center; text-align: left; gap: 14px; cursor: pointer; }
 .topic-card:last-child { border-right: 0; }
 .topic-card:hover, .topic-card.active { background: var(--yellow); }
@@ -82,17 +82,31 @@ h1 span::after { content: ""; position: absolute; height: 12px; background: var(
 .filter-bar { display: flex; flex-wrap: wrap; gap: 9px; margin: 37px 0 22px; }
 .filter-bar button { border: 1.5px solid var(--ink); background: transparent; border-radius: 999px; padding: 9px 15px; font-size: 12px; font-weight: 800; cursor: pointer; }
 .filter-bar button.active, .filter-bar button:hover { background: var(--ink); color: white; }
-.law-table-wrap { border: 2px solid var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 7px 7px 0 var(--ink); background: white; }
-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-th { padding: 15px 18px; text-align: left; background: var(--blue); color: white; font-size: 10px; letter-spacing: .7px; text-transform: uppercase; }
-th:first-child { width: 27%; } th:nth-child(2) { width: 22%; } th:nth-child(3) { width: 18%; } th:nth-child(4) { width: 28%; } th:last-child { width: 5%; }
-td { padding: 18px; border-top: 1px solid #d9dce5; vertical-align: middle; font-size: 11px; line-height: 1.45; }
-tbody tr:hover { background: #fff8d7; }
-td:first-child { display: grid; grid-template-columns: 32px 1fr; gap: 10px; align-items: center; font-size: 12px; }
+/* Kết quả tra cứu là thẻ tình huống ba phần (US-030): xử lý nhanh → nguy cơ
+   → trích dẫn luật. Bảng cũ đã bỏ vì không diễn đạt được thứ tự này. */
+.situation-list { display: grid; gap: 18px; }
+.situation-card { border: 2px solid var(--ink); border-radius: 18px; background: white; box-shadow: 7px 7px 0 var(--ink); padding: 20px clamp(18px, 3vw, 26px); }
+.situation-card header { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+.situation-topic { display: block; font-size: 10px; font-weight: 900; letter-spacing: .7px; text-transform: uppercase; color: var(--blue); }
+.situation-card h3 { margin: 4px 0 0; font-size: clamp(16px, 2vw, 20px); line-height: 1.25; letter-spacing: -.4px; }
 .row-icon { width: 31px; height: 31px; border: 1.5px solid var(--ink); background: var(--mint); border-radius: 8px; display: grid; place-items: center; font-weight: 900; }
-.penalty { background: #fff0a7; border-radius: 7px; padding: 5px 7px; font-weight: 900; color: #7e4900; display: inline-block; }
-.detail-button { width: 31px; height: 31px; border: 1.5px solid var(--ink); background: var(--paper); border-radius: 50%; cursor: pointer; font-weight: 900; }
-.detail-button:hover { background: var(--yellow); transform: translateX(2px); }
+.situation-media { margin: 16px 0 0; border: 1.5px solid var(--ink); border-radius: 14px; overflow: hidden; background: var(--paper); }
+.situation-media img, .situation-media iframe { display: block; width: 100%; border: 0; }
+.situation-media img { height: auto; }
+.situation-media[data-media-kind="youtube"] iframe { aspect-ratio: 16 / 9; height: auto; }
+.situation-answer { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 12px; }
+.situation-part { display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: start; border-top: 1px solid #d9dce5; padding-top: 12px; }
+.situation-part:first-child { border-top: 0; padding-top: 0; }
+.situation-step { width: 26px; height: 26px; border: 1.5px solid var(--ink); border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 900; background: var(--mint); }
+.situation-part[data-part="risk"] .situation-step { background: #fff0a7; }
+.situation-part[data-part="citation"] .situation-step { background: var(--paper); }
+.situation-part h4 { margin: 0; font-size: 10px; letter-spacing: .7px; text-transform: uppercase; color: var(--blue); }
+.situation-part p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.55; }
+.situation-part[data-part="risk"] p { font-weight: 800; color: #7e4900; }
+.situation-part a { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 800; }
+.situation-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
+.situation-detail { border: 2px solid var(--ink); background: var(--yellow); border-radius: 10px; padding: 9px 14px; font-size: 12px; font-weight: 800; cursor: pointer; }
+.situation-detail:hover { background: var(--ink); color: white; }
 .empty-state { text-align: center; padding: 70px 24px; border: 2px dashed var(--ink); border-radius: 18px; }
 .empty-state > span { font-size: 50px; }
 .empty-state h3 { font-size: 25px; margin: 10px 0; }
@@ -254,34 +268,11 @@ footer { border-top: 2px solid var(--ink); padding: 34px clamp(24px, 7vw, 110px)
   .cases, .source-section { grid-template-columns: 1fr; }
 }
 
-/* Bảng luật thành thẻ xếp dọc trên màn hình hẹp/tablet — không kéo ngang. */
+/* Thẻ tình huống trên màn hình hẹp: icon và nội dung xếp gọn, không kéo ngang. */
 @media (max-width: 980px) {
-  .law-table-wrap { overflow-x: visible; box-shadow: none; border: 0; background: transparent; border-radius: 0; }
-  table { min-width: 0; display: block; }
-  thead { display: none; }
-  tbody { display: grid; gap: 14px; }
-  tbody tr {
-    display: grid; gap: 0;
-    border: 2px solid var(--ink); border-radius: 16px;
-    background: white; overflow: hidden; box-shadow: 5px 5px 0 var(--ink);
-    position: relative;
-  }
-  tbody tr:hover { background: white; }
-  td { display: block; border-top: 1px solid #e4e6ee; padding: 12px 16px; font-size: 12px; }
-  td::before {
-    content: attr(data-label);
-    display: block; font-size: 9px; font-weight: 900; letter-spacing: .7px;
-    text-transform: uppercase; color: var(--blue); margin-bottom: 4px;
-  }
-  td:first-child {
-    display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center;
-    border-top: 0; background: var(--cream); padding: 14px 52px 14px 16px;
-    font-size: 14px;
-  }
-  td:first-child::before { display: none; }
-  td.row-action { border-top: 0; padding: 0; position: absolute; top: 10px; right: 12px; }
-  td.row-action::before { display: none; }
-  .detail-button { width: 40px; height: 40px; font-size: 16px; }
+  .situation-card { box-shadow: 5px 5px 0 var(--ink); border-radius: 16px; }
+  .situation-actions { justify-content: flex-start; }
+  .situation-detail { width: 100%; }
 }
 
 @media (max-width: 420px) {

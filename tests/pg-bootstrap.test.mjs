@@ -91,6 +91,22 @@ test("bootstrap ap duoc va idempotent", async () => {
   }
 });
 
+test("cot media_url ton tai tren ca dieu luat va tinh huong", async () => {
+  const columns = await db.execute(sql.raw(
+    `SELECT table_name, column_name, is_nullable, column_default
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND column_name = 'media_url'
+     ORDER BY table_name`,
+  ));
+  const byTable = new Map(columns.rows.map((row) => [row.table_name, row]));
+  for (const table of ["legal_entries", "showcases"]) {
+    const column = byTable.get(table);
+    assert.ok(column, `thieu cot media_url tren ${table}`);
+    assert.equal(column.is_nullable, "NO");
+    assert.match(String(column.column_default), /''::text/);
+  }
+});
+
 test("workflow candidate: khong the xoa, chuyen trang thai sai bi chan", async () => {
   await db.execute(sql.raw(`
     INSERT INTO web_search_candidates (

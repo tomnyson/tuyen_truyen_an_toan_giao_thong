@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS legal_entries (
   remedy text NOT NULL,
   case_study text NOT NULL,
   tags text DEFAULT '[]' NOT NULL,
+  media_url text DEFAULT '' NOT NULL,
   status text DEFAULT 'draft' NOT NULL,
   review_status text DEFAULT 'legacy_unverified' NOT NULL,
   created_by text,
@@ -651,13 +652,15 @@ import { pgWorkflowStatements } from "./pg-workflow";
 const pgAdditiveMigrationStatements: readonly string[] = [
   `ALTER TABLE showcases
    ADD COLUMN IF NOT EXISTS media_url text DEFAULT '' NOT NULL`,
+  `ALTER TABLE legal_entries
+   ADD COLUMN IF NOT EXISTS media_url text DEFAULT '' NOT NULL`,
 ];
 
 export const pgSchemaVersionTable = "app_schema_version";
 
 // Tăng giá trị này mỗi khi thêm bảng/cột mới, nếu không database đã tồn tại
 // sẽ bỏ qua bootstrap và thiếu schema mới.
-export const pgSchemaVersion = "2026-09-05-content-engagement-v1";
+export const pgSchemaVersion = "2026-09-05-situation-lookup-v1";
 
 const createSchemaVersionTable = `
 CREATE TABLE IF NOT EXISTS ${pgSchemaVersionTable} (

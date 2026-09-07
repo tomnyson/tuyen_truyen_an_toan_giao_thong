@@ -58,3 +58,58 @@ export function shareOutcomeMessage(outcome: ShareOutcome): string {
   if (outcome === "cancelled") return "";
   return "Trình duyệt không hỗ trợ chia sẻ. Hãy sao chép liên kết trên thanh địa chỉ.";
 }
+
+// Các mạng xã hội phổ biến với người học ở Việt Nam. Mỗi kênh chỉ là một liên
+// kết web-intent nên chạy được cả trên máy tính lẫn điện thoại, không cần SDK.
+export type ShareChannelId = "facebook" | "zalo" | "x" | "telegram" | "email";
+
+export type ShareChannel = Readonly<{
+  id: ShareChannelId;
+  label: string;
+  mark: string;
+  href: string;
+}>;
+
+export function shareChannels(target: ShareTarget): readonly ShareChannel[] {
+  // Không có URL thật thì mọi web-intent đều dẫn về trang trống.
+  if (target.url.length === 0) return Object.freeze([]);
+  const url = encodeURIComponent(target.url);
+  const text = encodeURIComponent(target.text);
+  const subject = encodeURIComponent(target.title);
+  return Object.freeze([
+    Object.freeze({
+      id: "facebook" as const,
+      label: "Facebook",
+      mark: "f",
+      href: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+    }),
+    Object.freeze({
+      id: "zalo" as const,
+      label: "Zalo",
+      mark: "Z",
+      href: `https://sp.zalo.me/plugins/share?url=${url}`,
+    }),
+    Object.freeze({
+      id: "x" as const,
+      label: "X (Twitter)",
+      mark: "X",
+      href: `https://x.com/intent/post?url=${url}&text=${text}`,
+    }),
+    Object.freeze({
+      id: "telegram" as const,
+      label: "Telegram",
+      mark: "✈",
+      href: `https://t.me/share/url?url=${url}&text=${text}`,
+    }),
+    Object.freeze({
+      id: "email" as const,
+      label: "Email",
+      mark: "✉",
+      href: `mailto:?subject=${subject}&body=${text}%0A%0A${url}`,
+    }),
+  ]);
+}
+
+export function shareOpenMessage(label: string): string {
+  return `Đã mở ${label} để đăng nội dung.`;
+}

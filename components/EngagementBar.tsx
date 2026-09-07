@@ -3,17 +3,13 @@
 // Thanh tương tác dưới mỗi nội dung: lượt xem (US-033), nút "Nội dung này ý
 // nghĩa" và nút chia sẻ (US-034).
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { contentShareUrl } from "@/lib/deep-link";
 import {
   formatEngagementCount,
   type EngagementEntityType,
 } from "@/lib/engagement";
-import {
-  buildShareTarget,
-  shareOutcomeMessage,
-  shareTarget,
-  type ShareTarget,
-} from "@/lib/share";
 import { useEngagement } from "./EngagementProvider";
+import { ShareMenu } from "./ShareMenu";
 import { resolveSiteUrl } from "./SiteQrCode";
 
 const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
@@ -76,22 +72,6 @@ export function EngagementBar({
   const count = countOf(entityType, entityId);
   const favorited = isFavorite(entityType, entityId);
 
-  async function share() {
-    const target = buildShareTarget(
-      title,
-      resolveSiteUrl(configuredSiteUrl, origin),
-    );
-    const outcome = await shareTarget(target, {
-      share: navigator.share
-        ? (value: ShareTarget) => navigator.share({ ...value })
-        : undefined,
-      copy: navigator.clipboard
-        ? (value: string) => navigator.clipboard.writeText(value)
-        : undefined,
-    });
-    setStatus(shareOutcomeMessage(outcome));
-  }
-
   return (
     <div className="engagement-bar">
       <span className="engagement-metric" data-engagement="views">
@@ -112,16 +92,14 @@ export function EngagementBar({
           {formatEngagementCount(count.favoriteCount)}
         </span>
       </button>
-      <button
-        type="button"
-        className="engagement-share"
-        onClick={() => {
-          void share();
-        }}
-      >
-        <span aria-hidden="true">↗</span>
-        Chia sẻ
-      </button>
+      <ShareMenu
+        title={title}
+        url={contentShareUrl(resolveSiteUrl(configuredSiteUrl, origin), {
+          type: entityType,
+          id: entityId,
+        })}
+        onStatus={setStatus}
+      />
       <span className="engagement-status" role="status">
         {status}
       </span>

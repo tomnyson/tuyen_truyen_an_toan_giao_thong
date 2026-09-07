@@ -11,6 +11,10 @@ import type { PublicShowcase } from "@/lib/public-showcase";
 import { showcaseMediaPreviewUrl } from "@/lib/showcase-media";
 import { ContentMedia } from "./ContentMedia";
 import { EngagementBar, EngagementStat } from "./EngagementBar";
+import {
+  useSharedContentId,
+  useSharedContentUrl,
+} from "./useSharedContentLink";
 
 export type ShowcaseDataState =
   | "loading"
@@ -193,6 +197,20 @@ export function ShowcaseGallery({
   const dialogRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const sharedId = useSharedContentId("showcase");
+  const sharedAppliedRef = useRef(false);
+
+  useSharedContentUrl("showcase", dialog.selected?.id ?? null);
+
+  // Vào từ liên kết chia sẻ thì mở thẳng tình huống đó ngay khi dữ liệu về,
+  // và chỉ một lần: người dùng đóng lại thì không bị mở đè nữa.
+  useEffect(() => {
+    if (sharedAppliedRef.current || sharedId === null) return;
+    const match = showcases.find((item) => item.id === sharedId);
+    if (!match) return;
+    sharedAppliedRef.current = true;
+    dispatch({ type: "open", item: match });
+  }, [sharedId, showcases]);
 
   const closeDialog = useCallback(() => {
     const trigger = lastTriggerRef.current;

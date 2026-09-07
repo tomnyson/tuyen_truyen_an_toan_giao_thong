@@ -44,6 +44,10 @@ test("thanh tuong tac co nut y nghia va nut chia se", () => {
   assert.match(html, /role="status"/);
   assert.match(html, /class="engagement-favorite"/);
   assert.match(html, /class="engagement-share"/);
+  // Nut chia se la nut mo menu mang xa hoi, chua mo san khi render.
+  assert.match(html, /aria-haspopup="menu"/);
+  assert.match(html, /aria-expanded="false"/);
+  assert.doesNotMatch(html, /facebook\.com/);
 });
 
 test("khong co provider van render duoc voi so 0", () => {

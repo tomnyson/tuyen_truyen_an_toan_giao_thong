@@ -21,7 +21,13 @@ registerHooks({
   },
 });
 
-const { buildShareTarget, shareOutcomeMessage, shareTarget } = await import(
+const {
+  buildShareTarget,
+  shareChannels,
+  shareOpenMessage,
+  shareOutcomeMessage,
+  shareTarget,
+} = await import(
   "../lib/share.ts"
 );
 const { brandName } = await import("../lib/brand.ts");
@@ -108,4 +114,60 @@ test("khong co kenh chia se nao thi bao khong ho tro", async () => {
     "unavailable",
   );
   assert.match(shareOutcomeMessage("unavailable"), /sao chép liên kết/);
+});
+
+test("kenh chia se mang xa hoi mang du URL va noi dung", () => {
+  const target = buildShareTarget("Không đội mũ bảo hiểm", SITE);
+  const channels = shareChannels(target);
+  const byId = Object.fromEntries(channels.map((channel) => [channel.id, channel]));
+
+  assert.deepEqual(
+    channels.map((channel) => channel.id),
+    ["facebook", "zalo", "x", "telegram", "email"],
+  );
+  for (const channel of channels) {
+    assert.ok(channel.label.length > 0, `${channel.id} thieu nhan`);
+  }
+
+  const encodedUrl = encodeURIComponent(SITE);
+  const encodedText = encodeURIComponent(target.text);
+  assert.equal(
+    byId.facebook.href,
+    `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+  );
+  assert.equal(
+    byId.zalo.href,
+    `https://sp.zalo.me/plugins/share?url=${encodedUrl}`,
+  );
+  assert.equal(
+    byId.x.href,
+    `https://x.com/intent/post?url=${encodedUrl}&text=${encodedText}`,
+  );
+  assert.equal(
+    byId.telegram.href,
+    `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+  );
+  assert.match(byId.email.href, /^mailto:\?subject=/);
+  assert.ok(byId.email.href.includes(encodedUrl));
+});
+
+test("khong co URL thi khong dung kenh mang xa hoi nao", () => {
+  assert.deepEqual(shareChannels(buildShareTarget("A", "")), []);
+});
+
+test("ky tu dac biet trong tieu de duoc ma hoa", () => {
+  const target = buildShareTarget("Vượt đèn đỏ & rẽ phải?", SITE);
+  const byId = Object.fromEntries(
+    shareChannels(target).map((channel) => [channel.id, channel]),
+  );
+  assert.ok(!byId.x.href.includes("&text=Vượt"), "text phai duoc encode");
+  assert.equal(
+    new URL(byId.x.href).searchParams.get("text"),
+    target.text,
+    "giai ma lai phai ra dung noi dung",
+  );
+});
+
+test("thong bao khi mo mot mang xa hoi", () => {
+  assert.match(shareOpenMessage("Facebook"), /Facebook/);
 });

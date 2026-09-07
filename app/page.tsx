@@ -12,6 +12,10 @@ import { SituationAnswer } from "@/components/SituationAnswer";
 import { EngagementProvider } from "@/components/EngagementProvider";
 import { EngagementBar, EngagementStat } from "@/components/EngagementBar";
 import {
+  useSharedContentId,
+  useSharedContentUrl,
+} from "@/components/useSharedContentLink";
+import {
   brandDisplayName,
   brandMark,
   brandName,
@@ -125,6 +129,7 @@ function HomeContent() {
   const [managedShowcases, setManagedShowcases] = useState<PublicShowcase[]>([]);
   const [showcaseState, setShowcaseState] =
     useState<ShowcaseDataState>("loading");
+  const sharedLawId = useSharedContentId("law");
 
   useEffect(() => {
     let active = true;
@@ -136,7 +141,7 @@ function HomeContent() {
         const parsedShowcases = parsePublicShowcases(content.showcases);
         if (!parsedShowcases) throw new Error("invalid showcase response");
         if (!active) return;
-        setManagedLaws((content.laws ?? []).map((item) => {
+        const parsedLaws = (content.laws ?? []).map((item) => {
           const firstCitation = item.citations?.[0];
           const verified = (item.citations?.length ?? 0) > 0;
           const media = resolveShowcaseMedia(item.mediaUrl);
@@ -167,7 +172,15 @@ function HomeContent() {
                 }
               : undefined,
           };
-        }));
+        });
+        setManagedLaws(parsedLaws);
+        // Người nhận liên kết chia sẻ được đưa thẳng vào điều luật đó.
+        if (sharedLawId !== null) {
+          const shared = parsedLaws.find(
+            (item) => managedLawId(item.id) === sharedLawId,
+          );
+          if (shared) setSelectedLaw(shared);
+        }
         setManagedShowcases(parsedShowcases);
         setShowcaseState(parsedShowcases.length > 0 ? "ready" : "empty");
       } catch {
@@ -179,9 +192,12 @@ function HomeContent() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [sharedLawId]);
 
   const availableLaws = useMemo(() => [...managedLaws, ...laws], [managedLaws]);
+
+  const selectedLawEngagementId = selectedLaw ? managedLawId(selectedLaw.id) : null;
+  useSharedContentUrl("law", selectedLawEngagementId);
 
   // Xếp hạng theo tình huống: người dùng gõ nguyên câu hỏi đời thực hoặc từ
   // viết tắt (ATGT, BLHĐ…) đều phải ra kết quả, kết quả khớp nhiều lên trước.

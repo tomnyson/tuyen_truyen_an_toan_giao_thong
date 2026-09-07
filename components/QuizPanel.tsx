@@ -69,6 +69,7 @@ export function QuizPanel({ questions, onAnswer, disabled }: QuizPanelProps) {
   return (
     <div className="quiz-panel">
       <div className="game-topics" role="tablist" aria-label="Lĩnh vực câu hỏi">
+        <span aria-hidden="true">Lĩnh vực:</span>
         {topics.map((name) => (
           <button
             key={name}

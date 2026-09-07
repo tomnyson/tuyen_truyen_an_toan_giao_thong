@@ -13,148 +13,230 @@
   flex-wrap: wrap;
 }
 
-/* Viên điểm nâu ở góc phải tiêu đề. */
+/* Viên điểm nâu ở góc phải tiêu đề: sao vàng + nhãn xếp chồng trên số điểm. */
 .game-points {
   display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 12px 24px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 22px 12px 14px;
   border-radius: var(--r-pill);
   background: var(--brown);
-  color: #fff6e6;
+  color: #fff8ec;
+  box-shadow: 0 8px 20px rgba(91, 58, 34, 0.25);
 }
-.game-points span {
-  font-size: 0.6875rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 246, 230, 0.72);
-}
-.game-points strong {
-  font-family: var(--font-display), sans-serif;
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--gold);
-  font-variant-numeric: tabular-nums;
-}
-
-.game-intro { max-width: 62ch; margin-top: 16px; color: var(--ink-soft); }
-
-/* Thang huy hiệu: các mốc nối nhau bằng nét đứt. */
-.game-badges {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  flex-wrap: wrap;
-  margin-top: clamp(24px, 3vw, 36px);
-  padding: 20px clamp(18px, 2.4vw, 30px);
-  background: var(--paper);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-sm);
-}
-.game-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  padding: 10px 18px;
-  border-radius: var(--r-pill);
-  background: var(--cream);
-  color: var(--ink-mute);
-  font-size: 0.875rem;
-  font-weight: 700;
-  transition: background var(--normal) var(--ease), color var(--normal) var(--ease),
-    transform var(--normal) var(--ease);
-}
-.game-badge i {
-  width: 30px;
-  height: 30px;
+.game-points i {
+  width: 36px;
+  height: 36px;
   flex: none;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--sand-deep);
-  color: var(--ink-mute);
+  background: var(--gold);
+  color: var(--brown);
 }
-.game-badge i svg { width: 16px; height: 16px; }
-.game-badge small { font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.75; }
-.game-badge.earned { background: var(--gold-soft); color: var(--ink); transform: translateY(-2px); }
-.game-badge.earned i { background: var(--gold); color: var(--brown); }
+.game-points i svg { width: 20px; height: 20px; }
+.game-points > span { display: grid; gap: 0; }
+.game-points small {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.109em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.game-points strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #fff8ec;
+  font-variant-numeric: tabular-nums;
+}
 
-/* Đường nối giữa hai mốc. */
-.game-badge + .game-badge::before {
-  content: "";
-  width: clamp(14px, 3vw, 44px);
-  height: 0;
-  margin-inline: -4px 12px;
-  border-top: 2px dashed var(--line-strong);
+.game-intro { max-width: 60ch; margin-top: 16px; color: var(--ink-soft); }
+
+/* Thang huy hiệu: thẻ trắng viền mảnh, mỗi bậc một sắc riêng, nối bằng gạch đặc. */
+.game-badges {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: clamp(24px, 3vw, 36px);
+  padding: 20px clamp(18px, 2.1vw, 28px);
+  background: var(--paper);
+  border: 1px solid var(--line-card);
+  border-radius: 24px;
+}
+.game-badges-title { display: grid; gap: 2px; margin-right: 4px; }
+.game-badges-title strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+.game-badges-title small { font-size: 0.8125rem; color: var(--ink-soft); }
+
+.game-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 8px;
+  border-radius: var(--r-pill);
+  transition: transform var(--normal) var(--ease),
+    box-shadow var(--normal) var(--ease);
+}
+.game-badge i {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff8ec;
+}
+.game-badge i svg { width: 18px; height: 18px; }
+.game-badge > span { display: grid; gap: 0; }
+.game-badge strong { font-size: 0.875rem; font-weight: 800; color: var(--ink); }
+.game-badge small {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bốn sắc bậc — lặp lại nếu thang huy hiệu dài hơn bốn mốc. */
+.game-badge[data-rank="1"] { background: var(--mint); }
+.game-badge[data-rank="1"] i { background: var(--green); }
+.game-badge[data-rank="2"] { background: var(--sky-soft); }
+.game-badge[data-rank="2"] i { background: var(--sky); }
+.game-badge[data-rank="3"] { background: var(--gold-soft); }
+.game-badge[data-rank="3"] i { background: var(--gold); color: var(--brown); }
+.game-badge[data-rank="4"] { background: var(--blush); }
+.game-badge[data-rank="4"] i { background: var(--brick); }
+
+/* Mốc đã đạt được nhấn thêm bằng bóng, không đổi sắc bậc. */
+.game-badge.earned { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+
+/* Gạch nối giữa hai mốc. */
+.game-badge-link {
+  width: clamp(16px, 4vw, 68px);
+  height: 4px;
+  flex: none;
+  border-radius: 2px;
+  background: var(--line-card);
 }
 
 .game-next-badge { margin-top: 14px; font-size: 0.9375rem; font-weight: 600; color: var(--brown); }
 
+/* Hàng điều khiển: chế độ bên trái, chip lĩnh vực bên phải, phần còn lại tràn hàng. */
+.game-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 24px;
+  row-gap: clamp(20px, 2.4vw, 26px);
+  margin-top: clamp(24px, 3vw, 34px);
+}
+.game-controls > *,
+.quiz-panel > * { grid-column: 1 / -1; margin-top: 0; }
+.quiz-panel { display: contents; }
+
 /* Bộ chuyển chế độ dạng phân đoạn. */
 .game-modes {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
   display: inline-flex;
   gap: 4px;
-  margin-top: clamp(24px, 3vw, 34px);
-  padding: 5px;
+  padding: 6px;
   border-radius: var(--r-pill);
-  background: var(--sand-deep);
+  background: var(--paper);
+  border: 1px solid var(--line-card);
 }
 .game-mode {
-  padding: 11px 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px 10px 14px;
   border-radius: var(--r-pill);
   font-size: 0.9375rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--ink-soft);
   cursor: pointer;
   transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
 }
+.game-mode svg { width: 18px; height: 18px; flex: none; }
 .game-mode:hover { color: var(--ink); }
-.game-mode.active { background: var(--paper); color: var(--brick); box-shadow: var(--shadow-xs); }
+.game-mode.active { background: var(--brick); color: #fff8ec; }
+.game-mode.active:hover { background: var(--brick-hover); color: #fff8ec; }
 
-.game-topics { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 20px; }
+.game-topics {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .game-topics > span { font-size: 0.875rem; font-weight: 700; color: var(--ink-soft); }
 .game-topic {
-  padding: 9px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 8px 12px;
   border-radius: var(--r-pill);
   background: var(--paper);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-card);
   font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--ink-soft);
+  font-weight: 700;
+  color: var(--ink);
   cursor: pointer;
   transition: background var(--fast) var(--ease), color var(--fast) var(--ease),
-    transform var(--fast) var(--ease);
+    border-color var(--fast) var(--ease), transform var(--fast) var(--ease);
 }
-.game-topic:hover { transform: translateY(-2px); color: var(--ink); }
-.game-topic.active { background: var(--brown); border-color: var(--brown); color: #fff6e6; }
+.game-topic svg { width: 15px; height: 15px; flex: none; }
+.game-topic:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+.game-topic:active { transform: translateY(0); }
+.game-topic.active { background: var(--green); border-color: var(--green); color: #fff8ec; }
+.game-topic.active:hover { background: var(--green-deep); border-color: var(--green-deep); }
 
-/* Thanh tiến độ trả lời. */
+/* Thanh tiến độ — một hàng: câu dẫn, thanh chạy, phần trăm. */
 .game-progress {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
+  gap: 10px 16px;
   margin-top: 26px;
 }
-.game-progress-line { grid-column: 1 / -1; font-size: 0.875rem; font-weight: 600; color: var(--ink-soft); }
+.game-progress-line {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-wrap: pretty;
+}
 .game-progress-track {
-  height: 10px;
+  flex: 1 1 160px;
+  height: 12px;
   border-radius: var(--r-pill);
-  background: var(--sand-deep);
+  background: var(--paper);
+  border: 1px solid var(--line-card);
   overflow: hidden;
 }
 .game-progress-fill {
+  display: block;
   height: 100%;
   border-radius: inherit;
   background: var(--green);
   transition: width var(--normal) var(--ease);
 }
 .game-progress-value {
-  font-family: var(--font-display), sans-serif;
-  font-size: 1.0625rem;
+  flex: none;
+  font-size: 0.9375rem;
   font-weight: 800;
-  color: var(--green-deep);
+  color: var(--green);
   font-variant-numeric: tabular-nums;
 }
 
@@ -403,9 +485,15 @@
 .roleplay-outcome-label strong { font-family: var(--font-display), sans-serif; font-size: 1.0625rem; }
 .roleplay-award { font-weight: 800; color: var(--green-deep); }
 
+@media (max-width: 860px) {
+  .game-controls { grid-template-columns: minmax(0, 1fr); }
+  .game-modes,
+  .game-topics { grid-column: 1; justify-self: stretch; }
+  .game-topics { grid-row: auto; justify-content: flex-start; }
+}
+
 @media (max-width: 720px) {
   .game-badges { gap: 10px; }
-  .game-badge + .game-badge::before { display: none; }
-  .game-modes { width: 100%; }
-  .game-mode { flex: 1; text-align: center; padding-inline: 12px; }
+  .game-badge-link { display: none; }
+  .game-mode { flex: 1; justify-content: center; padding-inline: 12px; }
 }

@@ -187,13 +187,13 @@ a.head-chip:active { transform: translateY(0); }
   border-radius: var(--r-pill);
   background: var(--gold);
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
 }
 .btn-gold:hover { background: var(--gold-deep); transform: translateY(-2px); }
 .btn-gold:active { transform: translateY(1px) scale(0.99); }
-.btn-gold svg { width: 18px; height: 18px; }
+.btn-gold svg { width: 20px; height: 20px; flex: none; }
 
 /* Chip lĩnh vực dùng chung cho thẻ tra cứu, bài viết và nguồn luật. */
 .topic-chip {

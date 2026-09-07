@@ -142,6 +142,14 @@ export const PlayIcon = (p: IconProps) => (
   </Icon>
 );
 
+// Play viền tròn — dùng trên nền đặc (nút CTA) nên chỉ dùng currentColor.
+export const PlayCircleIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9.2" />
+    <path d="m10.2 8.4 5.4 3.6-5.4 3.6z" />
+  </Icon>
+);
+
 export const ClockIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="8.8" />
@@ -211,6 +219,24 @@ export const UsersIcon = (p: IconProps) => (
 export const SparkleIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M12 3.2 13.8 9l5.8 1.8-5.8 1.8L12 18.4l-1.8-5.8L4.4 10.8 10.2 9z" />
+  </Icon>
+);
+
+// Sao đặc — viên điểm tích lũy trong khu rèn luyện.
+export const StarIcon = (p: IconProps) => (
+  <Icon {...p} strokeWidth={1.6}>
+    <path
+      d="m12 3.6 2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85z"
+      fill="currentColor"
+    />
+  </Icon>
+);
+
+// Ổ khóa — huy hiệu chưa mở khóa trên thang cấp độ.
+export const LockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4.6" y="10.4" width="14.8" height="10" rx="2.6" />
+    <path d="M8.2 10.4V7.6a3.8 3.8 0 0 1 7.6 0v2.8" />
   </Icon>
 );
 

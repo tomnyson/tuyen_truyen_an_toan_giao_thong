@@ -17,18 +17,17 @@ import {
   BookIcon,
   ChatIcon,
   CloseIcon,
-  GlobeIcon,
   MailIcon,
   MenuIcon,
   EyeIcon,
   PhoneIcon,
+  PlayCircleIcon,
   ScalesIcon,
   SearchIcon,
   SendIcon,
   ShieldIcon,
   SparkleIcon,
   TopicIcon,
-  UsersIcon,
   TrafficIcon,
   WarningIcon,
 } from "@/components/icons";
@@ -146,6 +145,26 @@ const quickChipIcons = {
   green: PhoneIcon,
   gold: TrafficIcon,
 } as const;
+
+// Ba đầu mối trong băng trợ giúp khẩn — viên vàng hiển thị số máy (hoặc nhãn
+// viết tắt khi đầu mối không phải tổng đài số).
+const helpHotlines = [
+  {
+    code: "111",
+    name: "Tổng đài quốc gia bảo vệ trẻ em",
+    note: "24/7 · Miễn phí",
+  },
+  {
+    code: "113",
+    name: "Công an – tình huống khẩn cấp",
+    note: "24/7 · Miễn phí",
+  },
+  {
+    code: "TGPL",
+    name: `Trung tâm Trợ giúp pháp lý Nhà nước tỉnh ${brandLocality}`,
+    note: "Sở Tư pháp · Tư vấn miễn phí cho HSSV",
+  },
+] as const;
 
 function managedLawId(id: number): number | null {
   return id > managedLawIdOffset ? id - managedLawIdOffset : null;
@@ -659,7 +678,7 @@ function HomeContent() {
                           onClick={() => setSelectedLaw(item)}
                           aria-label={`Xem tình huống minh họa: ${item.title}`}
                         >
-                          Xem tình huống minh họa <ArrowRightIcon />
+                          <PlayCircleIcon /> Xem tình huống minh họa
                         </button>
                       </footer>
                     </article>
@@ -765,9 +784,7 @@ function HomeContent() {
           <section className="help-cta" aria-labelledby="help-title">
             <div className="help-grid">
               <div className="help-copy">
-                <p className="help-kicker">
-                  <PhoneIcon /> Cần giúp ngay
-                </p>
+                <p className="help-kicker">Cần giúp ngay?</p>
                 <h2 id="help-title">Khi tình huống vượt quá sức mình, hãy gọi.</h2>
                 <p>
                   Ba đầu mối dưới đây tiếp nhận miễn phí, hoạt động cả ngoài giờ
@@ -778,34 +795,20 @@ function HomeContent() {
                   className="btn-gold"
                   onClick={() => setChatOpen(true)}
                 >
-                  Hỏi trợ lý trước khi gọi <ChatIcon />
+                  <ChatIcon /> Hỏi trợ lý trước khi gọi
                 </button>
               </div>
               <ul className="hotline-list">
-                <li className="hotline-card">
-                  <i aria-hidden="true"><UsersIcon /></i>
-                  <div>
-                    <strong>111</strong>
-                    <small>Tổng đài quốc gia bảo vệ trẻ em</small>
-                  </div>
-                  <PhoneIcon />
-                </li>
-                <li className="hotline-card">
-                  <i aria-hidden="true"><ShieldIcon /></i>
-                  <div>
-                    <strong>113</strong>
-                    <small>Cảnh sát phản ứng nhanh</small>
-                  </div>
-                  <PhoneIcon />
-                </li>
-                <li className="hotline-card">
-                  <i aria-hidden="true"><GlobeIcon /></i>
-                  <div>
-                    <strong>156</strong>
-                    <small>Báo cuộc gọi, tin nhắn lừa đảo</small>
-                  </div>
-                  <PhoneIcon />
-                </li>
+                {helpHotlines.map((hotline) => (
+                  <li className="hotline-card" key={hotline.code}>
+                    <i aria-hidden="true">{hotline.code}</i>
+                    <div>
+                      <strong>{hotline.name}</strong>
+                      <small>{hotline.note}</small>
+                    </div>
+                    <PhoneIcon aria-hidden="true" />
+                  </li>
+                ))}
               </ul>
             </div>
           </section>

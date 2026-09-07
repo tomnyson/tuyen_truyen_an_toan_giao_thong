@@ -51,9 +51,9 @@
   height: 100%;
   overflow: hidden;
   background: var(--paper);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-  padding: 26px 24px 24px;
+  border: 1px solid var(--line-card);
+  border-radius: 24px;
+  padding: 22px 24px 24px;
   transition: transform var(--normal) var(--ease), box-shadow var(--normal) var(--ease);
 }
 .situation-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
@@ -151,11 +151,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 15px 20px;
+  gap: 8px;
+  padding: 13px 18px;
   border-radius: var(--r-pill);
   background: var(--brick);
   color: #fff8ec;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
   transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
@@ -217,10 +219,10 @@
 
 /* Bộ khung chờ dữ liệu — theo đúng hình dạng thẻ thật. */
 .situation-skeleton {
-  border-radius: var(--r-lg);
+  border-radius: 24px;
   background: var(--paper);
-  padding: 26px 24px;
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--line-card);
+  padding: 22px 24px 24px;
   display: grid;
   gap: 14px;
 }

@@ -28,6 +28,8 @@ const MAX_SECTIONS = CHAT_ANSWER_SECTION_KINDS.length;
 const MAX_PARAGRAPHS_PER_SECTION = 4;
 const MAX_BULLETS_PER_SECTION = 6;
 const MAX_ITEM_LENGTH = 1_200;
+const MAX_FOLLOW_UPS = 3;
+const MAX_FOLLOW_UP_LENGTH = 120;
 
 const headingKinds = new Map<string, ChatAnswerSectionKind>([
   ["kết luận", "summary"],
@@ -296,6 +298,22 @@ export function parseChatAnswerSections(
       CHAT_ANSWER_SECTION_KINDS.indexOf(left.kind) -
       CHAT_ANSWER_SECTION_KINDS.indexOf(right.kind),
   );
+}
+
+// Gợi ý hỏi tiếp do server dựng, nhưng phía client vẫn kiểm lại: chuỗi này được
+// đưa thẳng vào nút bấm và gửi lại làm câu hỏi mới.
+export function parseChatFollowUps(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (entry): entry is string =>
+        typeof entry === "string" &&
+        entry.trim().length > 0 &&
+        entry.trim().length <= MAX_FOLLOW_UP_LENGTH,
+    )
+    .map((entry) => entry.trim())
+    .filter((entry, index, all) => all.indexOf(entry) === index)
+    .slice(0, MAX_FOLLOW_UPS);
 }
 
 export function chatAnswerSectionTitle(kind: ChatAnswerSectionKind) {

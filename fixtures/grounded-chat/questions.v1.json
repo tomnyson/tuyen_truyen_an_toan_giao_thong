@@ -1,0 +1,191 @@
+{
+  "schemaVersion": "grounded-chat-fixture-v1",
+  "fixtureVersion": "grounded-chat-gate-v1",
+  "purpose": "shortlist_gate_regression",
+  "note": "Bộ câu hỏi vàng cho cổng vào nhánh có kiểm chứng. `expectShortlist` là kỳ vọng cổng có mở hay không với kho nội dung hiện hành (lib/legal-content.ts), không phải kỳ vọng về nội dung câu trả lời — phần đó do bốn mắt duyệt chứ không do test khẳng định.",
+  "createdBy": "fixture-editor",
+  "reviewedBy": "fixture-reviewer",
+  "reviewedAt": "2026-09-07T02:00:00Z",
+  "questions": [
+    {
+      "id": "gt-mu-bao-hiem-phat",
+      "topic": "Giao thông",
+      "question": "Đi xe máy điện không đội mũ bảo hiểm bị phạt bao nhiêu?",
+      "expectShortlist": true
+    },
+    {
+      "id": "gt-mu-bao-hiem-cai-quai",
+      "topic": "Giao thông",
+      "question": "Em có đội mũ bảo hiểm nhưng không cài quai thì có bị phạt không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "gt-mu-bao-hiem-cop-xe",
+      "topic": "Giao thông",
+      "question": "Để mũ bảo hiểm trong cốp xe máy điện thì có tính là vi phạm không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "gt-tuoi-xe-50cc",
+      "topic": "Giao thông",
+      "question": "Em 15 tuổi đi xe 50cc được không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "gt-tuoi-chua-du",
+      "topic": "Giao thông",
+      "question": "Chưa đủ tuổi mà điều khiển xe mô tô thì bị xử lý thế nào?",
+      "expectShortlist": true
+    },
+    {
+      "id": "gt-cha-me-giao-xe",
+      "topic": "Giao thông",
+      "question": "Bố mẹ giao xe máy cho con chưa đủ tuổi lái có bị phạt không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "gt-tam-giu-xe",
+      "topic": "Giao thông",
+      "question": "Học sinh vi phạm giao thông có bị tạm giữ xe máy điện không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "gt-xe-dap-dien-den-truong",
+      "topic": "Giao thông",
+      "question": "Đi xe đạp điện đến trường cần lưu ý quy định an toàn giao thông nào?",
+      "expectShortlist": true
+    },
+    {
+      "id": "mxh-tin-sai-su-that",
+      "topic": "Mạng xã hội",
+      "question": "Đăng lại tin sai sự thật lên mạng xã hội có bị phạt không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "mxh-xuc-pham-ban",
+      "topic": "Mạng xã hội",
+      "question": "Bình luận xúc phạm bạn học trên mạng xã hội thì bị xử lý ra sao?",
+      "expectShortlist": true
+    },
+    {
+      "id": "mxh-chia-se-bai-viet",
+      "topic": "Mạng xã hội",
+      "question": "Em chỉ chia sẻ lại bài viết sai sự thật chứ không tự đăng thì sao?",
+      "expectShortlist": true
+    },
+    {
+      "id": "mxh-anh-rieng-tu",
+      "topic": "Mạng xã hội",
+      "question": "Phát tán hình ảnh riêng tư của bạn học lên nhóm chat có phạm luật không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "mxh-ghep-anh-che-gieu",
+      "topic": "Mạng xã hội",
+      "question": "Bị ghép ảnh chế giễu rồi đăng lên Facebook thì em làm gì?",
+      "expectShortlist": true
+    },
+    {
+      "id": "mxh-quay-clip-ban",
+      "topic": "Mạng xã hội",
+      "question": "Quay clip bạn cùng lớp rồi đăng lên mạng xã hội có sao không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "mxh-go-bai-dang",
+      "topic": "Mạng xã hội",
+      "question": "Em muốn yêu cầu gỡ bài đăng có hình ảnh riêng tư của em thì làm thế nào?",
+      "expectShortlist": true
+    },
+    {
+      "id": "blhd-bi-bat-nat",
+      "topic": "Bạo lực học đường",
+      "question": "Bị bắt nạt và đe dọa trong trường thì em báo cho ai?",
+      "expectShortlist": true
+    },
+    {
+      "id": "blhd-chung-kien",
+      "topic": "Bạo lực học đường",
+      "question": "Chứng kiến bạn bị đánh trong trường thì em nên làm gì?",
+      "expectShortlist": true
+    },
+    {
+      "id": "blhd-de-doa-tren-mang",
+      "topic": "Bạo lực học đường",
+      "question": "Bạn cùng lớp nhắn tin đe dọa đánh em thì xử lý ra sao?",
+      "expectShortlist": true
+    },
+    {
+      "id": "blhd-bang-chung",
+      "topic": "Bạo lực học đường",
+      "question": "Em cần giữ lại bằng chứng gì khi bị bạo lực học đường?",
+      "expectShortlist": true
+    },
+    {
+      "id": "blhd-danh-nhau",
+      "topic": "Bạo lực học đường",
+      "question": "Học sinh đánh nhau trong trường thì nhà trường xử lý thế nào?",
+      "expectShortlist": true
+    },
+    {
+      "id": "anninh-dua-xe",
+      "topic": "An ninh trật tự",
+      "question": "Bị bạn rủ đi tụ tập đua xe ban đêm thì có bị xử lý không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "anninh-gay-roi",
+      "topic": "An ninh trật tự",
+      "question": "Gây rối trật tự công cộng ở nơi đông người bị phạt thế nào?",
+      "expectShortlist": true
+    },
+    {
+      "id": "anninh-hung-khi",
+      "topic": "An ninh trật tự",
+      "question": "Mang hung khí theo người đi học có vi phạm pháp luật không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "anninh-co-vu",
+      "topic": "An ninh trật tự",
+      "question": "Chỉ đứng cổ vũ đua xe chứ không cầm lái thì có bị xử lý không?",
+      "expectShortlist": true
+    },
+    {
+      "id": "ngoai-pham-vi-ket-hon",
+      "topic": null,
+      "question": "Thủ tục đăng ký kết hôn với người nước ngoài gồm những gì?",
+      "expectShortlist": false
+    },
+    {
+      "id": "ngoai-pham-vi-thue",
+      "topic": null,
+      "question": "Cách quyết toán thuế thu nhập cá nhân cuối năm thế nào?",
+      "expectShortlist": false
+    },
+    {
+      "id": "ngoai-pham-vi-hop-dong",
+      "topic": null,
+      "question": "Em ký hợp đồng làm thêm cuối tuần có được không?",
+      "expectShortlist": false
+    },
+    {
+      "id": "ngoai-pham-vi-so-do",
+      "topic": null,
+      "question": "Sang tên sổ đỏ cho con cần giấy tờ gì?",
+      "expectShortlist": false
+    },
+    {
+      "id": "ngoai-pham-vi-du-hoc",
+      "topic": null,
+      "question": "Xin visa du học Nhật Bản mất bao lâu?",
+      "expectShortlist": false
+    },
+    {
+      "id": "ngoai-pham-vi-thoi-tiet",
+      "topic": null,
+      "question": "Ngày mai trời có mưa không?",
+      "expectShortlist": false
+    }
+  ]
+}

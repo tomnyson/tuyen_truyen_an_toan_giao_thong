@@ -10,6 +10,10 @@ import {
   projectPublicWebSearchAnswer,
   reviewedCitationsToLegalBasisSection,
 } from "@/lib/chat-answer-presentation";
+import {
+  findGroundedAnswer,
+  GROUNDED_ANSWER_POLICY_VERSION,
+} from "@/lib/grounded-answer";
 import { findCuratedAnswer, findManagedAnswer } from "@/lib/legal-chat";
 import {
   readOpenAiWebSearchConfig,
@@ -73,6 +77,12 @@ function sanitizeMessages(value: unknown): ChatMessage[] {
     }));
 }
 
+// Nhãn phiên bản của telemetry không nhận dấu gạch dưới, nên mã lỗi phải được
+// hạ chữ và đổi sang gạch nối trước khi phát đi, nếu không sẽ bị bỏ lặng.
+function telemetryCode(code: string): string {
+  return code.toLowerCase().replace(/_/g, "-");
+}
+
 function unavailableResponse() {
   return NextResponse.json({
     answer: unavailableAnswer,
@@ -94,6 +104,7 @@ type ChatHandlerDependencies = {
   limiter: () => {
     consumeChat(request: Request): Promise<RateLimitDecision>;
   };
+  groundedAnswer: typeof findGroundedAnswer;
   managedAnswer: typeof findManagedAnswer;
   curatedAnswer: typeof findCuratedAnswer;
   imageIntent: typeof classifyImageIntent;
@@ -114,6 +125,7 @@ export function createChatHandler(
   dependencies: Partial<ChatHandlerDependencies> = {},
 ) {
   const limiterFactory = dependencies.limiter ?? createRuntimeRateLimiter;
+  const groundedAnswer = dependencies.groundedAnswer ?? findGroundedAnswer;
   const managedAnswer = dependencies.managedAnswer ?? findManagedAnswer;
   const curatedAnswer = dependencies.curatedAnswer ?? findCuratedAnswer;
   const imageIntent = dependencies.imageIntent ?? classifyImageIntent;
@@ -134,6 +146,9 @@ export function createChatHandler(
   return async function chat(request: Request) {
     const startedAt = now();
     const requestId = trustedRequestId(request);
+    // Nhánh có kiểm chứng thất bại thì request đi tiếp cascade cũ, nhưng lý do
+    // vẫn phải nhìn thấy được trong telemetry của câu trả lời cuối cùng.
+    let groundedCode: string | undefined;
     const complete = (
       response: Response,
       outcome: TelemetryOutcome,
@@ -146,6 +161,9 @@ export function createChatHandler(
         providerInputTokens?: number;
         providerOutputTokens?: number;
         providerOutcome?: "success" | "timeout" | "error" | "refusal" | "invalid_output";
+        groundedCode?: string;
+        shortlistSize?: number;
+        citedEvidenceCount?: number;
       } = {},
     ) => {
       const result = withRequestId(response, requestId);
@@ -159,6 +177,7 @@ export function createChatHandler(
         durationMs: Math.max(0, now() - startedAt),
         mode,
         policyVersion,
+        groundedCode,
         ...metadata,
       });
       return result;
@@ -227,6 +246,39 @@ export function createChatHandler(
           "unavailable",
           imageDecision.policyVersion,
         );
+      }
+
+      // DEC-019: kho nội bộ đã duyệt bốn mắt được diễn giải lại bằng đúng một
+      // lần gọi mô hình. Câu hỏi bản quyền vẫn đứng ngoài như mọi nhánh khác,
+      // và mọi thất bại đều rơi xuống cascade cũ chứ không làm hỏng câu trả lời.
+      if (imageDecision.intent !== "copyright") {
+        const grounded = await groundedAnswer(messages);
+        if (grounded.ok) {
+          const groundedOrigin: AnswerOrigin = "grounded_library";
+          return complete(
+            NextResponse.json({
+              answer: grounded.answer.answer,
+              sections: grounded.answer.sections,
+              mode: "knowledge" as const,
+              answerOrigin: groundedOrigin,
+              sources: grounded.answer.sources,
+              followUps: grounded.answer.followUps,
+            }),
+            "knowledge",
+            "knowledge",
+            GROUNDED_ANSWER_POLICY_VERSION,
+            {
+              providerModel: grounded.answer.model,
+              providerRequestCount: 1,
+              providerInputTokens: grounded.answer.inputTokens ?? undefined,
+              providerOutputTokens: grounded.answer.outputTokens ?? undefined,
+              providerOutcome: "success",
+              shortlistSize: grounded.answer.shortlistSize,
+              citedEvidenceCount: grounded.answer.citedEvidenceCount,
+            },
+          );
+        }
+        groundedCode = telemetryCode(grounded.code);
       }
 
       // Copyright questions skip legacy weak matching, but may use the

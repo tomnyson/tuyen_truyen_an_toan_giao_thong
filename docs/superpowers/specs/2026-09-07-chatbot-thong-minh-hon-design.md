@@ -137,14 +137,31 @@ một quyết định chỉ cần vài dòng.
 
 ### Shortlist
 
-Ngưỡng hạ xuống `score ≥ 1` và bỏ cổng `routeQuestionToTopic ≥ 4` ở
-nhánh này, vì việc phân biệt liên quan/không liên quan giờ do model làm
-chứ không do ngưỡng điểm đoán. Lấy 8 ứng viên điểm cao nhất, chốt tổng
-độ dài evidence để giữ mốc 3 giây.
+**Đã sửa so với thiết kế ban đầu.** Bản đầu định bỏ hẳn cổng
+`routeQuestionToTopic` và chỉ giữ ngưỡng điểm (`≥ 1` để vào shortlist,
+`≥ 2` để mở nhánh). Bộ câu hỏi vàng bác bỏ cách đó: điểm khớp là túi âm
+tiết nên rất ồn — "Xin visa du học Nhật Bản mất bao lâu?" đạt 4 điểm với
+một điều luật giao thông, "quyết toán thuế" đạt 3, "đăng ký kết hôn" đạt
+2. Ngưỡng nào cũng vừa lọt câu ngoài phạm vi vừa chặn câu trong phạm vi.
 
-Đây là chỗ giải quyết "trả lời được nhiều câu hơn": câu trượt ngưỡng
-hôm nay rơi thẳng xuống *unavailable*, từ giờ vẫn được đưa lên model
-cùng 8 ứng viên.
+Cổng thật là bộ định tuyến lĩnh vực dùng chung của DEC-017, thứ đã được
+hiệu chỉnh đúng cho nhược điểm này (comment trong `knowledge-router.ts`
+nêu đích danh "xin visa du học Nhật"). `routeQuestionToTopic` trả `null`
+thì dừng ngay: không đọc dữ liệu, không gọi model. Có lĩnh vực rồi thì
+chỉ lấy ứng viên thuộc lĩnh vực đó, ngưỡng trong lĩnh vực hạ xuống
+`score ≥ 1` vì phân biệt liên quan/không liên quan giờ là việc của model.
+Lấy 8 ứng viên điểm cao nhất, chốt tổng độ dài evidence để giữ mốc 3 giây.
+
+Đây vẫn là chỗ giải quyết "trả lời được nhiều câu hơn": câu đúng lĩnh vực
+nhưng trượt ngưỡng `findLibraryAnswer` hôm nay rơi thẳng xuống
+*unavailable*, từ giờ vẫn được đưa lên model cùng 8 ứng viên.
+
+Hai từ khoá được thêm vào `lib/topics.ts` để bộ định tuyến bắt được câu
+đời thực ("chưa đủ tuổi điều khiển xe", "xe 50cc" cho Giao thông; "nhắn
+tin đe dọa" cho Bạo lực học đường). Từ khoá dùng chung nên phải chọn hẹp:
+"giấy phép lái xe" và "bạn cùng lớp" từng được thử rồi bỏ vì kéo câu
+"cổ vũ đua xe" sang Giao thông và "quay clip bạn cùng lớp" sang Bạo lực
+học đường.
 
 ## Đa lượt
 
@@ -247,6 +264,7 @@ Hai chỉ số quyết định sau này có cần vector index hay không: tỉ 
 | `tests/chat-context.test.mjs` | Nhận diện câu nối tiếp, ghép câu, chặn độ dài, **không** nhiễm chủ đề khi người dùng đổi đề tài |
 | `tests/evidence-shortlist.test.mjs` | Loại bản ghi thiếu bốn mắt / checksum lệch / hết hiệu lực / quá hạn verify / dấu thời gian không chuẩn hoá được; cắt đúng 8 |
 | `tests/grounded-answer.test.mjs` | Fake `fetch`: composition hợp lệ → sections đúng thứ tự và mọi chữ số truy về DB; từng mã lỗi composer → rơi xuống fallback; flag tắt → không gọi provider |
+| `tests/grounded-chat-golden.test.mjs` | Bộ 30 câu hỏi vàng (`fixtures/grounded-chat/questions.v1.json`): 24 câu trong phạm vi mở được cổng và rơi đúng lĩnh vực, 6 câu ngoài phạm vi không kéo theo lần gọi nào |
 
 Phần thuần của shortlist (chấm điểm, lọc tươi mới, ánh xạ hàng → 
 `EvidenceRecord`, cắt 8) được tách thành hàm thuần để test không cần DB.

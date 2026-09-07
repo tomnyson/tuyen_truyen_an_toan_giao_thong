@@ -52,6 +52,10 @@ export type TelemetryInput = {
   providerRequestCount?: number;
   providerInputTokens?: number;
   providerOutputTokens?: number;
+  // Nhánh trả lời có kiểm chứng: mã kết quả và quy mô evidence mỗi câu hỏi.
+  groundedCode?: string;
+  shortlistSize?: number;
+  citedEvidenceCount?: number;
 };
 
 export type TelemetrySink = (serializedEvent: string) => void;
@@ -223,6 +227,7 @@ export function createTelemetry(dependencies: TelemetryDependencies = {}) {
         ["rankingVersion", boundedVersion(input.rankingVersion)],
         ["freshnessVersion", boundedVersion(input.freshnessVersion)],
         ["providerModel", boundedVersion(input.providerModel)],
+        ["groundedCode", boundedVersion(input.groundedCode)],
       ] as const) {
         if (value !== undefined) event[key] = value;
       }
@@ -244,6 +249,8 @@ export function createTelemetry(dependencies: TelemetryDependencies = {}) {
         ["providerRequestCount", boundedInteger(input.providerRequestCount, 4)],
         ["providerInputTokens", boundedInteger(input.providerInputTokens, 10_000_000)],
         ["providerOutputTokens", boundedInteger(input.providerOutputTokens, 10_000_000)],
+        ["shortlistSize", boundedInteger(input.shortlistSize, 64)],
+        ["citedEvidenceCount", boundedInteger(input.citedEvidenceCount, 64)],
       ] as const) {
         if (value !== undefined) event[key] = value;
       }

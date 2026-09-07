@@ -135,7 +135,10 @@ test("curated fallback ve kho noi bo cho linh vuc moi", () => {
 });
 
 test("nhan nguon tra loi hop le va tu choi gia tri la", () => {
-  assert.deepEqual([...answerOrigins], ["library", "reviewed_web", "live_web"]);
+  assert.deepEqual(
+    [...answerOrigins],
+    ["library", "grounded_library", "reviewed_web", "live_web"],
+  );
   assert.equal(answerOriginCopyOf("library").label, "Kho nội dung của cổng");
   assert.match(answerOriginCopyOf("live_web").detail, /đối chiếu với văn bản gốc/);
   assert.equal(parseAnswerOrigin("library"), "library");

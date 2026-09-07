@@ -2382,6 +2382,42 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
     `game_badges`, `game_progress`, `game_awards` thêm theo DEC-014 với
     `pgSchemaVersion = 2026-09-05-gamification-v1`.
 
+- **DEC-019:** chat có nhánh "kho đã duyệt được viết lại" (`grounded_library`)
+  đứng trước cascade DEC-017. Đây là lần đầu câu hỏi của học sinh rời khỏi hệ
+  thống, nên mọi ràng buộc dưới đây là bắt buộc chứ không phải tuỳ chọn.
+  - *Một lần gọi, một đường dây:* `app/api/chat/route.ts` chỉ chạm tới bộ soạn
+    qua đúng một module `lib/grounded-answer.ts`; mỗi câu hỏi tốn tối đa một lần
+    gọi nhà cung cấp và ngân sách chờ mặc định 2.5 giây
+    (`AI_GROUNDED_TIMEOUT_MS`, kẹp trong 500–10.000ms). Mọi thất bại — hết giờ,
+    JSON sai lược đồ, trích dẫn rỗng — đều rơi xuống cascade cũ, không bao giờ
+    làm hỏng câu trả lời; lý do phát ra telemetry ở trường `groundedCode`.
+  - *Hai ổ khoá:* `AI_REPHRASE_ENABLED` bật thành phần bộ soạn,
+    `AI_GROUNDED_CHAT_ENABLED` bật riêng bề mặt chat. Tắt một cái là quay về
+    hành vi DEC-017 ngay, không cần deploy. Flag tắt thì module không đọc lấy
+    một hàng dữ liệu nào.
+  - *Model không được viết số:* model chỉ chọn evidence và diễn giải; mọi chữ số,
+    mức phạt và căn cứ do server dựng lại từ chính bản ghi đã trích dẫn
+    (DEC-002). Không có evidence nào được trích thì coi như thất bại.
+  - *Cổng dữ liệu:* `lib/evidence-shortlist.ts` là nơi **duy nhất** quyết định
+    dữ liệu nào được đưa cho model. Bản ghi phải qua bốn mắt ở cả điều khoản lẫn
+    nguồn (DEC-003), còn hiệu lực, checksum trích dẫn khớp bản văn, và mốc đối
+    chiếu không quá `CHAT_EVIDENCE_MAX_VERIFY_AGE_DAYS` (mặc định 365 ngày).
+  - *Cổng vào nhánh là bộ định tuyến lĩnh vực, không phải ngưỡng điểm:* điểm
+    khớp âm tiết quá ồn để làm cổng — đo trên `fixtures/grounded-chat/questions.v1.json`,
+    "Xin visa du học Nhật Bản mất bao lâu?" vẫn đạt 4 điểm với một điều luật
+    giao thông. Nhánh dùng lại `routeQuestionToTopic` của DEC-017 (đã hiệu chỉnh
+    đúng cho nhược điểm này), rồi chỉ lấy ứng viên trong lĩnh vực đã định tuyến;
+    trong lĩnh vực đó ngưỡng chỉ còn 1 điểm vì việc phân biệt liên quan hay
+    không đã là việc của model. Câu hỏi bản quyền vẫn đứng ngoài nhánh này như
+    mọi nhánh khác. Bộ câu hỏi vàng 30 câu (24 trong phạm vi, 6 ngoài) khoá tính
+    chất: câu ngoài phạm vi không kéo theo một lần gọi nhà cung cấp nào.
+  - *Đa lượt:* `lib/chat-context.ts` tự suy câu hỏi nối tiếp từ lịch sử ở server,
+    **không tin id nào do client gửi lên**; hợp đồng API không đổi.
+  - *Thiếu dữ liệu thì trả lời kèm điều kiện:* không chặn bằng câu hỏi ngược.
+    Câu trả lời luôn có khối `limitations` và 2–3 gợi ý hỏi tiếp do server soạn;
+    `parseChatFollowUps` kiểm lại ở phía client vì chuỗi đó được gửi lại làm câu
+    hỏi mới.
+
 ### Điểm còn mở
 
 Các điểm cần product/technical owner chốt trước Sprint 1:

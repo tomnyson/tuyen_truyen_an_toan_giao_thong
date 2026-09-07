@@ -39,6 +39,8 @@ export const contentTopics: readonly TopicDefinition[] = Object.freeze([
       "mũ bảo hiểm",
       "vượt đèn đỏ",
       "chở quá số người",
+      "chưa đủ tuổi điều khiển xe",
+      "xe 50cc",
     ],
     situations: [
       "Chưa đủ tuổi mà đi xe máy điện tới trường thì sao?",
@@ -79,6 +81,7 @@ export const contentTopics: readonly TopicDefinition[] = Object.freeze([
       "đánh nhau",
       "cô lập bạn",
       "đe dọa",
+      "nhắn tin đe dọa",
     ],
     situations: [
       "Chứng kiến bạn bị đánh trong trường thì nên làm gì?",

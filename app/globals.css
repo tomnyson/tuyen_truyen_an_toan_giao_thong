@@ -264,6 +264,17 @@ footer { border-top: 2px solid var(--ink); padding: 34px clamp(24px, 7vw, 110px)
 .chat-sources span { font-weight: 800; }
 .chat-sources small { color: #596174; }
 .chat-sources a { width: fit-content; margin-top: 3px; color: #173f9f; font-weight: 800; }
+/* Nhánh diễn giải lại: nhãn nghiêng về xanh dương của kho nội bộ nhưng có viền
+   riêng để phân biệt với câu trả lời trích nguyên văn. */
+.chat-origin[data-origin="grounded_library"] { border-color: rgba(22, 70, 216, .5); color: #173f9f; }
+/* Gợi ý hỏi tiếp: chip bấm được, đặt sau nguồn nên phải tách khỏi khối trên. */
+.chat-follow-ups { margin-top: 13px; padding-top: 11px; border-top: 1px solid rgba(20, 27, 45, .35); white-space: normal; }
+.chat-follow-ups h3 { margin: 0; font-size: 11px; color: #173f9f; letter-spacing: .15px; }
+.chat-follow-ups ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 7px 0 0; padding: 0; list-style: none; }
+.chat-follow-ups button { border: 1.5px solid var(--ink); border-radius: 999px; background: white; padding: 7px 11px; font-size: 10px; font-weight: 700; text-align: left; cursor: pointer; transition: background var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease; }
+.chat-follow-ups button:hover:not(:disabled) { background: var(--yellow); transform: translateY(-1px); }
+.chat-follow-ups button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.chat-follow-ups button:disabled { opacity: .45; cursor: not-allowed; }
 .chat-message.typing { color: #586077; }
 .chat-message.typing span { margin-left: 4px; letter-spacing: 2px; color: var(--blue); }
 .chat-suggestions { display: grid; gap: 6px; }
@@ -313,6 +324,7 @@ footer { border-top: 2px solid var(--ink); padding: 34px clamp(24px, 7vw, 110px)
   .chat-form { grid-template-columns: 1fr 44px; }
   .chat-form button { min-height: 44px; }
   .chat-suggestions button { font-size: 12px; padding: 11px 12px; }
+  .chat-follow-ups button { font-size: 12px; padding: 9px 13px; }
   .site-header { height: 72px; padding: 0 17px; }
   /* Tên "TRỢ GIÚP PHÁP LÝ HSSV" dài hơn tên cũ nên phải cho xuống dòng. */
   .brand { font-size: 11px; max-width: 46vw; line-height: 1.15; }

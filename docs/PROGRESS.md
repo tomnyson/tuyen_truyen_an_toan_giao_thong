@@ -922,6 +922,53 @@ này.
 - Chưa verify trên production Neon: cần deploy để version gate chạy `ALTER TABLE`
   thực tế rồi kiểm tra media của điều luật.
 
+### 2026-09-07 — Chatbot viết lại câu trả lời từ kho đã duyệt (DEC-019)
+
+- **Vấn đề gốc:** kho nội bộ chỉ trả lời được khi câu hỏi khớp gần đúng câu chữ
+  của điều luật. Câu diễn đạt tự do, câu hỏi nối tiếp ("thế còn đi xe đạp điện
+  thì sao?") và câu thiếu vế điều kiện đều rơi thẳng xuống `unavailable`, dù
+  cổng đã có sẵn dữ liệu trả lời được.
+- **Một lần gọi mô hình, một đường dây:** `lib/grounded-answer.ts` là module duy
+  nhất `app/api/chat/route.ts` chạm tới để soạn lại câu trả lời; mỗi câu hỏi tốn
+  tối đa một lần gọi nhà cung cấp, ngân sách chờ mặc định 2.5 giây. Mọi thất bại
+  rơi xuống cascade DEC-017 cũ, lý do phát ra telemetry ở `groundedCode` (mã lỗi
+  được hạ chữ và đổi gạch dưới sang gạch nối, vì `versionPattern` của telemetry
+  không nhận dấu gạch dưới và sẽ bỏ lặng nhãn sai).
+- **Mô hình không được viết số:** mô hình chỉ chọn evidence và diễn giải; mức
+  phạt, chữ số và căn cứ do server dựng lại từ chính bản ghi đã trích dẫn. Không
+  trích được evidence nào thì coi như thất bại (`EMPTY_COMPOSITION`).
+- **Cổng dữ liệu:** `lib/evidence-shortlist.ts` là nơi duy nhất quyết định dữ
+  liệu nào rời khỏi hệ thống — bốn mắt ở cả điều khoản lẫn nguồn, còn hiệu lực,
+  checksum trích dẫn khớp bản văn, mốc đối chiếu trong
+  `CHAT_EVIDENCE_MAX_VERIFY_AGE_DAYS` (mặc định 365 ngày).
+- **Cổng vào nhánh phải sửa sau khi có bộ câu hỏi vàng:** thiết kế ban đầu bỏ
+  `routeQuestionToTopic` và chỉ giữ ngưỡng điểm. Bộ 30 câu bác bỏ cách đó — điểm
+  khớp âm tiết quá ồn: "Xin visa du học Nhật Bản mất bao lâu?" đạt 4 điểm với
+  một điều luật giao thông, "quyết toán thuế" 3 điểm, "đăng ký kết hôn" 2 điểm.
+  Nhánh chuyển sang dùng lại bộ định tuyến lĩnh vực của DEC-017 (đã hiệu chỉnh
+  đúng cho nhược điểm này), rồi chỉ lấy ứng viên trong lĩnh vực đã định tuyến;
+  trong lĩnh vực đó ngưỡng còn 1 điểm. `lib/topics.ts` thêm ba từ khoá hẹp
+  ("chưa đủ tuổi điều khiển xe", "xe 50cc", "nhắn tin đe dọa"); "giấy phép lái
+  xe" và "bạn cùng lớp" từng được thử rồi bỏ vì kéo "cổ vũ đua xe" sang Giao
+  thông và "quay clip bạn cùng lớp" sang Bạo lực học đường.
+- **Đa lượt và thiếu dữ liệu:** `lib/chat-context.ts` tự suy câu hỏi nối tiếp từ
+  lịch sử ở server, không tin id nào do client gửi lên. Thiếu vế điều kiện thì
+  vẫn trả lời kèm khối `limitations` và 2–3 gợi ý hỏi tiếp do server soạn, thay
+  vì chặn bằng câu hỏi ngược; `parseChatFollowUps` kiểm lại ở phía client vì
+  chuỗi đó được gửi lại làm câu hỏi mới.
+- `tests/chat-context.test.mjs` **9/9**, `tests/evidence-shortlist.test.mjs`
+  **10/10**, `tests/grounded-answer.test.mjs` **17/17**,
+  `tests/grounded-chat-golden.test.mjs` **31/31** (24 câu trong phạm vi mở đúng
+  lĩnh vực, 6 câu ngoài phạm vi không kéo theo lần gọi nào). Full suite
+  `node --test tests/*.test.mjs`: **441/442 pass** — câu duy nhất đỏ là
+  `tests/public-showcase.test.mjs` "link YouTube lỡ nhập ở ô nguồn được cứu
+  thành media minh họa", do sửa đổi ngoài phạm vi slice này thêm `youtube.com`
+  vào allowlist nguồn pháp lý DEC-004 trong `lib/public-showcase.ts`; slice này
+  không đụng tới file đó. `tsc --noEmit` sạch, ESLint 0 error mới.
+- Không đổi schema nên không bump `pgSchemaVersion`. Nhánh mặc định **tắt**: cần
+  cả `AI_REPHRASE_ENABLED` lẫn `AI_GROUNDED_CHAT_ENABLED` bật thì mới chạy, nên
+  chưa có số đo production.
+
 ### 2026-09-05 — US-031 chat ưu tiên kho nội bộ, nguồn ngoài là fallback
 
 - **Vấn đề gốc:** chatbot chỉ khớp được nội dung do CMS quản lý bằng bộ so khớp

@@ -2,7 +2,12 @@
 // câu trả lời đến từ kho nội dung đã duyệt của cổng hay từ tra cứu bên ngoài,
 // vì mức độ tin cậy của hai nhánh không giống nhau.
 
-export const answerOrigins = ["library", "reviewed_web", "live_web"] as const;
+export const answerOrigins = [
+  "library",
+  "grounded_library",
+  "reviewed_web",
+  "live_web",
+] as const;
 
 export type AnswerOrigin = (typeof answerOrigins)[number];
 
@@ -15,6 +20,11 @@ const originCopy: Record<AnswerOrigin, AnswerOriginCopy> = {
   library: {
     label: "Kho nội dung của cổng",
     detail: "Trả lời từ nội dung đã xuất bản trên cổng.",
+  },
+  grounded_library: {
+    label: "Kho nội dung của cổng, diễn giải lại",
+    detail:
+      "Nội dung đã duyệt bốn mắt của cổng được diễn giải lại cho dễ hiểu; mức phạt và căn cứ pháp lý giữ nguyên từ dữ liệu gốc.",
   },
   reviewed_web: {
     label: "Nguồn ngoài đã kiểm duyệt",

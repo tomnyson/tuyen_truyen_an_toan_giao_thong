@@ -24,6 +24,7 @@ import {
 import {
   chatAnswerSectionTitle,
   parseChatAnswerSections,
+  parseChatFollowUps,
   type ChatAnswerSection,
 } from "@/lib/chat-answer-presentation";
 import {
@@ -64,6 +65,7 @@ type ChatMessage = {
   sources?: OfficialSourceLink[];
   sourceKind?: PublicSourceKind;
   answerOrigin?: AnswerOrigin;
+  followUps?: string[];
 };
 
 type PublishedCitation = {
@@ -265,6 +267,7 @@ function HomeContent() {
         answerOrigin?: unknown;
         sections?: unknown;
         sources?: unknown;
+        followUps?: unknown;
       };
       const sourceKind: PublicSourceKind =
         data.mode === "web_search" && data.sourceKind === "reference"
@@ -278,6 +281,8 @@ function HomeContent() {
         data.mode === "web_search" || data.mode === "knowledge"
           ? parseChatAnswerSections(data.sections)
           : null;
+      const followUps =
+        data.mode === "knowledge" ? parseChatFollowUps(data.followUps) : [];
       setChatMessages((current) => [
         ...current,
         {
@@ -292,6 +297,7 @@ function HomeContent() {
           sourceKind:
             searchedSources.length > 0 ? sourceKind : undefined,
           answerOrigin: parseAnswerOrigin(data.answerOrigin) ?? undefined,
+          followUps: followUps.length > 0 ? followUps : undefined,
         },
       ]);
     } catch {
@@ -647,6 +653,26 @@ function HomeContent() {
                             >
                               {sourceCopy.openAction}
                             </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {message.followUps && index === chatMessages.length - 1 && (
+                    <div className="chat-follow-ups">
+                      <h3>Bạn có thể hỏi tiếp</h3>
+                      <ul>
+                        {message.followUps.map((followUp) => (
+                          <li key={followUp}>
+                            <button
+                              type="button"
+                              disabled={isChatLoading}
+                              onClick={() =>
+                                void submitChatQuestion(undefined, followUp)
+                              }
+                            >
+                              {followUp}
+                            </button>
                           </li>
                         ))}
                       </ul>

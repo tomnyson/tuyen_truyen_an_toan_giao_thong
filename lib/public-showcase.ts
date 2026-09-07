@@ -60,6 +60,8 @@ export function isExactDec004SourceUrl(value: string) {
       host === "vbpl.vn" ||
       host === "vbpl.moj.gov.vn" ||
       host === "chinhphu.vn" ||
+      host === 'youtube.com' ||
+      host === "www.youtube.com" ||
       host.endsWith(".chinhphu.vn");
     return (
       url.protocol === "https:" &&

@@ -1,0 +1,86 @@
+/* Chân trang nâu bốn cột. */
+
+.site-footer {
+  background: var(--brown);
+  color: rgba(255, 246, 230, 0.78);
+  padding-block: clamp(48px, 5vw, 76px) 0;
+  margin-top: var(--section-y);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
+  gap: clamp(28px, 4vw, 60px);
+}
+
+.footer-brand { display: flex; align-items: center; gap: 12px; }
+.footer-brand .brand-mark { background: var(--gold); color: var(--brown); box-shadow: none; }
+.footer-brand .brand-text strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: 0.017em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.footer-brand .brand-text small {
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--gold);
+}
+.footer-about > p { margin-top: 18px; max-width: 42ch; font-size: 0.9375rem; }
+
+.footer-social { display: flex; gap: 10px; margin-top: 22px; }
+.footer-social a {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 246, 230, 0.12);
+  color: #fff6e6;
+  transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.footer-social a svg { width: 18px; height: 18px; }
+.footer-social a:hover { background: var(--gold); color: var(--brown); transform: translateY(-2px); }
+
+.footer-col h3 {
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--gold);
+  margin-bottom: 16px;
+}
+.footer-col ul { display: grid; gap: 11px; }
+.footer-col a {
+  font-size: 0.9375rem;
+  transition: color var(--fast) var(--ease), padding-left var(--fast) var(--ease);
+}
+.footer-col a:hover { color: #fff6e6; padding-left: 4px; }
+
+.footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: clamp(36px, 4vw, 56px);
+  padding-block: 22px;
+  border-top: 1px solid rgba(255, 246, 230, 0.14);
+  font-size: 0.8125rem;
+}
+.footer-bottom nav { display: flex; gap: 20px; }
+.footer-bottom a:hover { color: #fff6e6; }
+
+@media (max-width: 860px) {
+  .footer-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .footer-about { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .footer-grid { grid-template-columns: minmax(0, 1fr); }
+  .footer-bottom { flex-direction: column; align-items: flex-start; }
+}

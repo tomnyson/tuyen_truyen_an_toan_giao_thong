@@ -8,6 +8,7 @@ import {
   qrSvgMarkup,
   qrSvgPath,
 } from "@/lib/qr-code";
+import { DownloadIcon } from "./icons";
 
 // URL cấu hình sẵn (nếu có) dùng cho bản in đồng nhất giữa các máy; khi không
 // có thì lấy origin thật lúc chạy. Origin chỉ đọc được sau khi mount nên QR
@@ -60,14 +61,14 @@ export function SiteQrCode() {
             aria-label={`Mã QR mở ${siteUrl}`}
           >
             <rect width={qr.extent} height={qr.extent} fill="#ffffff" />
-            <path fill="#18213b" d={qr.path} />
+            <path fill="#2b1d14" d={qr.path} />
           </svg>
         ) : (
           <span className="qr-placeholder" aria-hidden="true" />
         )}
       </div>
       <div className="qr-copy">
-        <h3 id="qr-heading">Quét là tra được ngay</h3>
+        <h3 id="qr-heading">Quét lại để tra cứu ngay</h3>
         <p>
           Dán mã ở bảng tin lớp hoặc phòng đoàn đội để học sinh mở thẳng trang
           tra cứu, không cần gõ địa chỉ.
@@ -78,7 +79,7 @@ export function SiteQrCode() {
             href={qr.downloadUrl}
             download="tro-giup-phap-ly-hssv-qr.svg"
           >
-            Tải mã để in <span aria-hidden="true">↓</span>
+            Tải mã để in <DownloadIcon />
           </a>
         ) : (
           <span className="qr-download is-disabled">Đang tạo mã…</span>

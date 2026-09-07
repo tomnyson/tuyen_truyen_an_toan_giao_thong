@@ -1,0 +1,411 @@
+/* "Thử thách và nhập vai": thang huy hiệu, bộ lọc, thẻ câu hỏi. */
+
+.game-section {
+  background: var(--cream);
+  padding-block: var(--section-y);
+}
+
+.game-head-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+/* Viên điểm nâu ở góc phải tiêu đề. */
+.game-points {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 24px;
+  border-radius: var(--r-pill);
+  background: var(--brown);
+  color: #fff6e6;
+}
+.game-points span {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 246, 230, 0.72);
+}
+.game-points strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-intro { max-width: 62ch; margin-top: 16px; color: var(--ink-soft); }
+
+/* Thang huy hiệu: các mốc nối nhau bằng nét đứt. */
+.game-badges {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  margin-top: clamp(24px, 3vw, 36px);
+  padding: 20px clamp(18px, 2.4vw, 30px);
+  background: var(--paper);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+}
+.game-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 18px;
+  border-radius: var(--r-pill);
+  background: var(--cream);
+  color: var(--ink-mute);
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: background var(--normal) var(--ease), color var(--normal) var(--ease),
+    transform var(--normal) var(--ease);
+}
+.game-badge i {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sand-deep);
+  color: var(--ink-mute);
+}
+.game-badge i svg { width: 16px; height: 16px; }
+.game-badge small { font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.75; }
+.game-badge.earned { background: var(--gold-soft); color: var(--ink); transform: translateY(-2px); }
+.game-badge.earned i { background: var(--gold); color: var(--brown); }
+
+/* Đường nối giữa hai mốc. */
+.game-badge + .game-badge::before {
+  content: "";
+  width: clamp(14px, 3vw, 44px);
+  height: 0;
+  margin-inline: -4px 12px;
+  border-top: 2px dashed var(--line-strong);
+}
+
+.game-next-badge { margin-top: 14px; font-size: 0.9375rem; font-weight: 600; color: var(--brown); }
+
+/* Bộ chuyển chế độ dạng phân đoạn. */
+.game-modes {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: clamp(24px, 3vw, 34px);
+  padding: 5px;
+  border-radius: var(--r-pill);
+  background: var(--sand-deep);
+}
+.game-mode {
+  padding: 11px 24px;
+  border-radius: var(--r-pill);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+.game-mode:hover { color: var(--ink); }
+.game-mode.active { background: var(--paper); color: var(--brick); box-shadow: var(--shadow-xs); }
+
+.game-topics { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 20px; }
+.game-topics > span { font-size: 0.875rem; font-weight: 700; color: var(--ink-soft); }
+.game-topic {
+  padding: 9px 18px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+.game-topic:hover { transform: translateY(-2px); color: var(--ink); }
+.game-topic.active { background: var(--brown); border-color: var(--brown); color: #fff6e6; }
+
+/* Thanh tiến độ trả lời. */
+.game-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 26px;
+}
+.game-progress-line { grid-column: 1 / -1; font-size: 0.875rem; font-weight: 600; color: var(--ink-soft); }
+.game-progress-track {
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--sand-deep);
+  overflow: hidden;
+}
+.game-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  transition: width var(--normal) var(--ease);
+}
+.game-progress-value {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: var(--green-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-pending,
+.game-empty { margin-top: 20px; font-weight: 600; color: var(--ink-soft); }
+.game-error {
+  margin-top: 18px;
+  padding: 14px 18px;
+  border-radius: var(--r-md);
+  background: var(--blush);
+  color: var(--brick-deep);
+  font-weight: 600;
+}
+
+/* ---- Thẻ câu hỏi ---- */
+.quiz-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: clamp(18px, 2vw, 24px);
+  margin-top: clamp(26px, 3vw, 36px);
+  align-items: start;
+}
+.quiz-item {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--paper);
+  border-radius: var(--r-lg);
+  padding: 24px clamp(20px, 2.2vw, 26px);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--normal) var(--ease);
+}
+.quiz-item:hover { box-shadow: var(--shadow-md); }
+
+.quiz-item header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.quiz-number {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brick);
+  color: #fff8ec;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.quiz-award {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--gold-soft);
+  color: #8a6410;
+  font-size: 0.8125rem;
+  font-weight: 800;
+}
+.quiz-award svg { width: 14px; height: 14px; }
+
+.quiz-prompt {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-bottom: 16px;
+  text-wrap: pretty;
+}
+
+.quiz-options { display: grid; gap: 10px; }
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  text-align: left;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+.quiz-option:hover:enabled { border-color: var(--blush-deep); transform: translateX(3px); }
+.quiz-option:active:enabled { transform: translateX(1px) scale(0.995); }
+.quiz-option:disabled { cursor: default; }
+.quiz-option-mark {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+.quiz-option.correct { border-color: var(--green); background: var(--mint); }
+.quiz-option.correct .quiz-option-mark { border-color: var(--green); background: var(--green); color: #fff; }
+.quiz-option.wrong { border-color: var(--brick); background: var(--blush); }
+.quiz-option.wrong .quiz-option-mark { border-color: var(--brick); background: var(--brick); color: #fff8ec; }
+
+/* Khối giải thích màu xanh sau khi trả lời. */
+.quiz-feedback {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: var(--r-md);
+  background: var(--mint);
+  border-left: 4px solid var(--green);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.quiz-feedback.wrong { background: var(--blush); border-left-color: var(--brick); }
+.quiz-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: var(--green-deep);
+}
+.quiz-verdict svg { width: 17px; height: 17px; flex: none; }
+.quiz-feedback.wrong .quiz-verdict { color: var(--brick-deep); }
+.quiz-basis { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 0.875rem; }
+.quiz-basis span {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.quiz-basis a { font-weight: 700; color: var(--brick); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---- Nhập vai ---- */
+.roleplay-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: clamp(18px, 2vw, 24px);
+  margin-top: clamp(26px, 3vw, 36px);
+}
+.roleplay-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  background: var(--paper);
+  border-radius: var(--r-lg);
+  padding: 26px 24px;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--normal) var(--ease), box-shadow var(--normal) var(--ease);
+}
+.roleplay-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.roleplay-card h3, .roleplay-stage h3 { font-size: 1.1875rem; }
+.roleplay-card p, .roleplay-stage p { font-size: 0.9375rem; color: var(--ink-soft); }
+.roleplay-topic {
+  align-self: flex-start;
+  font-size: 0.6875rem !important;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brick) !important;
+}
+.roleplay-card button {
+  margin-top: auto;
+  align-self: flex-start;
+  padding: 12px 22px;
+  border-radius: var(--r-pill);
+  background: var(--brick);
+  color: #fff8ec;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.roleplay-card button:hover { background: var(--brick-hover); transform: translateY(-2px); }
+
+.roleplay-stage {
+  display: grid;
+  gap: 16px;
+  margin-top: clamp(24px, 3vw, 32px);
+  padding: clamp(24px, 3vw, 36px);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow: var(--shadow-md);
+  border-top: 6px solid var(--brown);
+}
+.roleplay-stage[data-outcome="safe"] { border-top-color: var(--green); background: var(--mint); }
+.roleplay-stage[data-outcome="risky"] { border-top-color: var(--gold-deep); background: var(--gold-soft); }
+.roleplay-stage[data-outcome="harmful"] { border-top-color: var(--brick); background: var(--blush); }
+.roleplay-stage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.roleplay-reset {
+  padding: 10px 18px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease);
+}
+.roleplay-reset:hover { background: var(--cream); }
+.roleplay-step-count {
+  font-size: 0.6875rem !important;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute) !important;
+}
+.roleplay-text {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(1.0625rem, 0.95rem + 0.45vw, 1.25rem) !important;
+  font-weight: 700;
+  color: var(--ink) !important;
+  line-height: 1.45 !important;
+}
+.roleplay-choices { display: grid; gap: 11px; }
+.roleplay-choices button {
+  padding: 14px 20px;
+  text-align: left;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.roleplay-choices button:hover { border-color: var(--brick); transform: translateX(3px); }
+.roleplay-outcome { display: grid; gap: 12px; }
+.roleplay-outcome-label { display: grid; gap: 4px; }
+.roleplay-outcome-label strong { font-family: var(--font-display), sans-serif; font-size: 1.0625rem; }
+.roleplay-award { font-weight: 800; color: var(--green-deep); }
+
+@media (max-width: 720px) {
+  .game-badges { gap: 10px; }
+  .game-badge + .game-badge::before { display: none; }
+  .game-modes { width: 100%; }
+  .game-mode { flex: 1; text-align: center; padding-inline: 12px; }
+}

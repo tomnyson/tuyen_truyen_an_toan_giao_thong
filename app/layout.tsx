@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Be_Vietnam_Pro } from "next/font/google";
+import { Baloo_2, Nunito } from "next/font/google";
 import { headers } from "next/headers";
 import {
   brandDescription,
@@ -9,10 +9,19 @@ import {
 } from "@/lib/brand";
 import "./globals.css";
 
-const beVietnam = Be_Vietnam_Pro({
-  variable: "--font-be-vietnam",
+// Chữ nội dung theo bản thiết kế `design/index.html`: Nunito cho toàn bộ phần
+// thân, Baloo 2 cho tiêu đề.
+const nunito = Nunito({
+  variable: "--font-body",
   subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700", "800", "900"],
+  weight: ["400", "600", "700", "800"],
+});
+
+// Chữ tiêu đề bo tròn theo bản thiết kế; Baloo 2 có bộ dấu tiếng Việt đầy đủ.
+const baloo = Baloo_2({
+  variable: "--font-display",
+  subsets: ["latin", "vietnamese"],
+  weight: ["600", "700", "800"],
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,7 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
-      <body className={beVietnam.variable}>{children}</body>
+      <body className={`${nunito.variable} ${baloo.variable}`}>{children}</body>
     </html>
   );
 }

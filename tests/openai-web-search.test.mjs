@@ -299,10 +299,23 @@ test("public answer projector rejects active content and section parser fails cl
 });
 
 test("chat UI keeps warning, structured text and canonical source actions in safe DOM order", async () => {
-  const [pageSource, cssSource] = await Promise.all([
+  const [pageSource, globalsSource] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
+  // globals.css chỉ còn danh sách @import; gom cả các tệp con để guard vẫn soi
+  // đúng toàn bộ CSS đang được nạp.
+  const partials = [...globalsSource.matchAll(/@import\s+"(\.\/[^"]+)"/g)].map(
+    (match) => match[1],
+  );
+  const cssSource = [
+    globalsSource,
+    ...(await Promise.all(
+      partials.map((relative) =>
+        readFile(new URL(`../app/${relative.slice(2)}`, import.meta.url), "utf8"),
+      ),
+    )),
+  ].join("\n");
   const warningIndex = pageSource.indexOf(
     '{message.warning && (',
   );

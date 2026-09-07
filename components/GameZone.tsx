@@ -22,6 +22,7 @@ import { parseRoleplayScenarios, type RoleplayScenario } from "@/lib/roleplay";
 import { ensureClientId } from "./EngagementProvider";
 import { QuizPanel } from "./QuizPanel";
 import { RoleplayPanel } from "./RoleplayPanel";
+import { BoltIcon, MedalIcon } from "./icons";
 
 type Mode = "quiz" | "roleplay";
 
@@ -121,81 +122,107 @@ export function GameZone() {
   const remaining = pointsToNextBadge(progress);
   const ladder = badges.length > 0 ? badges : progress.badges;
 
+  const nextThreshold = progress.nextBadge?.thresholdPoints ?? 0;
+  const badgePercent =
+    nextThreshold > 0
+      ? Math.min(100, Math.round((progress.points / nextThreshold) * 100))
+      : 100;
+
   return (
     <section className="game-section" id="ren-luyen">
-      <div className="section-head">
-        <div>
-          <p className="eyebrow"><span>●</span> RÈN LUYỆN</p>
-          <h2>Thử thách và nhập vai</h2>
+      <div className="shell">
+        <div className="section-head game-head-row">
+          <div>
+            <span className="section-kicker">Rèn luyện</span>
+            <h2>Thử thách và nhập vai</h2>
+            <p className="game-intro">
+              Trả lời đúng để tích điểm, đi hết một kịch bản nhập vai để thấy hậu
+              quả của từng lựa chọn. Điểm gắn với trình duyệt của bạn, không cần
+              đăng ký tài khoản.
+            </p>
+          </div>
+          <p className="game-points" aria-live="polite">
+            <span>Điểm tích lũy</span>
+            <strong>{progress.points}</strong>
+          </p>
         </div>
-        <p className="game-points" aria-live="polite">
-          <span>Điểm tích lũy</span>
-          <strong>{progress.points}</strong>
-        </p>
-      </div>
 
-      <p className="game-intro">
-        Trả lời đúng để tích điểm, đi hết một kịch bản nhập vai để xem hậu quả
-        của từng lựa chọn. Điểm gắn với trình duyệt của bạn, không cần đăng ký
-        tài khoản.
-      </p>
+        <div className="game-badges">
+          {ladder.map((badge) => {
+            const earned = progress.points >= badge.thresholdPoints;
+            return (
+              <span
+                key={badge.code}
+                className={earned ? "game-badge earned" : "game-badge"}
+                title={badge.description}
+              >
+                <i aria-hidden="true">
+                  {earned ? <MedalIcon /> : badge.icon}
+                </i>
+                {badge.name}
+                <small>{badge.thresholdPoints} điểm</small>
+              </span>
+            );
+          })}
+        </div>
 
-      <div className="game-badges">
-        {ladder.map((badge) => {
-          const earned = progress.points >= badge.thresholdPoints;
-          return (
-            <span
-              key={badge.code}
-              className={earned ? "game-badge earned" : "game-badge"}
-              title={badge.description}
+        {progress.nextBadge && (
+          <div className="game-progress">
+            <p className="game-progress-line">
+              Còn {remaining} điểm nữa để đạt huy hiệu{" "}
+              <strong>{progress.nextBadge.name}</strong>.
+            </p>
+            <div
+              className="game-progress-track"
+              role="progressbar"
+              aria-valuenow={badgePercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Tiến độ đến huy hiệu ${progress.nextBadge.name}`}
             >
-              <span aria-hidden="true">{badge.icon}</span>
-              {badge.name}
-              <small>{badge.thresholdPoints} điểm</small>
-            </span>
-          );
-        })}
-      </div>
-      {progress.nextBadge && (
-        <p className="game-next-badge">
-          Còn {remaining} điểm nữa để đạt huy hiệu{" "}
-          <strong>{progress.nextBadge.name}</strong>.
-        </p>
-      )}
+              <span
+                className="game-progress-fill"
+                style={{ width: `${badgePercent}%` }}
+              />
+            </div>
+            <span className="game-progress-value">{badgePercent}%</span>
+          </div>
+        )}
 
-      <div className="game-modes" role="tablist" aria-label="Chế độ rèn luyện">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "quiz"}
-          className={mode === "quiz" ? "game-mode active" : "game-mode"}
-          onClick={() => setMode("quiz")}
-        >
-          Câu hỏi nhanh
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "roleplay"}
-          className={mode === "roleplay" ? "game-mode active" : "game-mode"}
-          onClick={() => setMode("roleplay")}
-        >
-          Nhập vai tình huống
-        </button>
-      </div>
+        <div className="game-modes" role="tablist" aria-label="Chế độ rèn luyện">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "quiz"}
+            className={mode === "quiz" ? "game-mode active" : "game-mode"}
+            onClick={() => setMode("quiz")}
+          >
+            <BoltIcon /> Câu hỏi nhanh
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "roleplay"}
+            className={mode === "roleplay" ? "game-mode active" : "game-mode"}
+            onClick={() => setMode("roleplay")}
+          >
+            <MedalIcon /> Nhập vai tình huống
+          </button>
+        </div>
 
-      {!ready && <p className="game-pending">Đang tải nội dung rèn luyện…</p>}
-      {ready && offline && (
-        <p className="game-error" role="alert">
-          Chưa tải được nội dung rèn luyện. Bạn thử tải lại trang sau ít phút nhé.
-        </p>
-      )}
-      {ready && !offline && mode === "quiz" && (
-        <QuizPanel questions={questions} onAnswer={answer} />
-      )}
-      {ready && !offline && mode === "roleplay" && (
-        <RoleplayPanel scenarios={scenarios} onOutcome={outcome} />
-      )}
+        {!ready && <p className="game-pending">Đang tải nội dung rèn luyện…</p>}
+        {ready && offline && (
+          <p className="game-error" role="alert">
+            Chưa tải được nội dung rèn luyện. Bạn thử tải lại trang sau ít phút nhé.
+          </p>
+        )}
+        {ready && !offline && mode === "quiz" && (
+          <QuizPanel questions={questions} onAnswer={answer} />
+        )}
+        {ready && !offline && mode === "roleplay" && (
+          <RoleplayPanel scenarios={scenarios} onOutcome={outcome} />
+        )}
+      </div>
     </section>
   );
 }

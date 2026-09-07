@@ -1,0 +1,186 @@
+/* "Góc cảnh báo": một bài nổi bật lớn bên trái, hai thẻ phụ xếp dọc bên phải. */
+
+.cases {
+  background: var(--sand);
+  padding-block: var(--section-y);
+}
+.cases .section-kicker { color: var(--brick); }
+
+.case-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: clamp(18px, 2.2vw, 28px);
+  align-items: start;
+}
+
+.case-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--paper);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--normal) var(--ease), box-shadow var(--normal) var(--ease);
+}
+.case-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+
+/* Thẻ đầu tiên chiếm cả cột trái và trải hai hàng. */
+.case-card:first-child { grid-row: span 2; }
+/* Chỉ trải hai hàng khi cột phải thực sự có hai thẻ, tránh khoảng trống lớn. */
+.case-cards:not(:has(.case-card:nth-child(3))) .case-card:first-child { grid-row: auto; }
+
+.case-thumb { position: relative; overflow: hidden; background: var(--sand-deep); }
+.case-thumb img { width: 100%; height: 100%; object-fit: cover; aspect-ratio: 16 / 10; }
+.case-card:first-child .case-thumb img { aspect-ratio: 16 / 9.4; }
+.case-thumb-play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff8ec;
+}
+.case-thumb-play svg {
+  width: 58px;
+  height: 58px;
+  filter: drop-shadow(0 6px 18px rgba(43, 29, 20, 0.45));
+}
+
+/* Nhãn nổi trên ảnh của bài nổi bật. */
+.case-flag {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.case-flag svg { width: 14px; height: 14px; }
+.case-flag.featured { left: 18px; top: 18px; background: var(--gold); color: var(--ink); }
+.case-flag.topic { left: 18px; bottom: 18px; background: var(--paper); color: var(--ink); }
+
+.case-body { display: flex; flex-direction: column; gap: 14px; padding: 24px clamp(20px, 2.2vw, 30px) 22px; flex: 1; }
+.case-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--ink-mute);
+}
+.case-meta svg { width: 15px; height: 15px; }
+.case-card h3 { font-size: clamp(1.25rem, 0.95rem + 0.9vw, 1.75rem); line-height: 1.2; }
+.case-card:not(:first-child) h3 { font-size: 1.25rem; }
+/* Tóm tắt cắt còn vài dòng: thẻ giữ đúng tỷ lệ trong lưới dù bản ghi dài. */
+.case-summary {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+.case-card:first-child .case-summary { font-size: 1rem; -webkit-line-clamp: 4; line-clamp: 4; }
+
+.case-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.case-card:not(:first-child) .case-foot { border-top: 0; padding-top: 6px; }
+
+.showcase-actions { display: inline-flex; align-items: center; gap: 12px; }
+.showcase-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 22px;
+  border-radius: var(--r-pill);
+  background: var(--brick);
+  color: #fff8ec;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.showcase-actions button svg { width: 16px; height: 16px; }
+.showcase-actions button:hover { background: var(--brick-hover); transform: translateY(-2px); }
+.showcase-actions button:active { transform: translateY(1px) scale(0.99); }
+.showcase-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--brick);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.showcase-actions a svg { width: 15px; height: 15px; flex: none; }
+.showcase-actions a:hover { color: var(--brick-deep); }
+
+/* Thẻ nâu đậm: bài trích dẫn điều luật. */
+.case-card.dark { background: var(--brown); color: #fff6e6; }
+.case-card.dark h3 { color: #fff6e6; }
+.case-card.dark .case-summary { color: rgba(255, 246, 230, 0.82); }
+.case-card.dark .case-meta { color: rgba(255, 246, 230, 0.6); }
+.case-card.dark .topic-chip { background: var(--sky); color: #fff; }
+.case-card.dark .case-foot { border-color: rgba(255, 246, 230, 0.16); }
+.case-card.dark .showcase-actions button { background: var(--gold); color: var(--ink); box-shadow: none; }
+.case-card.dark .showcase-actions button:hover { background: var(--gold-deep); }
+.case-card.dark .showcase-actions a { color: var(--gold); }
+.case-card.dark .engagement-metric { color: rgba(255, 246, 230, 0.7); }
+
+/* Trích dẫn nổi bật trong thẻ nâu. */
+.case-quote {
+  border-left: 4px solid var(--gold);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  background: rgba(255, 246, 230, 0.08);
+  padding: 16px 20px;
+}
+.case-quote span {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 7px;
+}
+.case-quote p { font-size: 0.9375rem; color: rgba(255, 246, 230, 0.86); }
+
+/* Thẻ ngang: ảnh trái, nội dung phải. */
+.case-card.split { flex-direction: row; align-items: stretch; }
+.case-card.split .case-thumb { flex: none; width: 38%; }
+.case-card.split .case-thumb img { height: 100%; aspect-ratio: auto; }
+.case-card.split .case-body { padding: 22px 24px; }
+
+/* Trạng thái tải / lỗi. */
+.showcase-state {
+  padding: clamp(36px, 5vw, 56px) 28px;
+  text-align: center;
+  background: var(--paper);
+  border-radius: var(--r-xl);
+  color: var(--ink-soft);
+  box-shadow: var(--shadow-sm);
+}
+.showcase-error { color: var(--brick-deep); background: var(--blush); }
+
+@media (max-width: 900px) {
+  .case-cards { grid-template-columns: minmax(0, 1fr); }
+  .case-card:first-child { grid-row: auto; }
+}
+@media (max-width: 560px) {
+  .case-card.split { flex-direction: column; }
+  .case-card.split .case-thumb { width: 100%; }
+  .case-card.split .case-thumb img { aspect-ratio: 16 / 9; }
+}

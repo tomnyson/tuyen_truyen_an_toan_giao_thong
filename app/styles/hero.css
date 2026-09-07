@@ -1,0 +1,251 @@
+/* Hero: chữ bên trái, ảnh học sinh bo góc bên phải, các đốm màu nền. */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--cream-warm);
+  padding-block: clamp(44px, 5.5vw, 76px) clamp(56px, 6vw, 90px);
+}
+
+/* Đốm nền: bố cục lệch, không đối xứng. */
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.hero::before {
+  width: 420px;
+  height: 420px;
+  left: -190px;
+  bottom: -140px;
+  background: #e6e4ce;
+  opacity: 0.55;
+}
+.hero::after {
+  width: 300px;
+  height: 300px;
+  right: -70px;
+  top: -110px;
+  background: var(--gold-soft);
+  opacity: 0.75;
+}
+
+.hero > .shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 744px) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 72px);
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  border-radius: var(--r-pill);
+  background: var(--mint);
+  color: var(--green);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+.hero-eyebrow svg { width: 18px; height: 18px; flex: none; }
+
+.hero h1 {
+  margin: 22px 0 0;
+  font-size: var(--text-h1);
+  letter-spacing: -0.03em;
+  line-height: 1.06;
+}
+.hero h1 span { color: var(--brick); display: block; }
+
+.hero-lead {
+  margin-top: 22px;
+  max-width: 560px;
+  font-size: clamp(1rem, 0.94rem + 0.3vw, 1.125rem);
+  color: var(--ink-soft);
+}
+
+/* Ô tra cứu dạng viên thuốc trắng nổi trên nền kem. */
+.hero-search { margin-top: 30px; max-width: 744px; }
+.hero-search label { display: none; }
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 20px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow var(--normal) var(--ease), border-color var(--fast) var(--ease);
+}
+.search-row:focus-within { border-color: var(--blush-deep); box-shadow: var(--shadow-lg); }
+.search-row > svg { width: 21px; height: 21px; color: var(--ink-mute); flex: none; }
+.search-row input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  padding: 14px 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+.search-row input::placeholder { color: var(--ink-mute); font-weight: 600; }
+
+/* Nút tra cứu là viên thuốc đỏ gạch nằm trong ô tìm kiếm, đúng bản thiết kế. */
+.search-go {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border-radius: var(--r-pill);
+  background: var(--brick);
+  color: #fff8ec;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.search-go svg { width: 17px; height: 17px; flex: none; }
+.search-go:hover { background: var(--brick-hover); transform: translateY(-1px); }
+.search-go:active { transform: translateY(1px) scale(0.99); }
+
+.quick-links {
+  margin-top: 26px;
+  display: grid;
+  gap: 10px;
+  max-width: 744px;
+}
+.quick-links > span {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--brown);
+}
+/* Hai chip mỗi hàng như bản thiết kế; xuống một cột khi hết chỗ. */
+.quick-link-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  gap: 10px;
+}
+.quick-links button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: var(--r-pill);
+  font-size: 0.875rem;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease),
+    filter var(--fast) var(--ease);
+}
+.quick-links button svg { width: 15px; height: 15px; flex: none; }
+.quick-links button[data-tone="brick"] { background: var(--blush); color: var(--brick-deep); }
+.quick-links button[data-tone="sky"] { background: var(--sky-soft); color: #24568c; }
+.quick-links button[data-tone="green"] { background: var(--mint); color: var(--green-deep); }
+.quick-links button[data-tone="gold"] { background: var(--gold-soft); color: #8a6410; }
+.quick-links button:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); filter: brightness(0.97); }
+.quick-links button:active { transform: translateY(0); }
+
+@media (max-width: 520px) {
+  .quick-link-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- Cột ảnh ---- */
+.hero-visual { position: relative; }
+
+.hero-photo {
+  position: relative;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  border: 8px solid var(--paper);
+  box-shadow: var(--shadow-lg);
+  aspect-ratio: 4 / 3.05;
+  background: var(--sand);
+}
+.hero-photo img { width: 100%; height: 100%; object-fit: cover; }
+.hero-art { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* Hình khối trang trí quanh ảnh — tạo lớp và chiều sâu. */
+.hero-blob {
+  position: absolute;
+  border-radius: 50%;
+  z-index: -1;
+}
+.hero-blob.gold {
+  width: 74px;
+  height: 74px;
+  background: var(--gold);
+  right: 22px;
+  top: -26px;
+  z-index: 1;
+}
+.hero-blob.ring {
+  width: 66px;
+  height: 66px;
+  border: 13px solid var(--green);
+  background: none;
+  left: -22px;
+  bottom: 44px;
+  z-index: 2;
+}
+.hero-blob.pink {
+  width: 260px;
+  height: 300px;
+  border-radius: var(--r-xl);
+  background: var(--blush);
+  right: -26px;
+  top: 46px;
+  z-index: 0;
+}
+
+/* Thẻ số liệu nổi trên ảnh. */
+.hero-badge {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 20px 13px 13px;
+  background: var(--paper);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+}
+.hero-badge i {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--gold-soft);
+  color: var(--gold-deep);
+}
+.hero-badge i svg { width: 20px; height: 20px; }
+.hero-badge div { display: grid; line-height: 1.3; }
+.hero-badge strong { font-size: 0.9375rem; font-weight: 700; }
+.hero-badge small { font-size: 0.8125rem; color: var(--ink-soft); }
+
+.hero-badge.top { left: -34px; top: 44px; }
+.hero-badge.bottom { right: -30px; bottom: 56px; }
+.hero-badge.bottom i { background: var(--mint); color: var(--green); }
+
+@media (max-width: 1080px) {
+  .hero-badge.top { left: -12px; }
+  .hero-badge.bottom { right: -10px; }
+}
+
+@media (max-width: 900px) {
+  .hero > .shell { grid-template-columns: minmax(0, 1fr); }
+  .hero-visual { order: -1; max-width: 520px; }
+  .hero-blob.pink { display: none; }
+  .hero-badge.top { left: auto; right: 12px; top: 12px; }
+  .hero-badge.bottom { right: auto; left: 12px; bottom: 12px; }
+}

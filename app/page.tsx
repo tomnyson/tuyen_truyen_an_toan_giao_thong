@@ -9,6 +9,29 @@ import { SiteQrCode } from "@/components/SiteQrCode";
 import { ContentMedia } from "@/components/ContentMedia";
 import { GameZone } from "@/components/GameZone";
 import { SituationAnswer } from "@/components/SituationAnswer";
+import { HeroArt } from "@/components/HeroArt";
+import {
+  ArrowRightIcon,
+  ArrowUpRightIcon,
+  BoltIcon,
+  BookIcon,
+  ChatIcon,
+  CloseIcon,
+  GlobeIcon,
+  MailIcon,
+  MenuIcon,
+  EyeIcon,
+  PhoneIcon,
+  ScalesIcon,
+  SearchIcon,
+  SendIcon,
+  ShieldIcon,
+  SparkleIcon,
+  TopicIcon,
+  UsersIcon,
+  TrafficIcon,
+  WarningIcon,
+} from "@/components/icons";
 import { EngagementProvider } from "@/components/EngagementProvider";
 import { EngagementBar, EngagementStat } from "@/components/EngagementBar";
 import {
@@ -16,8 +39,7 @@ import {
   useSharedContentUrl,
 } from "@/components/useSharedContentLink";
 import {
-  brandDisplayName,
-  brandMark,
+  brandLocality,
   brandName,
   brandShortName,
 } from "@/lib/brand";
@@ -36,7 +58,7 @@ import {
 } from "@/lib/legal-content";
 import {
   filterTopics,
-  situationSuggestions,
+  heroQuickChips,
   type Topic,
 } from "@/lib/topics";
 import { rankBySituation } from "@/lib/situation-search";
@@ -114,6 +136,16 @@ const initialChatMessage: ChatMessage = {
 // Entry lấy từ database được dịch id để không đè lên nội dung seed tĩnh; bộ
 // đếm tương tác chỉ áp dụng cho entry có thật trong database.
 const managedLawIdOffset = 100_000;
+const lookupPageSize = 6;
+
+// Mỗi chip tra cứu nhanh mang một biểu tượng riêng để bốn ô không nhìn giống
+// hệt nhau; dùng bộ icon tự vẽ trong `components/icons.tsx`.
+const quickChipIcons = {
+  brick: WarningIcon,
+  sky: EyeIcon,
+  green: PhoneIcon,
+  gold: TrafficIcon,
+} as const;
 
 function managedLawId(id: number): number | null {
   return id > managedLawIdOffset ? id - managedLawIdOffset : null;
@@ -122,8 +154,14 @@ function managedLawId(id: number): number | null {
 function HomeContent() {
   const [topic, setTopic] = useState<Topic>("Tất cả");
   const [query, setQuery] = useState("");
+  // Bản thiết kế mở đầu lưới tra cứu bằng 6 thẻ; phần còn lại hiện dần qua nút
+  // "Xem thêm" nên không mất tình huống nào.
+  const [visibleLaws, setVisibleLaws] = useState(lookupPageSize);
+  const [lastLookupKey, setLastLookupKey] = useState("Tất cả\u0000");
+
   const [selectedLaw, setSelectedLaw] = useState<LawItem | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([initialChatMessage]);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -200,6 +238,14 @@ function HomeContent() {
 
   const selectedLawEngagementId = selectedLaw ? managedLawId(selectedLaw.id) : null;
   useSharedContentUrl("law", selectedLawEngagementId);
+
+  // Đổi lĩnh vực hoặc từ khoá thì quay lại trang đầu của lưới. Chỉnh ngay trong
+  // lúc render (thay vì trong effect) để không phải vẽ lại lần hai với số thẻ cũ.
+  const lookupKey = `${topic}\u0000${query}`;
+  if (lookupKey !== lastLookupKey) {
+    setLastLookupKey(lookupKey);
+    setVisibleLaws(lookupPageSize);
+  }
 
   // Xếp hạng theo tình huống: người dùng gõ nguyên câu hỏi đời thực hoặc từ
   // viết tắt (ATGT, BLHĐ…) đều phải ra kết quả, kết quả khớp nhiều lên trước.
@@ -311,214 +357,554 @@ function HomeContent() {
   }
 
   return (
-    <main>
+    <>
+      <a className="skip-link" href="#noi-dung">
+        Chuyển tới nội dung chính
+      </a>
+
       <header className="site-header">
-        <a className="brand" href="#top" aria-label={`${brandName} - Trang chủ`}>
-          <span className="brand-mark">{brandMark}</span>
-          <span>{brandDisplayName}</span>
-        </a>
-        <nav aria-label="Điều hướng chính">
-          <a href="#tra-cuu">Tra cứu</a>
-          <a href="#tinh-huong">Tình huống</a>
-          <a href="#ren-luyen">Rèn luyện</a>
-          <a href="#nguon">Nguồn luật</a>
-        </nav>
-        <button className="header-cta" onClick={() => setChatOpen(true)}>
-          Hỏi trợ lý <span aria-hidden="true">↗</span>
-        </button>
+        <div className="shell">
+          <a className="brand" href="#top" aria-label={`${brandName} — Trang chủ`}>
+            <span className="brand-mark" aria-hidden="true">
+              <ScalesIcon />
+            </span>
+            <span className="brand-text">
+              <strong>{brandShortName}</strong>
+              <small>{brandLocality}</small>
+            </span>
+          </a>
+          <button
+            type="button"
+            className="nav-toggle"
+            aria-expanded={navOpen}
+            aria-controls="dieu-huong-chinh"
+            onClick={() => setNavOpen((open) => !open)}
+          >
+            <span className="sr-only">
+              {navOpen ? "Đóng danh mục" : "Mở danh mục"}
+            </span>
+            {navOpen ? <CloseIcon /> : <MenuIcon />}
+          </button>
+          <nav
+            id="dieu-huong-chinh"
+            className="site-nav"
+            data-open={navOpen}
+            aria-label="Điều hướng chính"
+            onClick={() => setNavOpen(false)}
+          >
+            <a href="#top" aria-current="page">Trang chủ</a>
+            <a href="#chu-de">Chủ đề</a>
+            <a href="#tra-cuu">Tra cứu</a>
+            <a href="#tinh-huong">Tình huống</a>
+            <a href="#ren-luyen">Thử thách</a>
+          </nav>
+          <button
+            type="button"
+            className="header-cta"
+            onClick={() => setChatOpen(true)}
+          >
+            Hỏi trợ lý <ArrowUpRightIcon />
+          </button>
+        </div>
       </header>
 
-      <section className="hero" id="top">
-        <div className="hero-copy">
-          <div className="eyebrow"><span>●</span> CẨM NANG PHÁP LUẬT CHO HỌC SINH, SINH VIÊN</div>
-          <h1>
-            Hiểu luật dễ dàng.<br />
-            <span>Ứng xử an toàn.</span>
-          </h1>
-          <p>
-            Tra cứu nhanh các quy định gần gũi với trường học — từ giao thông,
-            mạng xã hội đến bản quyền — bằng ngôn ngữ dễ hiểu và tình huống thực tế.
-          </p>
-          <div className="hero-search" role="search">
-            <label htmlFor="main-search">Bạn đang thắc mắc điều gì?</label>
-            <div className="search-row">
-              <span aria-hidden="true">⌕</span>
-              <input
-                id="main-search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => event.key === "Enter" && scrollToResults()}
-                placeholder='Thử: “bị ghép ảnh chế giễu thì làm gì?” hoặc “ATGT”'
-              />
-              <button onClick={scrollToResults}>Tra cứu</button>
+      <main id="noi-dung">
+        <section className="hero" id="top">
+          <div className="shell">
+            <div className="hero-copy">
+              <p className="hero-eyebrow">
+                <BookIcon /> Cẩm nang pháp luật cho học sinh, sinh viên tỉnh
+                Đắk Lắk
+              </p>
+              <h1>
+                Hiểu luật dễ dàng.
+                <span>Ứng xử an toàn.</span>
+              </h1>
+              <p className="hero-lead">
+                Tra cứu nhanh những quy định gần gũi với trường học — từ giao
+                thông, mạng xã hội đến bản quyền — bằng ngôn ngữ dễ hiểu và tình
+                huống có thật.
+              </p>
+
+              <div className="hero-search" role="search">
+                <label htmlFor="main-search">Bạn đang thắc mắc điều gì?</label>
+                <div className="search-row">
+                  <SearchIcon />
+                  <input
+                    id="main-search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => event.key === "Enter" && scrollToResults()}
+                    placeholder="Thử: bị ghép ảnh chế giễu thì làm gì?"
+                  />
+                  <button
+                    type="button"
+                    className="search-go"
+                    onClick={scrollToResults}
+                  >
+                    Tra cứu <ArrowRightIcon />
+                  </button>
+                </div>
+              </div>
+
+              <div className="quick-links">
+                <span>Tình huống thường gặp:</span>
+                <div className="quick-link-grid">
+                  {heroQuickChips.map((chip) => {
+                    const ChipIcon = quickChipIcons[chip.tone];
+                    return (
+                      <button
+                        type="button"
+                        key={chip.label}
+                        data-tone={chip.tone}
+                        onClick={() => {
+                          setTopic(chip.topic);
+                          setQuery(chip.label);
+                          scrollToResults();
+                        }}
+                      >
+                        <ChipIcon />
+                        {chip.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="hero-visual">
+              <span className="hero-blob gold" aria-hidden="true" />
+              <span className="hero-blob ring" aria-hidden="true" />
+              <span className="hero-blob pink" aria-hidden="true" />
+              <div className="hero-photo">
+                <HeroArt />
+              </div>
+              <div className="hero-badge top">
+                <i aria-hidden="true"><ShieldIcon /></i>
+                <div>
+                  <strong>5 lĩnh vực</strong>
+                  <small>được biên soạn theo văn bản đang hiệu lực</small>
+                </div>
+              </div>
+              <div className="hero-badge bottom">
+                <i aria-hidden="true"><ChatIcon /></i>
+                <div>
+                  <strong>Hỏi đáp tức thì</strong>
+                  <small>trợ lý trả lời kèm căn cứ pháp lý</small>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="quick-links">
-            <span>Tình huống thường gặp:</span>
-            {situationSuggestions(topic).map((suggestion) => (
-              <button key={suggestion} onClick={() => { setQuery(suggestion); scrollToResults(); }}>
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        </div>
+        </section>
 
-        <aside className="hero-card" aria-label="Điều cần nhớ">
-          <div className="card-topline"><span>GHI NHỚ NHANH</span><span>01</span></div>
-          <div className="helmet-visual" aria-hidden="true">
-            <span className="helmet-shell"></span>
-            <span className="helmet-star">★</span>
-          </div>
-          <h2>Tuổi của bạn ảnh hưởng đến mức xử lý</h2>
-          <div className="age-grid">
-            <div><strong>14–16</strong><span>Không áp dụng phạt tiền</span></div>
-            <div><strong>16–18</strong><span>Không quá ½ mức người lớn</span></div>
-          </div>
-          <p>* Việc xử lý còn tùy hành vi, độ tuổi chính xác và tình tiết cụ thể.</p>
-        </aside>
-      </section>
+        <div className="ribbon" aria-hidden="true" />
 
-      <section className="topic-strip" aria-label="Chọn lĩnh vực">
-        {filterTopics.slice(1).map((item, index) => (
-          <button
-            key={item.name}
-            className={topic === item.name ? "topic-card active" : "topic-card"}
-            onClick={() => { setTopic(item.name); scrollToResults(); }}
-          >
-            <span className={`topic-icon t${index + 1}`}>{item.icon}</span>
-            <span><strong>{item.name}</strong><small>{item.detail}</small></span>
-            <b aria-hidden="true">↗</b>
-          </button>
-        ))}
-      </section>
+        <section className="topics-section" id="chu-de">
+          <div className="shell">
+            <div className="section-head">
+              <div>
+                <span className="section-kicker">Chủ đề pháp luật</span>
+                <h2>Chọn chủ đề bạn quan tâm</h2>
+                <p className="lead">
+                  Năm nhóm quy định sát với đời sống học sinh, sinh viên. Mỗi chủ
+                  đề gom sẵn tình huống, mức xử lý tham khảo và điều luật để bạn
+                  đối chiếu, thay vì phải đọc trọn cả nghị định.
+                </p>
+              </div>
+              <span className="head-chip">
+                <BookIcon />
+                <strong>{availableLaws.length}</strong> tình huống đã biên soạn
+              </span>
+            </div>
 
-      <section className="lookup-section" id="tra-cuu">
-        <div className="section-heading">
-          <div>
-            <span className="section-kicker">TRA CỨU THEO TÌNH HUỐNG</span>
-            <h2>Điều bạn cần biết, ngay khi cần.</h2>
+            <div className="topics-grid">
+              <div className="topic-list">
+                {filterTopics.slice(1).map((item, index) => (
+                  <button
+                    type="button"
+                    key={item.name}
+                    className={topic === item.name ? "topic-card active" : "topic-card"}
+                    onClick={() => {
+                      setTopic(item.name);
+                      scrollToResults();
+                    }}
+                  >
+                    <span className={`topic-icon t${index + 1}`} aria-hidden="true">
+                      <TopicIcon topic={item.name} />
+                    </span>
+                    <span className="topic-body">
+                      <strong>
+                        <span className="topic-index">0{index + 1}</span>
+                        {item.name}
+                      </strong>
+                      <small>{item.detail}</small>
+                    </span>
+                    <span className="topic-go" aria-hidden="true">
+                      <ArrowRightIcon />
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <aside className="memo-card" aria-labelledby="memo-title">
+                <p className="memo-chip">
+                  <BoltIcon /> Ghi nhớ nhanh
+                </p>
+                <h3 id="memo-title">Tuổi của bạn quyết định mức xử lý</h3>
+                <div className="age-grid">
+                  <div className="age-row">
+                    <strong>
+                      Dưới 14<small>tuổi</small>
+                    </strong>
+                    <span>Không bị xử phạt hành chính, chỉ nhắc nhở và giáo dục</span>
+                  </div>
+                  <div className="age-row">
+                    <strong>
+                      14–16<small>tuổi</small>
+                    </strong>
+                    <span>Chỉ bị xử phạt với lỗi cố ý và không áp dụng phạt tiền</span>
+                  </div>
+                  <div className="age-row">
+                    <strong>
+                      16–18<small>tuổi</small>
+                    </strong>
+                    <span>Có thể bị phạt tiền nhưng không quá một nửa mức người lớn</span>
+                  </div>
+                </div>
+                <p className="memo-note">
+                  <WarningIcon />
+                  Mức áp dụng thực tế còn phụ thuộc hành vi, độ tuổi tại thời điểm
+                  vi phạm và tình tiết cụ thể của từng vụ việc.
+                </p>
+              </aside>
+            </div>
           </div>
-          <p>
-            {filteredLaws.length + filteredShowcases.length} kết quả phù hợp
-            {filteredShowcases.length > 0 && (
-              <>
-                {" · "}
-                <a href="#tinh-huong">
-                  {filteredShowcases.length} tình huống
+        </section>
+
+        <section className="lookup-section" id="tra-cuu">
+          <div className="shell">
+            <div className="section-head">
+              <div>
+                <span className="kicker-pill">
+                  <SearchIcon /> Tra cứu theo tình huống
+                </span>
+                <h2>Điều bạn cần biết, ngay khi cần.</h2>
+                <p className="lead">
+                  Gõ nguyên câu hỏi đời thường hoặc từ viết tắt quen thuộc như
+                  ATGT, BLHĐ — kết quả khớp nhất sẽ hiện lên trước.
+                </p>
+              </div>
+              {filteredShowcases.length > 0 ? (
+                <a className="head-chip" href="#tinh-huong">
+                  <strong>{filteredLaws.length}</strong>
+                  tình huống · hiển thị {Math.min(visibleLaws, filteredLaws.length)}
+                  <ArrowRightIcon />
                 </a>
-              </>
-            )}
-          </p>
-        </div>
+              ) : (
+                <span className="head-chip">
+                  <strong>{filteredLaws.length}</strong> tình huống · hiển thị{" "}
+                  {Math.min(visibleLaws, filteredLaws.length)}
+                </span>
+              )}
+            </div>
 
-        <div className="filter-bar" role="group" aria-label="Bộ lọc lĩnh vực">
-          {filterTopics.map((item) => (
-            <button
-              key={item.name}
-              className={topic === item.name ? "active" : ""}
-              onClick={() => setTopic(item.name)}
-            >
-              {item.name}
-            </button>
-          ))}
-        </div>
+            <div className="filter-bar" role="group" aria-label="Bộ lọc lĩnh vực">
+              {filterTopics.map((item) => (
+                <button
+                  type="button"
+                  key={item.name}
+                  className={topic === item.name ? "active" : ""}
+                  aria-pressed={topic === item.name}
+                  onClick={() => setTopic(item.name)}
+                >
+                  <TopicIcon topic={item.name} />
+                  {item.name}
+                </button>
+              ))}
+            </div>
 
-        {filteredLaws.length ? (
-          <div className="situation-list">
-            {filteredLaws.map((item) => {
-              const engagementId = managedLawId(item.id);
-              return (
-                <article className="situation-card" key={item.id}>
-                  <header>
-                    <span className="row-icon" aria-hidden="true">{item.icon}</span>
-                    <div>
-                      <span className="situation-topic">{item.topic}</span>
+            {filteredLaws.length ? (
+              <div className="situation-list">
+                {filteredLaws.slice(0, visibleLaws).map((item) => {
+                  const engagementId = managedLawId(item.id);
+                  return (
+                    <article className="situation-card" key={item.id}>
+                      <header>
+                        <span className="topic-chip" data-topic={item.topic}>
+                          <TopicIcon topic={item.topic} />
+                          {item.topic}
+                        </span>
+                        {engagementId !== null && (
+                          <EngagementStat entityType="law" entityId={engagementId} />
+                        )}
+                      </header>
                       <h3>{item.title}</h3>
-                    </div>
-                  </header>
-                  <ContentMedia
-                    kind={item.mediaKind ?? "none"}
-                    url={item.mediaUrl ?? ""}
-                    imageAlt={`Ảnh minh họa tình huống: ${item.title}`}
-                    videoTitle={`Video minh họa tình huống: ${item.title}`}
-                    className="situation-media"
-                  />
-                  <SituationAnswer
-                    remedy={item.remedy}
-                    penalty={reviewedPenalty(item)}
-                    legalBasis={reviewedLegalBasis(item)}
-                    citationUrl={item.citation?.officialUrl}
-                  />
-                  <footer className="situation-actions">
-                    {engagementId !== null && (
-                      <EngagementStat entityType="law" entityId={engagementId} />
-                    )}
-                    <button
-                      className="situation-detail"
-                      onClick={() => setSelectedLaw(item)}
-                      aria-label={`Xem tình huống: ${item.title}`}
+                      <ContentMedia
+                        kind={item.mediaKind ?? "none"}
+                        url={item.mediaUrl ?? ""}
+                        imageAlt={`Ảnh minh họa tình huống: ${item.title}`}
+                        videoTitle={`Video minh họa tình huống: ${item.title}`}
+                        className="situation-media"
+                      />
+                      <SituationAnswer
+                        remedy={item.remedy}
+                        penalty={reviewedPenalty(item)}
+                        legalBasis={reviewedLegalBasis(item)}
+                        citationUrl={item.citation?.officialUrl}
+                      />
+                      <footer className="situation-actions">
+                        <button
+                          type="button"
+                          className="situation-detail"
+                          onClick={() => setSelectedLaw(item)}
+                          aria-label={`Xem tình huống minh họa: ${item.title}`}
+                        >
+                          Xem tình huống minh họa <ArrowRightIcon />
+                        </button>
+                      </footer>
+                    </article>
+                  );
+                })}
+                {filteredLaws.length > visibleLaws && (
+                  <button
+                    type="button"
+                    className="lookup-more"
+                    onClick={() =>
+                      setVisibleLaws((current) => current + lookupPageSize)
+                    }
+                  >
+                    Xem thêm tình huống
+                    <small>
+                      còn {filteredLaws.length - visibleLaws} thẻ nữa
+                    </small>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <i aria-hidden="true"><SearchIcon /></i>
+                <h3>Chưa tìm thấy tình huống này</h3>
+                <p>
+                  Thử mô tả ngắn gọn hơn, ví dụ “bị bắt nạt”, “mũ bảo hiểm”, hoặc
+                  gõ tắt “BLHĐ”, “ATGT”.
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => {
+                    setQuery("");
+                    setTopic("Tất cả");
+                  }}
+                >
+                  Xem tất cả tình huống <ArrowRightIcon />
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <div className="ribbon dark" aria-hidden="true" />
+
+        <section className="cases" id="tinh-huong">
+          <div className="shell">
+            <div className="section-head">
+              <div>
+                <span className="section-kicker">Góc cảnh báo</span>
+                <h2>Đừng để một cú nhấp trở thành bài học đắt giá.</h2>
+                <p className="lead">
+                  Các tình huống dưới đây được biên soạn để giáo dục, giúp bạn
+                  nhận diện rủi ro trước khi hành động.
+                </p>
+              </div>
+            </div>
+            <ShowcaseGallery
+              state={visibleShowcaseState}
+              showcases={filteredShowcases}
+            />
+          </div>
+        </section>
+
+        <GameZone />
+
+        <section className="source-section" id="nguon">
+          <div className="shell">
+            <div className="source-grid">
+              <div className="source-intro">
+                <span className="section-kicker">Nguồn tham khảo</span>
+                <h2>Đọc luật từ nguồn chính thống.</h2>
+                <p>
+                  Nội dung ở đây được diễn giải ngắn gọn để học tập, không thay
+                  thế tư vấn pháp lý cho một vụ việc cụ thể.
+                </p>
+                <SiteQrCode />
+              </div>
+              <div className="source-list">
+                {sources.map((source, index) => (
+                  <a
+                    key={source.label}
+                    href={source.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span className="source-index">0{index + 1}</span>
+                    <span className="source-name">{source.label}</span>
+                    <span className="topic-chip" data-topic={source.topic}>
+                      {source.topic}
+                    </span>
+                    <span className="source-go" aria-hidden="true">
+                      <ArrowUpRightIcon />
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="shell">
+          <section className="help-cta" aria-labelledby="help-title">
+            <div className="help-grid">
+              <div className="help-copy">
+                <p className="help-kicker">
+                  <PhoneIcon /> Cần giúp ngay
+                </p>
+                <h2 id="help-title">Khi tình huống vượt quá sức mình, hãy gọi.</h2>
+                <p>
+                  Ba đầu mối dưới đây tiếp nhận miễn phí, hoạt động cả ngoài giờ
+                  hành chính và giữ kín thông tin người báo.
+                </p>
+                <button
+                  type="button"
+                  className="btn-gold"
+                  onClick={() => setChatOpen(true)}
+                >
+                  Hỏi trợ lý trước khi gọi <ChatIcon />
+                </button>
+              </div>
+              <ul className="hotline-list">
+                <li className="hotline-card">
+                  <i aria-hidden="true"><UsersIcon /></i>
+                  <div>
+                    <strong>111</strong>
+                    <small>Tổng đài quốc gia bảo vệ trẻ em</small>
+                  </div>
+                  <PhoneIcon />
+                </li>
+                <li className="hotline-card">
+                  <i aria-hidden="true"><ShieldIcon /></i>
+                  <div>
+                    <strong>113</strong>
+                    <small>Cảnh sát phản ứng nhanh</small>
+                  </div>
+                  <PhoneIcon />
+                </li>
+                <li className="hotline-card">
+                  <i aria-hidden="true"><GlobeIcon /></i>
+                  <div>
+                    <strong>156</strong>
+                    <small>Báo cuộc gọi, tin nhắn lừa đảo</small>
+                  </div>
+                  <PhoneIcon />
+                </li>
+              </ul>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer className="site-footer">
+        <div className="shell">
+          <div className="footer-grid">
+            <div className="footer-about">
+              <div className="footer-brand">
+                <span className="brand-mark" aria-hidden="true">
+                  <ScalesIcon />
+                </span>
+                <span className="brand-text">
+                  <strong>{brandShortName}</strong>
+                  <small>Tỉnh {brandLocality}</small>
+                </span>
+              </div>
+              <p>
+                Trang tra cứu dành cho học sinh, sinh viên và thầy cô: diễn giải
+                quy định bằng ngôn ngữ dễ hiểu, luôn kèm điều luật để đối chiếu.
+              </p>
+              <div className="footer-social">
+                <a href="#top" aria-label="Về đầu trang">
+                  <ArrowUpRightIcon />
+                </a>
+                <a href="https://tongdai111.vn/" target="_blank" rel="noopener noreferrer" aria-label="Tổng đài 111">
+                  <PhoneIcon />
+                </a>
+                <a href="mailto:hotro@tuyentruyenphapluat.edu.vn" aria-label="Gửi thư góp ý">
+                  <MailIcon />
+                </a>
+              </div>
+            </div>
+
+            <div className="footer-col">
+              <h3>Chủ đề</h3>
+              <ul>
+                {filterTopics.slice(1).map((item) => (
+                  <li key={item.name}>
+                    <a
+                      href="#tra-cuu"
+                      onClick={() => setTopic(item.name)}
                     >
-                      Xem tình huống minh họa <span aria-hidden="true">→</span>
-                    </button>
-                  </footer>
-                </article>
-              );
-            })}
+                      {item.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="footer-col">
+              <h3>Khám phá</h3>
+              <ul>
+                <li><a href="#tra-cuu">Tra cứu tình huống</a></li>
+                <li><a href="#tinh-huong">Góc cảnh báo</a></li>
+                <li><a href="#ren-luyen">Thử thách kiến thức</a></li>
+                <li><a href="#nguon">Nguồn luật gốc</a></li>
+              </ul>
+            </div>
+
+            <div className="footer-col">
+              <h3>Đường dây nóng</h3>
+              <ul>
+                <li><a href="tel:111">111 · Bảo vệ trẻ em</a></li>
+                <li><a href="tel:113">113 · Cảnh sát phản ứng nhanh</a></li>
+                <li><a href="tel:156">156 · Báo lừa đảo trên mạng</a></li>
+              </ul>
+            </div>
           </div>
-        ) : (
-          <div className="empty-state">
-            <span>⌕</span>
-            <h3>Chưa tìm thấy tình huống này</h3>
-            <p>Thử mô tả ngắn gọn hơn, ví dụ “bị bắt nạt”, “mũ bảo hiểm” hoặc gõ tắt “BLHĐ”, “ATGT”.</p>
-            <button onClick={() => { setQuery(""); setTopic("Tất cả"); }}>Xem tất cả</button>
+
+          <div className="footer-bottom">
+            <p>Cập nhật nội dung: tháng 7/2026 · {brandName}</p>
+            <nav aria-label="Thông tin pháp lý">
+              <a href="/dieu-khoan">Điều khoản sử dụng</a>
+              <a href="/dieu-khoan#rieng-tu">Quyền riêng tư</a>
+              <a href="#nguon">Nguồn dữ liệu</a>
+            </nav>
           </div>
-        )}
-      </section>
-
-      <section className="cases" id="tinh-huong">
-        <div className="case-intro">
-          <span className="section-kicker light">GÓC CẢNH BÁO</span>
-          <h2>Đừng để một cú nhấp trở thành bài học đắt giá.</h2>
-          <p>Các tình huống dưới đây được biên soạn để giáo dục, giúp bạn nhận diện rủi ro trước khi hành động.</p>
         </div>
-        <ShowcaseGallery
-          state={visibleShowcaseState}
-          showcases={filteredShowcases}
-        />
-      </section>
-
-      <GameZone />
-
-      <section className="source-section" id="nguon">
-        <div>
-          <span className="section-kicker">NGUỒN THAM KHẢO</span>
-          <h2>Đọc luật từ nguồn chính thống.</h2>
-          <p>Nội dung được diễn giải ngắn gọn để học tập, không thay thế tư vấn pháp lý cho vụ việc cụ thể.</p>
-          <SiteQrCode />
-        </div>
-        <div className="source-list">
-          {sources.map((source, index) => (
-            <a key={source.label} href={source.href} target="_blank" rel="noreferrer">
-              <span>0{index + 1}</span><strong>{source.label}</strong><b>↗</b>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <footer>
-        <div className="footer-brand"><span className="brand-mark">{brandMark}</span><strong>{brandDisplayName}</strong></div>
-        <p>Hiểu luật dễ dàng • Ứng xử an toàn</p>
-        <p>Cập nhật nội dung: 07/2026</p>
       </footer>
 
-      <button className="floating-chat" onClick={() => setChatOpen(true)} aria-label="Mở trợ lý hỏi đáp">
-        <span>?</span><b>Hỏi nhanh</b>
+      <button
+        type="button"
+        className="floating-chat"
+        onClick={() => setChatOpen(true)}
+        aria-label="Mở trợ lý hỏi đáp pháp luật"
+      >
+        <span aria-hidden="true"><ChatIcon /></span>
+        <b>Hỏi nhanh</b>
       </button>
 
       {selectedLaw && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelectedLaw(null)}>
           <section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="modal-close" onClick={() => setSelectedLaw(null)} aria-label="Đóng">×</button>
+            <button type="button" className="modal-close" onClick={() => setSelectedLaw(null)} aria-label="Đóng">
+              <CloseIcon />
+            </button>
             <span className="modal-topic">{selectedLaw.topic}</span>
             <h2 id="modal-title">{selectedLaw.title}</h2>
             <ContentMedia
@@ -554,7 +940,7 @@ function HomeContent() {
                 void submitChatQuestion(undefined, question);
               }}
             >
-              Hỏi AI về tình huống này →
+              Hỏi trợ lý về tình huống này <ChatIcon />
             </button>
             {managedLawId(selectedLaw.id) !== null && (
               <EngagementBar
@@ -572,7 +958,9 @@ function HomeContent() {
         <div className="chat-panel" role="dialog" aria-modal="true" aria-labelledby="chat-title">
           <div className="chat-head">
             <div><span>TRA CỨU • AN TOÀN</span><h2 id="chat-title">Trợ lý {brandShortName}</h2></div>
-            <button onClick={() => setChatOpen(false)} aria-label="Đóng trợ lý">×</button>
+            <button type="button" onClick={() => setChatOpen(false)} aria-label="Đóng trợ lý">
+              <CloseIcon />
+            </button>
           </div>
           <div className="chat-body" aria-live="polite">
             <div className="chat-messages">
@@ -592,7 +980,7 @@ function HomeContent() {
                       data-origin={message.answerOrigin}
                       title={originCopy.detail}
                     >
-                      <span aria-hidden="true">◆</span>
+                      <SparkleIcon />
                       <span>Nguồn trả lời: {originCopy.label}</span>
                     </p>
                   )}
@@ -700,13 +1088,15 @@ function HomeContent() {
                 maxLength={600}
                 disabled={isChatLoading}
               />
-              <button type="submit" disabled={isChatLoading || !chatInput.trim()} aria-label="Gửi câu hỏi">↑</button>
+              <button type="submit" disabled={isChatLoading || !chatInput.trim()} aria-label="Gửi câu hỏi">
+                <SendIcon />
+              </button>
             </form>
           </div>
           <p>Nội dung chỉ để học tập, không thay thế tư vấn pháp lý.</p>
         </div>
       )}
-    </main>
+    </>
   );
 }
 

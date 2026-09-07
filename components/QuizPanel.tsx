@@ -5,6 +5,13 @@
 import { useMemo, useState } from "react";
 import type { PublicQuizQuestion, QuizGrade } from "@/lib/gamification";
 import type { ContentTopic } from "@/lib/topics";
+import {
+  ArrowUpRightIcon,
+  CheckCircleIcon,
+  MedalIcon,
+  TopicIcon,
+  WarningIcon,
+} from "./icons";
 
 type QuizPanelProps = Readonly<{
   questions: readonly PublicQuizQuestion[];
@@ -34,6 +41,10 @@ export function QuizPanel({ questions, onAnswer, disabled }: QuizPanelProps) {
   const answeredCount = visible.filter(
     (question) => answers[question.id],
   ).length;
+  const answeredPercent =
+    visible.length > 0
+      ? Math.round((answeredCount / visible.length) * 100)
+      : 0;
 
   async function choose(question: PublicQuizQuestion, choiceIndex: number) {
     if (answers[question.id] || pendingId !== null || disabled) return;
@@ -67,14 +78,31 @@ export function QuizPanel({ questions, onAnswer, disabled }: QuizPanelProps) {
             className={name === activeTopic ? "game-topic active" : "game-topic"}
             onClick={() => setTopic(name)}
           >
+            <TopicIcon topic={name} />
             {name}
           </button>
         ))}
       </div>
 
-      <p className="game-progress-line">
-        Đã trả lời {answeredCount}/{visible.length} câu ở lĩnh vực này.
-      </p>
+      <div className="game-progress">
+        <p className="game-progress-line">
+          Đã trả lời {answeredCount}/{visible.length} câu ở lĩnh vực này.
+        </p>
+        <div
+          className="game-progress-track"
+          role="progressbar"
+          aria-valuenow={answeredPercent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Tiến độ trả lời câu hỏi"
+        >
+          <span
+            className="game-progress-fill"
+            style={{ width: `${answeredPercent}%` }}
+          />
+        </div>
+        <span className="game-progress-value">{answeredPercent}%</span>
+      </div>
       {error && (
         <p className="game-error" role="alert">
           {error}
@@ -82,10 +110,20 @@ export function QuizPanel({ questions, onAnswer, disabled }: QuizPanelProps) {
       )}
 
       <ol className="quiz-list">
-        {visible.map((question) => {
+        {visible.map((question, questionIndex) => {
           const answered = answers[question.id];
           return (
             <li key={question.id} className="quiz-item">
+              <header>
+                <span className="quiz-number" aria-hidden="true">
+                  {questionIndex + 1}
+                </span>
+                {answered && answered.grade.awardedPoints > 0 && (
+                  <span className="quiz-award">
+                    <MedalIcon /> +{answered.grade.awardedPoints} điểm
+                  </span>
+                )}
+              </header>
               <p className="quiz-prompt">{question.prompt}</p>
               <div className="quiz-options">
                 {question.options.map((option, index) => {
@@ -121,9 +159,12 @@ export function QuizPanel({ questions, onAnswer, disabled }: QuizPanelProps) {
                   className={`quiz-feedback ${answered.grade.correct ? "correct" : "wrong"}`}
                 >
                   <p className="quiz-verdict">
+                    {answered.grade.correct ? (
+                      <CheckCircleIcon />
+                    ) : (
+                      <WarningIcon />
+                    )}
                     {answered.grade.correct ? "Chính xác" : "Chưa đúng"}
-                    {answered.grade.awardedPoints > 0 &&
-                      ` · +${answered.grade.awardedPoints} điểm`}
                   </p>
                   <p>{answered.grade.explanation}</p>
                   <p className="quiz-basis">
@@ -135,7 +176,7 @@ export function QuizPanel({ questions, onAnswer, disabled }: QuizPanelProps) {
                         target="_blank"
                         rel="noreferrer noopener"
                       >
-                        Xem văn bản gốc ↗
+                        Xem văn bản gốc <ArrowUpRightIcon />
                       </a>
                     )}
                   </p>

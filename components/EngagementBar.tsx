@@ -10,6 +10,7 @@ import {
 } from "@/lib/engagement";
 import { useEngagement } from "./EngagementProvider";
 import { ShareMenu } from "./ShareMenu";
+import { EyeIcon, HeartIcon } from "./icons";
 import { resolveSiteUrl } from "./SiteQrCode";
 
 const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
@@ -30,12 +31,12 @@ export function EngagementStat({ entityType, entityId }: EngagementStatProps) {
   return (
     <span className="engagement-stat">
       <span className="engagement-metric">
-        <span aria-hidden="true">👁</span>
+        <EyeIcon />
         {formatEngagementCount(count.viewCount)} lượt xem
       </span>
       {count.favoriteCount > 0 && (
         <span className="engagement-metric">
-          <span aria-hidden="true">💛</span>
+          <HeartIcon filled />
           {formatEngagementCount(count.favoriteCount)} thấy ý nghĩa
         </span>
       )}
@@ -75,7 +76,7 @@ export function EngagementBar({
   return (
     <div className="engagement-bar">
       <span className="engagement-metric" data-engagement="views">
-        <span aria-hidden="true">👁</span>
+        <EyeIcon />
         {formatEngagementCount(count.viewCount)} lượt xem
       </span>
       <button
@@ -86,7 +87,7 @@ export function EngagementBar({
           void toggleFavorite(entityType, entityId);
         }}
       >
-        <span aria-hidden="true">{favorited ? "💛" : "🤍"}</span>
+        <HeartIcon filled={favorited} />
         Nội dung này ý nghĩa
         <span className="engagement-count">
           {formatEngagementCount(count.favoriteCount)}

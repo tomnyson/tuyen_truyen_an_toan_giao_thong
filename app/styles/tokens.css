@@ -1,0 +1,72 @@
+/* Design tokens — lấy trực tiếp từ bản thiết kế `design/home.png`.
+   Bảng màu ấm: nền kem/cát, chữ nâu đậm, nhấn đỏ gạch + vàng nghệ. */
+
+:root {
+  /* Nền */
+  --cream: #fff8ec;
+  --cream-warm: #fef6e9;
+  --sand: #f7e9d2;
+  --sand-deep: #f2ddbe;
+  --paper: #ffffff;
+
+  /* Chữ */
+  --ink: #2b1d14;
+  --ink-soft: #6f5a4b;
+  --ink-mute: #9a8471;
+
+  /* Nhấn chính */
+  --brick: #b8432a;
+  --brick-deep: #8e2f1b;
+  --brick-hover: #a13720;
+  --blush: #f8ddd3;
+  --blush-deep: #f2c7b8;
+
+  /* Nhấn phụ */
+  --gold: #f6c445;
+  --gold-deep: #e0a91f;
+  --gold-soft: #fdefc4;
+  --brown: #5b3a22;
+  --brown-soft: #6d4a30;
+  --green: #2e7d4f;
+  --green-deep: #24623d;
+  --mint: #dff1e4;
+  --sky: #2f6fb3;
+  --sky-soft: #dce8f7;
+
+  /* Đường viền & bóng — bóng nhuộm theo nền nâu, không dùng đen thuần */
+  --line: rgba(91, 58, 34, 0.12);
+  --line-strong: rgba(91, 58, 34, 0.22);
+  --shadow-xs: 0 1px 2px rgba(91, 58, 34, 0.06);
+  --shadow-sm: 0 2px 10px -2px rgba(91, 58, 34, 0.1);
+  --shadow-md: 0 14px 34px -18px rgba(91, 58, 34, 0.34);
+  --shadow-lg: 0 30px 70px -30px rgba(91, 58, 34, 0.42);
+  --shadow-brick: 0 14px 30px -14px rgba(184, 67, 42, 0.5);
+
+  /* Bo góc — chặt ở phần tử con, mềm ở khối chứa */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 30px;
+  --r-pill: 999px;
+
+  /* Nhịp */
+  --shell: 1312px;
+  --gutter: clamp(20px, 4.5vw, 64px);
+  --section-y: clamp(60px, 7vw, 104px);
+
+  /* Chữ */
+  --text-lead: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem);
+  --text-h2: clamp(1.9rem, 1.2rem + 2.3vw, 2.9rem);
+  --text-h1: clamp(2.4rem, 1.1rem + 4.4vw, 4.15rem);
+
+  /* Chuyển động */
+  --fast: 150ms;
+  --normal: 260ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Thang z-index — không dùng số tuỳ tiện kiểu 9999 */
+  --z-sticky: 40;
+  --z-float: 60;
+  --z-overlay: 80;
+}

@@ -4,28 +4,39 @@
 import {
   buildSituationAnswer,
   type SituationAnswerInput,
+  type SituationAnswerPart,
 } from "@/lib/situation-answer";
+import { ArrowUpRightIcon, BoltIcon, ScalesIcon, WarningIcon } from "./icons";
+
+const partIcons: Record<SituationAnswerPart, typeof BoltIcon> = {
+  handling: BoltIcon,
+  risk: WarningIcon,
+  citation: ScalesIcon,
+};
 
 export function SituationAnswer(props: SituationAnswerInput) {
   const blocks = buildSituationAnswer(props);
   return (
     <ol className="situation-answer">
-      {blocks.map((block, index) => (
-        <li key={block.part} className="situation-part" data-part={block.part}>
-          <span className="situation-step" aria-hidden="true">
-            {index + 1}
-          </span>
-          <div>
-            <h4>{block.title}</h4>
-            <p>{block.body}</p>
-            {block.url && (
-              <a href={block.url} target="_blank" rel="noopener noreferrer">
-                Mở nguồn chính thức <span aria-hidden="true">↗</span>
-              </a>
-            )}
-          </div>
-        </li>
-      ))}
+      {blocks.map((block) => {
+        const PartIcon = partIcons[block.part];
+        return (
+          <li key={block.part} className="situation-part" data-part={block.part}>
+            <span className="situation-step">
+              <PartIcon />
+            </span>
+            <div>
+              <h4>{block.title}</h4>
+              <p>{block.body}</p>
+              {block.url && (
+                <a href={block.url} target="_blank" rel="noopener noreferrer">
+                  Mở nguồn chính thức <ArrowUpRightIcon />
+                </a>
+              )}
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }

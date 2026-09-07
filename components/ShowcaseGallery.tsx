@@ -10,6 +10,15 @@ import {
 import type { PublicShowcase } from "@/lib/public-showcase";
 import { showcaseMediaPreviewUrl } from "@/lib/showcase-media";
 import { ContentMedia } from "./ContentMedia";
+import {
+  ArrowRightIcon,
+  ArrowUpRightIcon,
+  BookIcon,
+  CloseIcon,
+  PlayIcon,
+  TopicIcon,
+  WarningIcon,
+} from "./icons";
 import { EngagementBar, EngagementStat } from "./EngagementBar";
 import {
   useSharedContentId,
@@ -146,12 +155,13 @@ export function ShowcaseDialog({
         tabIndex={-1}
       >
         <button
+          type="button"
           className="modal-close"
           onClick={onClose}
           aria-label="Đóng tình huống"
           ref={closeButtonRef}
         >
-          ×
+          <CloseIcon />
         </button>
         <span className="modal-topic">{item.topic}</span>
         <h2 id={`showcase-modal-title-${item.id}`}>{item.title}</h2>
@@ -167,7 +177,7 @@ export function ShowcaseDialog({
             target="_blank"
             rel="noreferrer"
           >
-            Xem nguồn chính thức <span aria-hidden="true">↗</span>
+            Xem nguồn chính thức <ArrowUpRightIcon />
           </a>
         )}
         <EngagementBar
@@ -279,59 +289,84 @@ export function ShowcaseGallery({
   return (
     <>
       <div className="case-cards" data-showcase-state="ready">
-        {showcases.map((item, index) => (
-          <article
-            className={`case-card ${index % 2 === 0 ? "yellow" : "mint"}`}
-            data-showcase-id={item.id}
-            key={item.id}
-          >
-            <div className="case-meta">
-              <span>{item.topic}</span>
-              <span>{item.sourceUrl ? "NGUỒN CHÍNH THỨC" : "BIÊN SOẠN NỘI BỘ"}</span>
-            </div>
-            {showcaseMediaPreviewUrl(item.mediaKind, item.mediaUrl) && (
-              <div className="case-thumb" data-media-kind={item.mediaKind}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={showcaseMediaPreviewUrl(item.mediaKind, item.mediaUrl)}
-                  alt=""
-                  aria-hidden="true"
-                  loading="lazy"
-                  width={480}
-                  height={270}
-                />
-                {item.mediaKind === "youtube" && (
-                  <span className="case-thumb-play" aria-hidden="true">▶</span>
-                )}
-              </div>
-            )}
-            <h3>{item.title}</h3>
-            <p className="case-summary">{item.summary}</p>
-            <EngagementStat entityType="showcase" entityId={item.id} />
-            <div className="showcase-actions">
-              <button
-                aria-haspopup="dialog"
-                aria-label={`Xem chi tiết tình huống: ${item.title}`}
-                ref={(node) => {
-                  if (node && dialog.selected?.id === item.id) {
-                    lastTriggerRef.current = node;
-                  }
-                }}
-                onClick={(event) => {
-                  lastTriggerRef.current = event.currentTarget;
-                  dispatch({ type: "open", item });
-                }}
-              >
-                Xem chi tiết
-              </button>
-              {item.sourceUrl && (
-                <a href={item.sourceUrl} target="_blank" rel="noreferrer">
-                  Nguồn <span aria-hidden="true">↗</span>
-                </a>
+        {showcases.map((item, index) => {
+          const previewUrl = showcaseMediaPreviewUrl(item.mediaKind, item.mediaUrl);
+          // Bài đầu tiên chiếm cột lớn; các bài sau xen kẽ thẻ nâu và thẻ ngang
+          // để hàng thẻ không rơi vào kiểu ba cột đều nhau.
+          const variant = index === 0 ? "" : index % 2 === 1 ? " dark" : " split";
+          return (
+            <article
+              className={`case-card${variant}`}
+              data-showcase-id={item.id}
+              key={item.id}
+            >
+              {previewUrl && (
+                <div className="case-thumb" data-media-kind={item.mediaKind}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewUrl}
+                    alt={`Ảnh minh họa tình huống: ${item.title}`}
+                    loading="lazy"
+                    width={480}
+                    height={270}
+                  />
+                  {item.mediaKind === "youtube" && (
+                    <span className="case-thumb-play" aria-hidden="true">
+                      <PlayIcon />
+                    </span>
+                  )}
+                  {index === 0 && (
+                    <span className="case-flag featured">
+                      <WarningIcon /> Nổi bật
+                    </span>
+                  )}
+                  <span className="case-flag topic">{item.topic}</span>
+                </div>
               )}
-            </div>
-          </article>
-        ))}
+              <div className="case-body">
+                <p className="case-meta">
+                  {previewUrl ? (
+                    <BookIcon />
+                  ) : (
+                    <span className="topic-chip" data-topic={item.topic}>
+                      <TopicIcon topic={item.topic} />
+                      {item.topic}
+                    </span>
+                  )}
+                  {item.sourceUrl ? "Có nguồn chính thức" : "Biên soạn nội bộ"}
+                </p>
+                <h3>{item.title}</h3>
+                <p className="case-summary">{item.summary}</p>
+                <div className="case-foot">
+                  <EngagementStat entityType="showcase" entityId={item.id} />
+                  <div className="showcase-actions">
+                    <button
+                      type="button"
+                      aria-haspopup="dialog"
+                      aria-label={`Xem chi tiết tình huống: ${item.title}`}
+                      ref={(node) => {
+                        if (node && dialog.selected?.id === item.id) {
+                          lastTriggerRef.current = node;
+                        }
+                      }}
+                      onClick={(event) => {
+                        lastTriggerRef.current = event.currentTarget;
+                        dispatch({ type: "open", item });
+                      }}
+                    >
+                      Xem chi tiết <ArrowRightIcon />
+                    </button>
+                    {item.sourceUrl && (
+                      <a href={item.sourceUrl} target="_blank" rel="noreferrer">
+                        Nguồn <ArrowUpRightIcon />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </article>
+          );
+        })}
       </div>
       {dialog.selected && (
         <ShowcaseDialog

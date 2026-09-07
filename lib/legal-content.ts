@@ -140,14 +140,38 @@ export const laws: LawItem[] = [
   },
 ];
 
+// Nguồn tra cứu chính thống hiển thị ở mục "Đọc luật từ nguồn chính thống".
+// Chỉ giữ địa chỉ của cơ quan nhà nước và đã kiểm tra truy cập được.
 export const sources = [
   {
     label: "Nghị định 168/2024/NĐ-CP",
+    topic: "Giao thông",
     href: "https://xaydungchinhsach.chinhphu.vn/toan-van-nghi-dinh-168-2024-nd-cp-quy-dinh-xu-phat-vi-pham-hanh-chinh-ve-trat-tu-atgt-duong-bo-119241231164556785.htm",
   },
   {
     label: "Luật Xử lý vi phạm hành chính",
+    topic: "An ninh trật tự",
     href: "https://vbpl.moj.gov.vn/FileData/TW/Lists/vbpq/Attachments/147301/tvHienThiToanVan_31.VBHN.VPQH.1.pdf",
+  },
+  {
+    label: "Cơ sở dữ liệu văn bản quy phạm pháp luật",
+    topic: "Tất cả",
+    href: "https://vanban.chinhphu.vn/",
+  },
+  {
+    label: "Cục Cảnh sát giao thông",
+    topic: "Giao thông",
+    href: "https://csgt.vn/",
+  },
+  {
+    label: "Cổng thông tin điện tử Bộ Công an",
+    topic: "An ninh trật tự",
+    href: "https://bocongan.gov.vn/",
+  },
+  {
+    label: "Tổng đài quốc gia bảo vệ trẻ em 111",
+    topic: "Bạo lực học đường",
+    href: "https://tongdai111.vn/",
   },
 ];
 

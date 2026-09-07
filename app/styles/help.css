@@ -1,0 +1,87 @@
+/* Khối "Cần giúp ngay?" nền đỏ với dải sọc vàng–nâu ở mép trên. */
+
+.help-cta {
+  position: relative;
+  overflow: hidden;
+  margin-block: var(--section-y) 0;
+  border-radius: var(--r-xl);
+  background: var(--brick);
+  color: #fff6e6;
+  padding: clamp(44px, 5vw, 66px) clamp(26px, 3.4vw, 54px) clamp(34px, 4vw, 52px);
+}
+/* Dải sọc chéo vàng/nâu. */
+.help-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 14px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--gold) 0 14px,
+    var(--brown) 14px 28px
+  );
+}
+
+.help-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: center;
+}
+
+.help-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.help-kicker svg { width: 16px; height: 16px; }
+.help-copy h2 {
+  margin: 16px 0 14px;
+  font-size: clamp(1.75rem, 1.15rem + 2vw, 2.65rem);
+  color: #fff6e6;
+}
+.help-copy p { max-width: 48ch; color: rgba(255, 246, 230, 0.85); margin-bottom: 26px; }
+
+.hotline-list { display: grid; gap: 12px; }
+.hotline-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  border-radius: var(--r-lg);
+  background: rgba(255, 246, 230, 0.1);
+  border: 1px solid rgba(255, 246, 230, 0.2);
+  transition: background var(--fast) var(--ease), transform var(--normal) var(--ease);
+}
+.hotline-card:hover { background: rgba(255, 246, 230, 0.18); transform: translateX(5px); }
+.hotline-card i {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--gold);
+  color: var(--brick-deep);
+}
+.hotline-card i svg { width: 21px; height: 21px; }
+.hotline-card div { display: grid; gap: 2px; min-width: 0; }
+.hotline-card strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.hotline-card small { font-size: 0.875rem; color: rgba(255, 246, 230, 0.8); }
+.hotline-card > svg { width: 18px; height: 18px; color: rgba(255, 246, 230, 0.55); }
+
+@media (max-width: 860px) {
+  .help-grid { grid-template-columns: minmax(0, 1fr); }
+}

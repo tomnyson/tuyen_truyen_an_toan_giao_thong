@@ -456,7 +456,7 @@ test("thẻ không có nguồn chính thức thì không render link nguồn", (
     }),
   );
 
-  assert.match(html, /BIÊN SOẠN NỘI BỘ/);
+  assert.match(html, /Biên soạn nội bộ/);
   assert.doesNotMatch(html, /<a /);
   assert.match(html, /data-showcase-id="47"/);
 });

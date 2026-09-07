@@ -1,0 +1,112 @@
+/* "Đọc luật từ nguồn chính thống": cột giới thiệu + QR, cột danh sách nguồn. */
+
+.source-section {
+  background: var(--cream);
+  padding-block: var(--section-y);
+}
+
+.source-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: start;
+}
+
+.source-intro h2 { margin-top: 14px; font-size: var(--text-h2); }
+.source-intro > p { margin-top: 18px; max-width: 46ch; color: var(--ink-soft); }
+
+/* Thẻ QR vàng. */
+.qr-block {
+  display: grid;
+  grid-template-columns: 138px minmax(0, 1fr);
+  gap: 22px;
+  align-items: center;
+  margin-top: clamp(26px, 3vw, 36px);
+  padding: 22px;
+  border-radius: var(--r-xl);
+  background: var(--gold-soft);
+  box-shadow: var(--shadow-sm);
+}
+.qr-frame {
+  width: 138px;
+  height: 138px;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--shadow-xs);
+}
+.qr-frame svg { width: 100%; height: 100%; display: block; }
+.qr-placeholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r-xs);
+  background: repeating-linear-gradient(45deg, var(--sand) 0 8px, var(--paper) 8px 16px);
+}
+.qr-copy h3 { font-size: 1.25rem; margin-bottom: 7px; }
+.qr-copy p { font-size: 0.9375rem; color: var(--ink-soft); margin-bottom: 16px; }
+.qr-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 22px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--cream);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.qr-download svg { width: 17px; height: 17px; }
+.qr-download:hover { background: var(--brown); transform: translateY(-2px); }
+.qr-download:active { transform: translateY(1px) scale(0.99); }
+.qr-download.is-disabled {
+  background: var(--sand-deep);
+  color: var(--ink-mute);
+  pointer-events: none;
+}
+
+/* Danh sách nguồn: mỗi dòng là một thẻ trắng đánh số. */
+.source-list { display: grid; gap: 12px; }
+.source-list a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px;
+  background: var(--paper);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--normal) var(--ease), box-shadow var(--normal) var(--ease);
+}
+.source-list a:hover { transform: translateX(6px); box-shadow: var(--shadow-md); }
+.source-index {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--cream);
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.source-list a:hover .source-index { background: var(--blush); color: var(--brick); }
+.source-name { font-weight: 700; font-size: 1rem; min-width: 0; }
+.source-go { color: var(--ink-mute); display: grid; place-items: center; transition: color var(--fast) var(--ease); }
+.source-go svg { width: 18px; height: 18px; }
+.source-list a:hover .source-go { color: var(--brick); }
+
+@media (max-width: 900px) {
+  .source-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .qr-block { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+  .source-list a { grid-template-columns: auto minmax(0, 1fr); gap: 14px; padding: 16px; }
+  .source-list a .topic-chip, .source-go { display: none; }
+}

@@ -169,3 +169,18 @@ export function situationSuggestions(
     .filter((question): question is string => Boolean(question))
     .slice(0, limit);
 }
+
+// Chip tra cứu nhanh ở hero — nhãn ngắn xếp hai cột theo `design/index.html`.
+// Nhãn cũng chính là truy vấn được nạp vào ô tìm kiếm nên không lệch kỳ vọng.
+export type HeroQuickChip = {
+  readonly label: string;
+  readonly tone: "brick" | "sky" | "green" | "gold";
+  readonly topic: ContentTopic;
+};
+
+export const heroQuickChips: readonly HeroQuickChip[] = [
+  { label: "Bị bắt nạt ở trường", tone: "brick", topic: "Bạo lực học đường" },
+  { label: "Bị lộ ảnh riêng tư", tone: "sky", topic: "Mạng xã hội" },
+  { label: "Bị lừa đảo qua mạng", tone: "green", topic: "Mạng xã hội" },
+  { label: "Đi xe điện chưa đủ tuổi", tone: "gold", topic: "Giao thông" },
+];

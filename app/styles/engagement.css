@@ -1,0 +1,105 @@
+/* Lượt xem, nút "Nội dung này ý nghĩa" và bảng chia sẻ (US-033/034). */
+
+.engagement-stat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  font-size: 0.8125rem;
+  color: var(--ink-mute);
+}
+.engagement-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.engagement-metric svg { width: 15px; height: 15px; }
+
+.engagement-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+}
+.engagement-bar .engagement-metric { color: var(--ink-mute); margin-right: auto; }
+
+.engagement-favorite, .engagement-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--r-pill);
+  background: var(--cream);
+  border: 1px solid var(--line);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.engagement-favorite svg, .engagement-share svg { width: 15px; height: 15px; }
+.engagement-favorite:hover { background: var(--blush); transform: translateY(-2px); }
+.engagement-share:hover { background: var(--mint); transform: translateY(-2px); }
+.engagement-favorite[aria-pressed="true"] { background: var(--blush); border-color: var(--blush-deep); color: var(--brick-deep); }
+.engagement-count {
+  padding-left: 8px;
+  border-left: 1px solid var(--line-strong);
+  font-variant-numeric: tabular-nums;
+}
+.engagement-status { flex-basis: 100%; min-height: 15px; color: var(--ink-mute); }
+
+.share-menu { position: relative; display: inline-flex; }
+.share-menu .engagement-share[aria-expanded="true"] { background: var(--mint); }
+.share-sheet {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: var(--z-float);
+  display: grid;
+  gap: 3px;
+  min-width: 200px;
+  padding: 8px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--shadow-lg);
+  animation: share-sheet-in var(--fast) var(--ease);
+}
+.share-option {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 11px;
+  border-radius: var(--r-xs);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease);
+}
+.share-option:hover { background: var(--cream); }
+.share-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: var(--r-xs);
+  background: var(--sand);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.share-option[data-channel="facebook"] .share-mark { background: var(--sky-soft); color: var(--sky); }
+.share-option[data-channel="zalo"] .share-mark { background: var(--sky-soft); color: #1a5fa8; }
+.share-option[data-channel="x"] .share-mark { background: var(--ink); color: var(--cream); }
+.share-option[data-channel="telegram"] .share-mark { background: var(--mint); color: var(--green-deep); }
+.share-option[data-channel="email"] .share-mark { background: var(--blush); color: var(--brick); }
+
+@keyframes share-sheet-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}

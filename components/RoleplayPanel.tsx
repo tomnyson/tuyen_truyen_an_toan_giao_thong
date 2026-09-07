@@ -8,6 +8,7 @@ import {
   roleplayOutcomeCopy,
   type RoleplayScenario,
 } from "@/lib/roleplay";
+import { ArrowRightIcon, ArrowUpRightIcon } from "./icons";
 
 type RoleplayPanelProps = Readonly<{
   scenarios: readonly RoleplayScenario[];
@@ -55,7 +56,7 @@ export function RoleplayPanel({
             <h3>{item.title}</h3>
             <p>{item.intro}</p>
             <button type="button" onClick={() => start(item)}>
-              Vào vai →
+              Vào vai <ArrowRightIcon />
             </button>
           </article>
         ))}
@@ -115,7 +116,7 @@ export function RoleplayPanel({
             <strong>{node.legalBasis}</strong>
             {node.sourceUrl && (
               <a href={node.sourceUrl} target="_blank" rel="noreferrer noopener">
-                Xem văn bản gốc ↗
+                Xem văn bản gốc <ArrowUpRightIcon />
               </a>
             )}
           </p>

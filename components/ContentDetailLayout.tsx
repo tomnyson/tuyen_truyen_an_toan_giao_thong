@@ -2,7 +2,8 @@
 // Zalo… thấy ngay nội dung, kèm lối quay lại trang tra cứu đầy đủ.
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { brandDisplayName, brandMark, brandTagline } from "@/lib/brand";
+import { brandDisplayName, brandTagline } from "@/lib/brand";
+import { ArrowLeftIcon, ScalesIcon } from "./icons";
 
 export type ContentDetailLayoutProps = Readonly<{
   kicker: string;
@@ -19,14 +20,16 @@ export function ContentDetailLayout({
     <div className="detail-page">
       <header className="detail-head">
         <Link className="detail-brand" href="/">
-          <span className="brand-mark">{brandMark}</span>
+          <span className="brand-mark">
+            <ScalesIcon />
+          </span>
           <span>
             <strong>{brandDisplayName}</strong>
             <small>{brandTagline}</small>
           </span>
         </Link>
         <Link className="detail-back" href="/">
-          <span aria-hidden="true">←</span> Về trang tra cứu
+          <ArrowLeftIcon /> Về trang tra cứu
         </Link>
       </header>
       <main>

@@ -1,0 +1,189 @@
+/* "Chọn chủ đề bạn quan tâm": danh sách chủ đề bên trái, thẻ ghi nhớ đỏ bên phải. */
+
+.topics-section {
+  background: var(--cream);
+  padding-block: var(--section-y);
+}
+
+.topics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  gap: clamp(24px, 3.5vw, 48px);
+  align-items: start;
+}
+
+.topic-list { display: grid; gap: 14px; }
+
+.topic-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  padding: 18px 24px 18px 18px;
+  text-align: left;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  transition: transform var(--normal) var(--ease), box-shadow var(--normal) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+.topic-card:hover,
+.topic-card.active {
+  transform: translateX(6px);
+  border-color: var(--blush-deep);
+  box-shadow: var(--shadow-md);
+}
+
+.topic-icon {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  transition: transform var(--normal) var(--ease);
+}
+.topic-icon svg { width: 30px; height: 30px; }
+.topic-card:hover .topic-icon { transform: scale(1.06) rotate(-4deg); }
+.topic-icon.t1 { background: var(--blush); color: var(--brick); }
+.topic-icon.t2 { background: var(--sky-soft); color: var(--sky); }
+.topic-icon.t3 { background: var(--sand); color: var(--brown); }
+.topic-icon.t4 { background: var(--mint); color: var(--green); }
+.topic-icon.t5 { background: var(--gold-soft); color: var(--gold); }
+
+.topic-body { display: grid; gap: 3px; min-width: 0; }
+.topic-body strong {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.1875rem;
+  font-weight: 700;
+}
+.topic-index {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+.topic-card:nth-child(1) .topic-index { color: var(--brick); }
+.topic-card:nth-child(2) .topic-index { color: var(--sky); }
+.topic-card:nth-child(3) .topic-index { color: var(--brown); }
+.topic-card:nth-child(4) .topic-index { color: var(--green); }
+.topic-card:nth-child(5) .topic-index { color: var(--gold-deep); }
+.topic-body small { font-size: 0.9375rem; color: var(--ink-soft); }
+
+.topic-go {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--ink-soft);
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+.topic-go svg { width: 19px; height: 19px; }
+.topic-card:hover .topic-go { background: var(--brick); color: var(--cream); transform: translateX(3px); }
+
+/* ---- Thẻ ghi nhớ nhanh ---- */
+.memo-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--brick);
+  color: #fff6e6;
+  border-radius: var(--r-xl);
+  padding: 44px clamp(24px, 2.6vw, 36px) clamp(24px, 2.6vw, 34px);
+  box-shadow: 0 16px 40px rgba(184, 67, 42, 0.25);
+}
+/* Dải thổ cẩm ở mép trên thẻ — hàng thoi vàng / kem / xanh lặp lại bước 60px. */
+.memo-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 22px;
+  background-color: var(--brick-deep);
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='22'><path d='M10 3.93L17.07 11L10 18.07L2.93 11Z' fill='%23f6c445'/><path d='M30 3.93L37.07 11L30 18.07L22.93 11Z' fill='%23fff8ec'/><path d='M50 3.93L57.07 11L50 18.07L42.93 11Z' fill='%23dff1e4'/></svg>");
+  background-size: 60px 22px;
+  background-repeat: repeat-x;
+  background-position: center;
+}
+
+.memo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 10px;
+  border-radius: var(--r-pill);
+  background: var(--brick-deep);
+  color: #fff8ec;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.125em;
+  text-transform: uppercase;
+}
+.memo-chip svg { width: 15px; height: 15px; color: var(--gold); }
+
+.memo-card h3 {
+  margin: 22px 0 26px;
+  font-size: clamp(1.5rem, 1.05rem + 1.5vw, 2.05rem);
+  color: #fff6e6;
+}
+
+.age-grid { display: grid; gap: 12px; }
+.age-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 14px 20px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  color: var(--ink);
+}
+.age-row:nth-child(1) { background: var(--mint); }
+.age-row:nth-child(2) { background: var(--gold-soft); }
+.age-row strong {
+  display: grid;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  border-right: 1px solid var(--line-strong);
+  padding-right: 18px;
+  margin-right: -18px;
+}
+.age-row:nth-child(1) strong { color: var(--green-deep); }
+.age-row:nth-child(2) strong { color: var(--brown); }
+.age-row:nth-child(3) strong { color: var(--brick); }
+.age-row strong small {
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.age-row span { font-size: 0.9375rem; }
+
+.memo-note {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: rgba(255, 246, 230, 0.78);
+}
+.memo-note svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--gold); }
+
+@media (max-width: 900px) {
+  .topics-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .topic-card { grid-template-columns: auto minmax(0, 1fr); padding: 16px; gap: 14px; }
+  .topic-go { display: none; }
+  .age-row { grid-template-columns: 84px minmax(0, 1fr); gap: 14px; padding: 12px 16px; }
+}

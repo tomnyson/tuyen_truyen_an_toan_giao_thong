@@ -6,6 +6,7 @@ import {
   type ShowcaseDataState,
 } from "@/components/ShowcaseGallery";
 import { SiteQrCode } from "@/components/SiteQrCode";
+import { HelpHotlines } from "@/components/HelpHotlines";
 import { ContentMedia } from "@/components/ContentMedia";
 import { GameZone } from "@/components/GameZone";
 import { SituationAnswer } from "@/components/SituationAnswer";
@@ -130,26 +131,6 @@ const quickChipIcons = {
   green: PhoneIcon,
   gold: TrafficIcon,
 } as const;
-
-// Ba đầu mối trong băng trợ giúp khẩn — viên vàng hiển thị số máy (hoặc nhãn
-// viết tắt khi đầu mối không phải tổng đài số).
-const helpHotlines = [
-  {
-    code: "111",
-    name: "Tổng đài quốc gia bảo vệ trẻ em",
-    note: "24/7 · Miễn phí",
-  },
-  {
-    code: "113",
-    name: "Công an – tình huống khẩn cấp",
-    note: "24/7 · Miễn phí",
-  },
-  {
-    code: "TGPL",
-    name: `Trung tâm Trợ giúp pháp lý Nhà nước tỉnh ${brandLocality}`,
-    note: "Sở Tư pháp · Tư vấn miễn phí cho HSSV",
-  },
-] as const;
 
 function managedLawId(id: number): number | null {
   return id > managedLawIdOffset ? id - managedLawIdOffset : null;
@@ -364,6 +345,7 @@ function HomeContent() {
             <a href="#tra-cuu">Tra cứu</a>
             <a href="#tinh-huong">Tình huống</a>
             <a href="#ren-luyen">Thử thách</a>
+            <a href="/tro-giup-phap-ly">Trợ giúp pháp lý</a>
           </nav>
           <button
             type="button"
@@ -746,18 +728,7 @@ function HomeContent() {
                   <ChatIcon /> Hỏi trợ lý trước khi gọi
                 </button>
               </div>
-              <ul className="hotline-list">
-                {helpHotlines.map((hotline) => (
-                  <li className="hotline-card" key={hotline.code}>
-                    <i aria-hidden="true">{hotline.code}</i>
-                    <div>
-                      <strong>{hotline.name}</strong>
-                      <small>{hotline.note}</small>
-                    </div>
-                    <PhoneIcon aria-hidden="true" />
-                  </li>
-                ))}
-              </ul>
+              <HelpHotlines />
             </div>
           </section>
         </div>
@@ -815,6 +786,7 @@ function HomeContent() {
                 <li><a href="#tra-cuu">Tra cứu tình huống</a></li>
                 <li><a href="#tinh-huong">Góc cảnh báo</a></li>
                 <li><a href="#ren-luyen">Thử thách kiến thức</a></li>
+                <li><a href="/tro-giup-phap-ly">Trợ giúp pháp lý</a></li>
                 <li><a href="#nguon">Nguồn luật gốc</a></li>
               </ul>
             </div>

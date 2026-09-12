@@ -1,6 +1,6 @@
 # Progress Tracker — Luật Học Đường
 
-> Cập nhật gần nhất: 2026-09-05
+> Cập nhật gần nhất: 2026-09-12
 > Trạng thái được xác định từ bằng chứng trong repository, không phải phần trăm
 > ước lượng. Checkbox chi tiết nằm trong `docs/USER_STORIES.md`.
 
@@ -27,7 +27,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
 | Bản điều chỉnh 2026-09-05 | 9 | 0 | 0 | 0 |
-| **Tổng** | **16** | **18** | **2** | **0** |
+| Bản nâng cấp 2026-09-12 (GĐ1) | 2 | 0 | 0 | 0 |
+| **Tổng** | **18** | **18** | **2** | **0** |
 
 ## Theo dõi theo user story
 
@@ -51,6 +52,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-035 — Quiz, điểm và huy hiệu | P2 | Done | Full-stack + PM | `lib/gamification.ts`, `lib/quiz-content.ts` (17 câu, 3–5 câu mỗi lĩnh vực), `lib/game-store.ts`, `app/api/game/route.ts`, `app/admin/api/game/route.ts`, `app/admin/GameManager.tsx`, `components/QuizPanel.tsx`; `pgSchemaVersion = 2026-09-05-gamification-v1`; DEC-018; `tests/gamification.test.mjs` 11/11 và `tests/game-api.test.mjs` 8/8 pass | 2026-09-05 |
 | US-036 — Game nhập vai tình huống | P2 | Done | Full-stack + PM | `lib/roleplay.ts`, `lib/roleplay-content.ts` (3 kịch bản), `components/RoleplayPanel.tsx`, CRUD kịch bản trong `app/admin/api/game/route.ts`; kịch bản là dữ liệu, component chỉ đi trên đồ thị; `tests/roleplay.test.mjs` 7/7 pass | 2026-09-05 |
 | US-037 — QR code truy cập nhanh | P2 | Done | Full-stack | `lib/qr-code.ts`, `components/SiteQrCode.tsx`; QR sinh client-side, tải SVG in được; `tests/qr-code.test.mjs` 9/9 pass | 2026-09-05 |
+| US-038 — Khuyến cáo độ chính xác gắn vào từng câu trả lời | P0 | Done | Full-stack | `lib/ai-disclosure.ts`, `components/AiDisclaimer.tsx`, `components/ChatAnswerBody.tsx`, `lib/chat-answer-view.ts` (DEC-020); `tests/legal-aid.test.mjs` 7/7, `tests/chat-answer-view.test.mjs` 6/6, `tests/ai-disclaimer.test.mjs`/`tests/answer-origin.test.mjs` pass — xem mục GĐ1 2026-09-12 | 2026-09-12 |
+| US-039 — Mục trợ giúp pháp lý chỉ ra cơ quan có thẩm quyền | P0 | Done | Full-stack | `components/ReferralChain.tsx`, `components/HelpHotlines.tsx`, `components/LegalAidConsult.tsx`, `app/tro-giup-phap-ly/page.tsx`, `lib/authority-referral.ts`, `lib/authority-store.ts`, `app/api/co-quan/route.ts` (DEC-022); `tests/legal-aid.test.mjs` 7/7, `tests/authority-referral.test.mjs`, `tests/authority-store.test.mjs`, `tests/co-quan-api.test.mjs` pass — xem mục GĐ1 2026-09-12 | 2026-09-12 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
 | US-010 — Auth khu vực quản trị | P0 | Done | Full-stack + Code review | Anonymous redirect, invalid credential, signed session và admin access regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
@@ -1006,6 +1009,55 @@ này.
   trong `db/seeds/seed-content.v1.mjs`), `tsc --noEmit` sạch.
 - Không đổi schema nên không bump `pgSchemaVersion`; chưa verify trên production
   vì cần deploy để đo nhãn nguồn trên dữ liệu thật.
+
+### 2026-09-12 — GĐ1: trang trợ giúp pháp lý + băng hotline trang chủ đọc API (US-038, US-039)
+
+- **Vấn đề gốc:** băng ba đầu mối ở trang chủ (`helpHotlines`) là mảng viết cứng
+  trong `app/page.tsx`, không đồng bộ với dữ liệu `referral_authorities` trong
+  database; và chưa có nơi nào để học sinh mô tả tình huống rồi được chỉ thẳng
+  ra đúng chuỗi cơ quan có thẩm quyền (US-039).
+- **Thành phần mới:** `components/ReferralChain.tsx` (component server-safe,
+  không `"use client"`, không hook — dựng danh sách cơ quan theo thứ tự leo
+  thang, badge số điện thoại thuần số mới thành liên kết `tel:`, có khối cảnh
+  báo khi `degraded=true`); `components/HelpHotlines.tsx` (client, gọi
+  `GET /api/co-quan`, fallback về `fallbackReferralAuthorities` khi lỗi, hiển
+  thị **nguyên cả chuỗi** — không lọc theo cấp — để không mất đầu mối 113 ở cấp
+  xã/phường); `components/LegalAidConsult.tsx` (client, form gửi câu hỏi tới
+  `/api/chat` có sẵn, dựng lại câu trả lời qua `parseChatAnswerPayload` +
+  `ChatAnswerBody` dùng chung với trang chủ, rồi tra `/api/co-quan?topic=...`
+  để lấy `ReferralChain` theo đúng lĩnh vực câu hỏi — không tạo đường trả lời
+  mới, không tự sinh tên/số điện thoại cơ quan); `app/tro-giup-phap-ly/page.tsx`
+  (trang server có `metadata` riêng); `app/styles/legal-aid.css` (dùng token có
+  sẵn `--fast`/`--ease`, không tạo token mới).
+- **Trang chủ:** xoá mảng `helpHotlines` và khối `<ul className="hotline-list">`
+  viết cứng trong `app/page.tsx`, thay bằng `<HelpHotlines />`; thêm liên kết
+  `/tro-giup-phap-ly` vào cả nav và chân trang. `app/page.tsx`: **990 → 962
+  dòng** (vẫn còn 962 > trần 800 dòng của dự án — nợ kỹ thuật đã biết, ghi nhận
+  để xử lý ở tác vụ sau, không thuộc phạm vi GĐ1).
+  `app/globals.css` thêm `@import "./styles/legal-aid.css";` nối tiếp chuỗi
+  import hiện có.
+- **TDD:** viết `tests/legal-aid.test.mjs` trước (RED —
+  `Cannot find module '../components/ReferralChain.tsx'`), dùng loader
+  `tsx/esm/api` (`register()`) vì file cần đọc JSX lẫn import tương đối không
+  đuôi trong `lib/*.ts`, `node --experimental-strip-types` không làm được cả
+  hai việc này cùng lúc. Sau khi cài component + trang: `node --test
+  tests/legal-aid.test.mjs` **7/7 pass**. `npx tsc --noEmit`: sạch. Full suite
+  `npm test`: **486/487 pass** — 1 fail còn lại là
+  `tests/public-showcase.test.mjs` (parse URL YouTube Shorts), có từ trước tác
+  vụ này, ngoài phạm vi, không sửa ở đây.
+- **Kiểm tra bằng mắt (Playwright, viewport 380px, dev server thật):** trang
+  `/tro-giup-phap-ly` không tràn ngang (`scrollWidth` ≤ `clientWidth`); gửi câu
+  hỏi bạo lực học đường → `AiDisclaimer`, `ChatAnswerBody`, `ReferralChain`
+  đều render; do máy local không kết nối được database nên `/api/co-quan` trả
+  `degraded: true` — đúng thiết kế fail-safe của DEC-022, ghi chú dự phòng
+  hiển thị rõ ràng; badge cơ quan tự chuyển hàng ở khổ hẹp
+  (`grid-column: 1 / -1`); thứ tự focus bàn phím: textarea → nút gửi → liên kết
+  `tel:113`, có viền `:focus-visible` hiển thị rõ. Trang chủ vẫn hiện đủ 3 thẻ
+  hotline với badge `113`, `TGPL`, `111`; đúng 2 liên kết tới
+  `/tro-giup-phap-ly` (nav + chân trang).
+- Không đổi schema nên không bump `pgSchemaVersion`.
+- Kế hoạch: `.superpowers/sdd/2026-09-12-minh-bach-va-tro-giup-phap-ly/`
+  (task-8-brief.md, global-constraints.md).
 
 ## Cách cập nhật tracker
 

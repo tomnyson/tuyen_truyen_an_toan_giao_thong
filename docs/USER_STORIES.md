@@ -1533,45 +1533,67 @@ Thiết kế: `docs/superpowers/specs/2026-09-12-nang-cap-chuc-nang-duyet-design
 Phạm vi lấy theo cột `duyệt thực hiện` của sheet danh mục nâng cấp, snapshot
 ngày 2026-09-12. Mọi story dưới đây chưa có bằng chứng triển khai.
 
-### [ ] US-038 — Khuyến cáo độ chính xác gắn vào từng câu trả lời
+### [x] US-038 — Khuyến cáo độ chính xác gắn vào từng câu trả lời
 
 - **Priority:** P0
 - **Persona:** Học sinh, phụ huynh, giáo viên
 - **Mô tả:** Là người đọc, tôi muốn thấy rõ mức độ tin cậy của từng câu trả lời
   để biết khi nào phải đối chiếu văn bản gốc trước khi làm theo.
 - **Dòng sheet:** 7
+- **Kế hoạch:** `.superpowers/sdd/2026-09-12-minh-bach-va-tro-giup-phap-ly/`
 
 **Acceptance criteria**
 
-- [ ] Mọi câu trả lời AI đều hiển thị khuyến cáo, không chỉ một dòng ở chân hộp
-  chat.
-- [ ] Khuyến cáo có hai mức phân biệt được: nội dung dựng từ dữ liệu đã duyệt và
-  nội dung AI/nguồn ngoài chưa xác minh.
-- [ ] Mức chưa xác minh nêu rõ kết quả mang tính tham khảo, không bảo đảm chính
-  xác 100% và không dùng làm căn cứ pháp lý.
-- [ ] Khuyến cáo kèm hành động mở văn bản gốc khi có nguồn thuộc allowlist.
-- [ ] Câu chữ khuyến cáo chỉ tồn tại một bản trong `lib/ai-disclosure.ts`; không
+- [x] Mọi câu trả lời AI đều hiển thị khuyến cáo, không chỉ một dòng ở chân hộp
+  chat. **Evidence:** `components/ChatAnswerBody.tsx` render
+  `<AiDisclaimer>` cho mọi câu trả lời (trang chủ và trang trợ giúp pháp lý);
+  `tests/chat-answer-view.test.mjs`.
+- [x] Khuyến cáo có hai mức phân biệt được: nội dung dựng từ dữ liệu đã duyệt và
+  nội dung AI/nguồn ngoài chưa xác minh. **Evidence:** `lib/ai-disclosure.ts`
+  (`disclosureFor(origin)` trả `reviewedDisclosure`/`unverifiedDisclosure`).
+- [x] Mức chưa xác minh nêu rõ kết quả mang tính tham khảo, không bảo đảm chính
+  xác 100% và không dùng làm căn cứ pháp lý. **Evidence:**
+  `unverifiedDisclosure.body` trong `lib/ai-disclosure.ts`.
+- [x] Khuyến cáo kèm hành động mở văn bản gốc khi có nguồn thuộc allowlist.
+  **Evidence:** `components/AiDisclaimer.tsx`, `lib/official-source-url.ts`.
+- [x] Câu chữ khuyến cáo chỉ tồn tại một bản trong `lib/ai-disclosure.ts`; không
   còn bản viết rời trong `lib/openai-web-search.ts` và `lib/official-source-url.ts`.
+  **Evidence:** DEC-020 (`docs/TECHNICAL_SPEC.md`);
+  `tests/legal-aid.test.mjs` xác nhận `components/LegalAidConsult.tsx` không
+  viết lại câu "không bảo đảm chính xác". Xem
+  `docs/PROGRESS.md` mục 2026-09-07 và 2026-09-12 (GĐ1).
 
-### [ ] US-039 — Mục trợ giúp pháp lý chỉ ra cơ quan có thẩm quyền
+### [x] US-039 — Mục trợ giúp pháp lý chỉ ra cơ quan có thẩm quyền
 
 - **Priority:** P0
 - **Persona:** Học sinh, sinh viên
 - **Mô tả:** Là học sinh gặp việc thật, tôi muốn nêu tình huống rồi được chỉ
   hướng xử lý và biết chính xác cơ quan nào giải quyết việc của mình.
 - **Dòng sheet:** 6
+- **Kế hoạch:** `.superpowers/sdd/2026-09-12-minh-bach-va-tro-giup-phap-ly/`
 
 **Acceptance criteria**
 
-- [ ] Có trang riêng nhận tình huống và trả về câu trả lời ba phần đã có.
-- [ ] Câu trả lời kèm khối cơ quan có thẩm quyền theo thứ tự leo thang: trong
-  trường, công an xã/phường, phòng/sở chuyên môn, hotline quốc gia.
-- [ ] Tên, địa chỉ, số điện thoại cơ quan chỉ lấy từ record đã publish trong
-  database; AI không sinh ra thông tin cơ quan.
-- [ ] Lĩnh vực chưa có dữ liệu cơ quan thì hiện đầu mối mặc định cấp tỉnh, không
-  suy diễn.
-- [ ] Ba đầu mối ở trang chủ đọc từ cùng nguồn dữ liệu, có fallback tĩnh khi
-  database không phản hồi.
+- [x] Có trang riêng nhận tình huống và trả về câu trả lời ba phần đã có.
+  **Evidence:** `app/tro-giup-phap-ly/page.tsx`, `components/LegalAidConsult.tsx`
+  (dùng lại `parseChatAnswerPayload` + `ChatAnswerBody`, gọi `/api/chat` có sẵn).
+- [x] Câu trả lời kèm khối cơ quan có thẩm quyền theo thứ tự leo thang: trong
+  trường, công an xã/phường, phòng/sở chuyên môn, hotline quốc gia. **Evidence:**
+  `components/ReferralChain.tsx`, `lib/authority-referral.ts#buildReferralChain`;
+  `tests/legal-aid.test.mjs` (7/7 pass).
+- [x] Tên, địa chỉ, số điện thoại cơ quan chỉ lấy từ record đã publish trong
+  database; AI không sinh ra thông tin cơ quan. **Evidence:** DEC-022
+  (`docs/TECHNICAL_SPEC.md`); `app/api/co-quan/route.ts`,
+  `lib/authority-store.ts#createAuthorityHandler`.
+- [x] Lĩnh vực chưa có dữ liệu cơ quan thì hiện đầu mối mặc định cấp tỉnh, không
+  suy diễn. **Evidence:** `fallbackReferralAuthorities` trong
+  `lib/authority-referral.ts`, dùng khi `degraded: true`.
+- [x] Ba đầu mối ở trang chủ đọc từ cùng nguồn dữ liệu, có fallback tĩnh khi
+  database không phản hồi. **Evidence:** `components/HelpHotlines.tsx` gọi
+  `GET /api/co-quan`, fallback `fallbackReferralAuthorities`; thay cho mảng
+  `helpHotlines` viết cứng cũ trong `app/page.tsx`. Xem `docs/PROGRESS.md` mục
+  2026-09-12 (GĐ1) — `node --test tests/legal-aid.test.mjs` 7/7 pass, kiểm tra
+  bằng mắt Playwright ở 380px.
 
 ### [ ] US-040 — Chuyên mục tra cứu văn bản pháp luật
 

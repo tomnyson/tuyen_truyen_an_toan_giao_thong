@@ -2417,6 +2417,27 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
     Câu trả lời luôn có khối `limitations` và 2–3 gợi ý hỏi tiếp do server soạn;
     `parseChatFollowUps` kiểm lại ở phía client vì chuỗi đó được gửi lại làm câu
     hỏi mới.
+- **DEC-020:** khuyến cáo độ chính xác chỉ có một nguồn câu chữ:
+  `lib/ai-disclosure.ts`. Mọi bề mặt hiển thị khuyến cáo (hộp chat trang chủ,
+  trang trợ giúp pháp lý, trang điều luật) đều render qua
+  `components/AiDisclaimer.tsx`; cấm mọi tệp khác viết lại câu cảnh báo tại
+  chỗ. Trước đây câu chữ này rải rác ở footer hộp chat, `modal-note` của trang
+  điều luật và hai hằng cảnh báo trong `lib/openai-web-search.ts`.
+- **DEC-021:** nhãn hiệu lực tối thiểu hiển thị cùng trích dẫn — mọi khối trích
+  dẫn điều luật kèm ngày ban hành/hiệu lực để người đọc tự đánh giá độ mới của
+  căn cứ, không chỉ dựa vào khuyến cáo chung của DEC-020.
+- **DEC-022:** tên, địa chỉ, số điện thoại cơ quan tiếp nhận là dữ liệu đã
+  duyệt trong bảng `referral_authorities` (`status=published`); AI không được
+  sinh ra các trường này. `lib/authority-referral.ts#buildReferralChain` dựng
+  chuỗi leo thang theo `AuthorityLevel`; thiếu dữ liệu cho một lĩnh vực thì
+  dùng `fallbackReferralAuthorities` (ba đầu mối công khai đã xác minh), không
+  suy diễn. `GET /api/co-quan` (`lib/authority-store.ts#createAuthorityHandler`)
+  luôn trả `Cache-Control: no-store`, `400 INVALID_TOPIC` khi lĩnh vực không
+  hợp lệ, và `degraded: true` kèm danh sách dự phòng khi cơ sở dữ liệu không
+  phản hồi. Trang chủ (`components/HelpHotlines.tsx`) và trang trợ giúp pháp
+  lý (`components/LegalAidConsult.tsx`, `components/ReferralChain.tsx`) đọc
+  cùng một chuỗi này; trang chủ hiển thị nguyên cả chuỗi (không lọc theo cấp)
+  để không mất đầu mối 113 ở cấp xã/phường.
 
 ### Điểm còn mở
 

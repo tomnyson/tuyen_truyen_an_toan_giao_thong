@@ -801,6 +801,7 @@ test("chat remains curated-first and does not search on a local match", async ()
     answer: "Câu trả lời đã duyệt.",
     mode: "knowledge",
     answerOrigin: "library",
+    topic: "Giao thông",
   });
   assert.equal(webCalls, 0);
 });
@@ -908,6 +909,7 @@ test("chat uses guarded web search only after retrieval no-match", async () => {
         url: "https://vbpl.vn/document",
       },
     ],
+    topic: null,
   });
   assert.equal(webCalls, 1);
   assert.equal(persisted, 1);

@@ -14,7 +14,9 @@ import {
   findGroundedAnswer,
   GROUNDED_ANSWER_POLICY_VERSION,
 } from "@/lib/grounded-answer";
+import { routeQuestionToTopic } from "@/lib/knowledge-router";
 import { findCuratedAnswer, findManagedAnswer } from "@/lib/legal-chat";
+import type { ContentTopic } from "@/lib/topics";
 import {
   readOpenAiWebSearchConfig,
   searchAllowedLegalSources,
@@ -83,10 +85,11 @@ function telemetryCode(code: string): string {
   return code.toLowerCase().replace(/_/g, "-");
 }
 
-function unavailableResponse() {
+function unavailableResponse(topic: ContentTopic | null = null) {
   return NextResponse.json({
     answer: unavailableAnswer,
     mode: "unavailable",
+    topic,
   });
 }
 
@@ -207,6 +210,10 @@ export function createChatHandler(
       );
     }
 
+    // Lĩnh vực của câu hỏi — dùng để trang trợ giúp chọn đúng chuỗi cơ quan
+    // (US-039). Tính một lần, dùng cho mọi nhánh kể cả nhánh lỗi.
+    let answerTopic: ContentTopic | null = null;
+
     try {
       const body = (await request.json()) as { messages?: unknown };
       const messages = sanitizeMessages(body.messages);
@@ -224,10 +231,20 @@ export function createChatHandler(
         );
       }
 
+      answerTopic = routeQuestionToTopic(question)?.topic ?? null;
+
+      // Mọi phản hồi 200 đều kèm lĩnh vực; phản hồi lỗi 4xx thì không.
+      // Nhận thêm `init` tùy chọn để giữ nguyên header (vd. Cache-Control)
+      // ở các điểm dựng câu trả lời vốn đã truyền init cho NextResponse.json.
+      const answerJson = (
+        payload: Record<string, unknown>,
+        init?: ResponseInit,
+      ) => NextResponse.json({ ...payload, topic: answerTopic }, init);
+
       const imageDecision = imageIntent(question);
       if (imageDecision.intent === "privacy_safety") {
         return complete(
-          NextResponse.json({
+          answerJson({
             answer: privacySafetyGuidance.answer,
             mode: "knowledge",
           }),
@@ -241,7 +258,7 @@ export function createChatHandler(
         // ambiguous image questions must not enter legacy weak matching or be
         // mapped to the privacy guidance.
         return complete(
-          unavailableResponse(),
+          unavailableResponse(answerTopic),
           "retrieval_no_match",
           "unavailable",
           imageDecision.policyVersion,
@@ -256,7 +273,7 @@ export function createChatHandler(
         if (grounded.ok) {
           const groundedOrigin: AnswerOrigin = "grounded_library";
           return complete(
-            NextResponse.json({
+            answerJson({
               answer: grounded.answer.answer,
               sections: grounded.answer.sections,
               mode: "knowledge" as const,
@@ -305,7 +322,7 @@ export function createChatHandler(
                 sources: parseOfficialSourceLinks(knowledgeAnswer.sources),
               };
         return complete(
-          NextResponse.json(knowledgePayload),
+          answerJson(knowledgePayload),
           "knowledge",
           "knowledge",
         );
@@ -337,7 +354,7 @@ export function createChatHandler(
               )
             : presentation.sections;
           return complete(
-            NextResponse.json({
+            answerJson({
               answer: presentation.answer,
               sections,
               mode: "knowledge",
@@ -358,7 +375,7 @@ export function createChatHandler(
       const webSearchConfig = readOpenAiWebSearchConfig(env);
       if (!webSearchConfig.enabled) {
         return complete(
-          unavailableResponse(),
+          unavailableResponse(answerTopic),
           "retrieval_no_match",
           "unavailable",
           WEB_SEARCH_POLICY_VERSION,
@@ -367,7 +384,7 @@ export function createChatHandler(
       const reservation = await reserveWebBudget();
       if (!reservation) {
         return complete(
-          unavailableResponse(),
+          unavailableResponse(answerTopic),
           "dependency_error",
           "unavailable",
           WEB_SEARCH_BUDGET_POLICY_VERSION,
@@ -385,7 +402,7 @@ export function createChatHandler(
       );
       if (!settled) {
         return complete(
-          unavailableResponse(),
+          unavailableResponse(answerTopic),
           "dependency_error",
           "unavailable",
           WEB_SEARCH_BUDGET_POLICY_VERSION,
@@ -398,7 +415,7 @@ export function createChatHandler(
         );
         if (publicSources.length === 0 || !publicPresentation) {
           return complete(
-            unavailableResponse(),
+            unavailableResponse(answerTopic),
             "retrieval_no_match",
             "unavailable",
             WEB_SEARCH_POLICY_VERSION,
@@ -423,7 +440,7 @@ export function createChatHandler(
         );
         if (!candidateId) {
           return complete(
-            unavailableResponse(),
+            unavailableResponse(answerTopic),
             "dependency_error",
             "unavailable",
             WEB_SEARCH_CANDIDATE_POLICY_VERSION,
@@ -437,7 +454,7 @@ export function createChatHandler(
           );
         }
         return complete(
-          NextResponse.json(
+          answerJson(
             {
               answer: publicResult.answer,
               sections: publicResult.sections,
@@ -477,7 +494,7 @@ export function createChatHandler(
         const referenceReservation = await reserveWebBudget();
         if (!referenceReservation) {
           return complete(
-            unavailableResponse(),
+            unavailableResponse(answerTopic),
             "dependency_error",
             "unavailable",
             WEB_SEARCH_BUDGET_POLICY_VERSION,
@@ -496,7 +513,7 @@ export function createChatHandler(
         );
         if (!referenceSettled) {
           return complete(
-            unavailableResponse(),
+            unavailableResponse(answerTopic),
             "dependency_error",
             "unavailable",
             WEB_SEARCH_BUDGET_POLICY_VERSION,
@@ -511,7 +528,7 @@ export function createChatHandler(
           );
           if (referenceSources.length > 0 && referencePresentation) {
             return complete(
-              NextResponse.json(
+              answerJson(
                 {
                   answer: referencePresentation.answer,
                   sections: referencePresentation.sections,
@@ -549,7 +566,7 @@ export function createChatHandler(
           }
         }
         return complete(
-          unavailableResponse(),
+          unavailableResponse(answerTopic),
           "retrieval_no_match",
           "unavailable",
           REFERENCE_SEARCH_POLICY_VERSION,
@@ -584,7 +601,7 @@ export function createChatHandler(
       }
 
       return complete(
-        unavailableResponse(),
+        unavailableResponse(answerTopic),
         "retrieval_no_match",
         "unavailable",
         WEB_SEARCH_POLICY_VERSION,
@@ -604,7 +621,7 @@ export function createChatHandler(
         },
       );
     } catch {
-      return complete(unavailableResponse(), "unavailable", "unavailable");
+      return complete(unavailableResponse(answerTopic), "unavailable", "unavailable");
     }
   };
 }

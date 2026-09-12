@@ -313,3 +313,104 @@ export const referralAuthorities = pgTable("referral_authorities", {
     .notNull()
     .default(sql`(now())::text`),
 });
+
+// Chủ đề / lĩnh vực nội dung pháp luật (US-047, DEC-028).
+// CHECK thật nằm ở db/pg-bootstrap.ts.
+export const contentTopics = pgTable("content_topics", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  icon: text("icon").notNull().default("◉"),
+  detail: text("detail").notNull().default(""),
+  abbreviations: text("abbreviations").notNull().default("[]"),
+  keywords: text("keywords").notNull().default("[]"),
+  situations: text("situations").notNull().default("[]"),
+  displayOrder: integer("display_order").notNull().default(0),
+  status: text("status", { enum: ["draft", "published", "archived"] })
+    .notNull()
+    .default("published"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(now())::text`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
+// Kho văn bản pháp luật tra cứu (US-049).
+// CHECK constraints và ràng buộc chính xác nằm ở db/pg-bootstrap.ts.
+export const legalDocuments = pgTable("legal_documents", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  documentNumber: text("document_number").notNull(),
+  documentType: text("document_type", {
+    enum: ["luat", "nghi_dinh", "thong_tu", "quyet_dinh", "van_ban_hop_nhat", "khac"],
+  })
+    .notNull()
+    .default("nghi_dinh"),
+  topic: text("topic").notNull(),
+  issuingAuthority: text("issuing_authority").notNull(),
+  officialUrl: text("official_url").notNull(),
+  summary: text("summary").notNull().default(""),
+  effectivityStatus: text("effectivity_status", {
+    enum: ["in_force", "expired", "superseded", "draft"],
+  })
+    .notNull()
+    .default("in_force"),
+  status: text("status", { enum: ["draft", "published", "archived"] })
+    .notNull()
+    .default("published"),
+  linkStatus: text("link_status", {
+    enum: ["ok", "broken", "redirect", "timeout", "unchecked"],
+  })
+    .notNull()
+    .default("unchecked"),
+  httpStatus: integer("http_status"),
+  lastCheckedAt: text("last_checked_at"),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(now())::text`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
+// Tài khoản quản trị & biên tập viên (US-050).
+export const adminAccounts = pgTable("admin_accounts", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  fullName: text("full_name").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role", { enum: ["admin", "editor", "viewer"] })
+    .notNull()
+    .default("editor"),
+  allowedTopics: text("allowed_topics").notNull().default("[]"),
+  status: text("status", { enum: ["active", "disabled"] })
+    .notNull()
+    .default("active"),
+  lastLoginAt: text("last_login_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(now())::text`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
+// Nhật ký kiểm toán hệ thống (Audit Logs) (US-050).
+export const systemAuditLogs = pgTable("system_audit_logs", {
+  id: serial("id").primaryKey(),
+  actor: text("actor").notNull(),
+  actorRole: text("actor_role").notNull().default("editor"),
+  action: text("action").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: text("target_id").notNull().default(""),
+  details: text("details").notNull().default(""),
+  ipAddress: text("ip_address"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});
+
+
+

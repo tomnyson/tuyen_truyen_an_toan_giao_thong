@@ -294,6 +294,7 @@ test("nut kich ban gan voi kich ban va co rang buoc loai ket cuc", async () => {
   assert.equal(left.rows.length, 0);
 });
 
-test("phien ban schema da tang cho phan game hoa", () => {
-  assert.equal(pgSchemaVersion, "2026-09-12-referral-authorities-v1");
+test("phien ban schema da tang cho phan noi dung va chu de", () => {
+  assert.match(pgSchemaVersion, /^(2026-09-12-(content-topics|legal-documents)-v1|2026-09-13-rbac-and-audit-v1)$/);
 });
+

@@ -12,9 +12,10 @@ import Link from "next/link";
 import { brandDisplayName, brandMark } from "@/lib/brand";
 import { contentTopics } from "@/lib/topics";
 import { GameManager } from "./GameManager";
+import { LinkHealthManager } from "./LinkHealthManager";
 
 type Status = "draft" | "published";
-type Entity = "law" | "showcase" | "candidate" | "game";
+type Entity = "law" | "showcase" | "candidate" | "game" | "link_health";
 type LawRow = {
   id: number;
   topic: string;
@@ -240,9 +241,10 @@ export default function AdminDashboard() {
         <button className={tab === "showcase" ? "active" : ""} onClick={() => { setTab("showcase"); resetForm(); }}>Case study</button>
         <button className={tab === "candidate" ? "active" : ""} onClick={() => { setTab("candidate"); resetForm(); }}>Bản nháp từ AI</button>
         <button className={tab === "game" ? "active" : ""} onClick={() => { setTab("game"); resetForm(); }}>Rèn luyện &amp; huy hiệu</button>
+        <button className={tab === "link_health" ? "active" : ""} onClick={() => { setTab("link_health"); resetForm(); }}>Liên kết &amp; Tên miền</button>
       </nav>
 
-      {tab === "candidate" ? <CandidatePanel /> : tab === "game" ? <GameManager /> : <div className="admin-grid">
+      {tab === "candidate" ? <CandidatePanel /> : tab === "game" ? <GameManager /> : tab === "link_health" ? <LinkHealthManager /> : <div className="admin-grid">
         <form className="admin-editor" onSubmit={save}>
           <div className="admin-section-title"><div><p className="admin-kicker">{editingId ? "CHỈNH SỬA" : "THÊM MỚI"}</p><h2>{tab === "law" ? "Nội dung pháp luật" : "Tình huống cảnh báo"}</h2></div>{editingId && <button type="button" className="admin-link-button" onClick={resetForm}>Hủy sửa</button>}</div>
           <div className="admin-form-grid">

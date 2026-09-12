@@ -2450,6 +2450,72 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   bảng cơ sở dữ liệu (`legal_sources`, `showcases`). Admin API
   `/admin/api/link-health` và giao diện CMS `LinkHealthManager.tsx` cho phép
   kiểm tra tức thời từng link hoặc quét toàn bộ kho dữ liệu bất kỳ lúc nào.
+- **DEC-027:** thiết kế lại giao diện Quản trị chuẩn 1:1 theo Stitch Design
+  (Google Stitch project `6443370801926228413`, node `641002d3475d4f1485fce160d51229a3`):
+  Cấu trúc giao diện quản trị chuyển từ layout một cột cũ sang hệ thống 2 cột chuyên nghiệp:
+  Cột điều hướng bên trái (Left Sidebar `w-72`) có nhận diện thương hiệu Amber "P" (TRỢ GIÚP PHÁP LÝ [HSSV]),
+  phân nhóm 4 tầng chức năng (Tổng quan, Quản lý nội dung, Người dùng & Tư vấn, Hệ thống),
+  badge số lượng theo thời gian thực và thông tin tài khoản Ban Pháp chế;
+  Thanh trên cùng (Top Header) tích hợp Breadcrumb động và truy cập nhanh website;
+  Vùng làm việc chính sử dụng nền kem sáng `#FBF9F5`, 3 thẻ chỉ số tổng quan trên đỉnh,
+  hệ thống thẻ pills chuyển đổi linh hoạt giữa các phân hệ;
+  Phân hệ "Liên kết & Tên miền" (`LinkHealthManager.tsx`) được thiết kế lại 1:1 theo bản vẽ Stitch
+  với thẻ cấu hình tên miền 3 cột, 4 thẻ metric phân loại trạng thái liên kết (200/301/404),
+  thanh lọc trạng thái dạng pill và bảng dữ liệu phản hồi thời gian thực.
+- **DEC-028:** quản lý chủ đề pháp lý trong cơ sở dữ liệu và cơ chế fallback an toàn:
+  Danh mục các chủ đề pháp luật và chuyên đề tuyên truyền được lưu trữ trong bảng
+  `content_topics` của PostgreSQL (schema version `2026-09-12-content-topics-v1`),
+  cho phép quản trị viên thêm mới, chỉnh sửa tên, mô tả, biểu tượng, từ viết tắt,
+  từ khóa nhận diện và câu hỏi tình huống mẫu ngay trong CMS (`TopicManager.tsx`).
+  Để đảm bảo tính liên tục của dịch vụ và tránh mọi rủi ro gián đoạn, tầng lưu trữ
+  `lib/topic-store.ts` áp dụng cơ chế fail-safe: khi cơ sở dữ liệu chưa sẵn sàng,
+  đang offline hoặc bảng `content_topics` trống, hệ thống tự động fallback về
+  5 chủ đề mặc định trong `lib/topics.ts`. Hệ thống cung cấp script nạp dữ liệu
+  `scripts/seed-topics.mjs` (`npm run seed:topics`) và nút bấm trực tiếp trên giao diện
+  CMS ("Nạp chủ đề mặc định") với tính năng idempotent `ON CONFLICT (name) DO UPDATE`
+  để khởi tạo dữ liệu một cách an toàn và nhanh chóng.
+- **DEC-029:** mở rộng các chuyên đề pháp luật học đường cấp thiết và tích hợp React-Icons:
+  Hệ thống mở rộng từ 5 chủ đề nền tảng lên 10 chuyên đề toàn diện, bổ sung 5 chuyên đề
+  thực tiễn học đường: Chuyên đề phòng chống ma túy, Chuyên đề an ninh trật tự trường học,
+  Chuyên đề game và không gian mạng, Tài chính - tín dụng đen, Phòng chống tệ nạn xã hội.
+  Mỗi chuyên đề được trang bị từ khóa nhận diện, từ viết tắt độc lập, bộ câu hỏi tình huống
+  và bộ câu hỏi trắc nghiệm rèn luyện (`lib/quiz-content.ts`).
+  Hệ thống biểu tượng (icon) được chuẩn hóa sang `react-icons` (FontAwesome 6 - `react-icons/fa6`)
+  thông qua component trung tâm `components/TopicIcon.tsx` với danh mục `POPULAR_TOPIC_ICONS`
+  và bản đồ biểu tượng `TOPIC_ICON_MAP`, tương thích ngược với ký tự unicode cũ.
+  Giao diện CMS `TopicManager.tsx` được trang bị Khung xem trước biểu tượng trực quan
+  (Live Preview) và Lưới chọn nhanh icon theo nhóm chuyên đề (Icon Picker Grid).
+  Giao diện công khai (`components/icons.tsx`, `app/page.tsx`, `topics.css`, `base.css`)
+  đồng bộ nhận diện màu sắc (`t1` đến `t10`) và hiển thị biểu tượng mượt mà.
+- **DEC-030:** kho văn bản quy phạm pháp luật và công cụ kiểm tra liên kết (Check Link 404):
+  Hệ thống xây dựng kho văn bản pháp luật tập trung lưu trữ trong bảng `legal_documents`
+  (PostgreSQL schema version `2026-09-12-legal-documents-v1`), cho phép tra cứu và quản trị
+  các văn bản quy phạm pháp luật (Luật, Nghị định, Thông tư, Quyết định, Văn bản hợp nhất)
+  dẫn nguồn trực tiếp từ Cổng Thông tin điện tử Chính phủ (`vanban.chinhphu.vn`) và Cơ sở dữ liệu
+  quốc gia về văn bản quy phạm pháp luật (`vbpl.vn`).
+  Quản trị viên có thể quản lý văn bản qua giao diện Admin CMS (`LegalDocumentManager.tsx` trong
+  tab "Kho văn bản pháp luật" của `AdminDashboard.tsx`) và API `/admin/api/legal-documents`.
+  Tính năng Check Link (`lib/link-checker.ts`) tích hợp SSRF protection, tự động phân tích
+  mã phản hồi HTTP (200 OK, 301/302 Redirect, 404 Not Found, Timeout) để hiển thị cảnh báo đỏ
+  nhấp nháy trực quan khi liên kết bị lỗi hoặc hết hạn, hỗ trợ kiểm tra trực tiếp liên kết ngay
+  Giao diện người dùng công khai được tổ chức thành trang chuyên mục riêng biệt
+  (`app/tra-cuu-van-ban/page.tsx` sử dụng component `LegalDocumentLookup.tsx`),
+  kèm các liên kết điều hướng từ trang chủ `app/page.tsx` (Menu chính, Nút CTA tại `#nguon`,
+  và Chân trang), cho phép học sinh, sinh viên tìm kiếm theo từ khóa, lọc theo lĩnh vực
+  và xem toàn văn văn bản chính thức từ cơ quan nhà nước.
+
+- **DEC-031:** Phân quyền tài khoản theo chuyên mục (Topic-Based RBAC) và Nhật ký hệ thống (System Audit Logs):
+  Hệ thống xây dựng mô hình phân quyền chi tiết cho nhân sự biên tập viên và quản trị viên, kết hợp lưu trữ nhật ký thao tác bất biến (append-only audit trail).
+  1. Data Model (`db/pg-schema.ts`, PostgreSQL schema version `2026-09-13-rbac-and-audit-v1`):
+     - `admin_accounts`: Lưu trữ `username`, `full_name`, `password_hash` (PBKDF2/SHA-256), `role` (`admin`, `editor`, `viewer`), `allowed_topics` (JSON array các chuyên mục hoặc `["*"]`), `status` (`active`, `disabled`), `last_login_at`, timestamps.
+     - `system_audit_logs`: Bảng nhật ký bất biến ghi nhận mọi hoạt động hệ thống gồm: `actor`, `actor_role`, `action` (`LOGIN`, `LOGOUT`, `CREATE_ACCOUNT`, `UPDATE_ACCOUNT`, `DELETE_ACCOUNT`, `CREATE_LAW`, `UPDATE_LAW`, `DELETE_LAW`, `CREATE_SHOWCASE`...), `target_type`, `target_id`, `details`, `ip_address`, `created_at`.
+  2. Authorization & RBAC Guard (`lib/account-store.ts`, `lib/admin-auth.ts`):
+     - Hàm `canAccessTopic(actor, topic)`: Quản trị viên (`role === "admin"`) hoặc tài khoản có `allowedTopics` chứa `"*"` có toàn quyền trên mọi chuyên mục. Biên tập viên (`role === "editor"`) chỉ được phép tạo, chỉnh sửa hoặc xóa nội dung thuộc các chuyên mục được chỉ định trong `allowedTopics`.
+     - Tương thích ngược: Tài khoản cấu hình qua env (`ADMIN_USERNAME`, `ADMIN_PASSWORD`) tự động nhận vai trò `admin` và toàn quyền truy cập.
+     - Tầng API (`app/admin/api/content/route.ts`): Enforce `canAccessTopic` trên các phương thức `POST`, `PATCH`, `DELETE`. Nếu người dùng thao tác ngoài phạm vi chuyên mục được cấp phép, hệ thống lập tức từ chối với HTTP 403 Forbidden.
+  3. Giao diện Admin CMS (`AccountManager.tsx`, `AuditLogManager.tsx` trong `AdminDashboard.tsx`):
+     - Tab "Tài khoản & Phân quyền": Cung cấp giao diện quản lý nhân sự hoàn chỉnh, thẻ KPI tổng quan, bộ lọc vai trò/trạng thái, modal thêm/sửa tài khoản với lưới chọn chuyên mục trực quan (checkbox + icon chuyên đề).
+     - Tab "Lịch sử hệ thống": Cung cấp giao diện theo dõi dòng thời gian mọi sự kiện, hỗ trợ tìm kiếm và lọc theo loại hành động, huy hiệu trạng thái màu sắc nhận diện rõ ràng.
 
 ### Điểm còn mở
 

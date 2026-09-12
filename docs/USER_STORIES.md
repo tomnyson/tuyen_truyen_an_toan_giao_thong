@@ -1740,3 +1740,77 @@ ngày 2026-09-12. Mọi story dưới đây chưa có bằng chứng triển kha
 - [x] Đầy đủ unit tests và API tests bao phủ SSRF protection, link crawler, concurrency limiter, canonical URL resolver và admin route authorization.
 
 **Evidence:** `lib/canonical-url.ts`, `components/SiteQrCode.tsx`, `lib/link-checker.ts`, `lib/link-health.ts`, `app/admin/api/link-health/route.ts`, `app/admin/LinkHealthManager.tsx`, `app/admin/AdminDashboard.tsx`, `app/styles/link-health.css`; `tests/canonical-url.test.mjs` (6/6 pass), `tests/link-checker.test.mjs` (5/5 pass), `tests/link-health-api.test.mjs` (3/3 pass), `tests/qr-code.test.mjs` (9/9 pass); `tsc --noEmit` sạch, ESLint 0 error.
+
+### [x] US-047 — Quản lý chủ đề pháp luật và lưu trữ vào cơ sở dữ liệu
+
+- **Priority:** P0
+- **Persona:** Quản trị viên, Học sinh, Giáo viên
+- **Mô tả:** Là quản trị viên, tôi muốn quản lý danh sách các chủ đề/lĩnh vực pháp luật thông qua cơ sở dữ liệu và giao diện CMS thay vì định nghĩa tĩnh trong mã nguồn, đồng thời hỗ trợ nạp (seed) nhanh bộ chủ đề hiện có và cơ chế fallback an toàn để hệ thống luôn vận hành ổn định.
+
+**Acceptance criteria**
+
+- [x] Bảng `content_topics` được khai báo trong PostgreSQL schema và bootstrap migration tự động tạo bảng kèm ràng buộc toàn vẹn dữ liệu (tên duy nhất, kiểm tra độ dài, kiểm tra kiểu JSON array cho từ khóa, từ viết tắt, câu hỏi mẫu).
+- [x] Phiên bản schema được nâng lên `2026-09-12-content-topics-v1` và cơ chế bootstrap hoàn toàn idempotent.
+- [x] Tầng lưu trữ `lib/topic-store.ts` cung cấp các hàm nghiệp vụ CRUD và tự động fallback về bộ 5 chủ đề mặc định trong `lib/topics.ts` khi cơ sở dữ liệu chưa kết nối hoặc bảng trống.
+- [x] Script nạp dữ liệu `scripts/seed-topics.mjs` và lệnh `npm run seed:topics` nạp đủ 5 chủ đề cơ sở vào cơ sở dữ liệu với cơ chế `onConflictDoUpdate` không gây trùng lặp khi chạy lại.
+- [x] Public API `GET /api/topics` và Admin API `GET/POST/PUT/DELETE /admin/api/topics` được xây dựng, bảo vệ bằng phiên đăng nhập quản trị và CSRF check.
+- [x] Giao diện CMS có component `TopicManager.tsx` chuẩn Stitch Design và được tích hợp vào Left Sidebar và Sub-nav Pills của `AdminDashboard.tsx`, hỗ trợ thêm mới, chỉnh sửa, xóa và nút "Nạp 5 chủ đề mặc định".
+- [x] Bộ test tự động bao phủ đầy đủ: `tests/topics-schema.test.mjs`, `tests/topic-store.test.mjs`, `tests/seed-topics.test.mjs`, `tests/topics-api.test.mjs`, `tests/topic-manager-ui.test.mjs`.
+
+**Evidence:** `db/pg-schema.ts`, `db/pg-bootstrap.ts`, `lib/topic-store.ts`, `lib/topics.ts`, `scripts/seed-topics.mjs`, `app/api/topics/route.ts`, `app/admin/api/topics/route.ts`, `app/admin/TopicManager.tsx`, `app/admin/AdminDashboard.tsx`, `package.json`; `tests/topics-schema.test.mjs` (1/1 pass), `tests/topic-store.test.mjs` (5/5 pass), `tests/seed-topics.test.mjs` (1/1 pass), `tests/topics-api.test.mjs` (6/6 pass), `tests/topic-manager-ui.test.mjs` (2/2 pass); `tsc --noEmit` sạch 0 lỗi.
+
+### [x] US-048 — Bổ sung chuyên đề pháp luật mới và nâng cấp biểu tượng React-Icons
+
+- **Priority:** P0
+- **Persona:** Quản trị viên, Học sinh, Giáo viên
+- **Mô tả:** Là người học và người quản trị, tôi muốn hệ thống bổ sung đầy đủ các chuyên đề pháp luật học đường cấp thiết (Phòng chống ma túy, An ninh trật tự trường học, Game và không gian mạng, Giao thông, Tài chính - tín dụng đen, Phòng chống tệ nạn xã hội) kế thừa các chủ đề cơ bản hiện có kèm bộ câu hỏi tình huống thực tế, đồng thời nâng cấp hệ thống biểu tượng (icon) sang thư viện `react-icons` (FontAwesome 6) với bộ chọn icon trực quan trong Admin CMS.
+
+**Acceptance criteria**
+
+- [x] Tích hợp thư viện `react-icons` (FontAwesome 6 - `react-icons/fa6`) vào ứng dụng và tạo component trung tâm `components/TopicIcon.tsx` định nghĩa danh mục `POPULAR_TOPIC_ICONS` và bản đồ `TOPIC_ICON_MAP`, có fallback an toàn cho biểu tượng ký tự.
+- [x] Mở rộng danh mục chủ đề trong `lib/topics.ts` lên 10 chuyên đề (5 chủ đề kế thừa: Giao thông, Mạng xã hội, Bạo lực học đường, An ninh trật tự, Sở hữu trí tuệ; 5 chuyên đề mới: Chuyên đề phòng chống ma túy, Chuyên đề an ninh trật tự trường học, Chuyên đề game và không gian mạng, Tài chính - tín dụng đen, Phòng chống tệ nạn xã hội) với đầy đủ từ khóa, từ viết tắt và bộ câu hỏi tình huống đời thường.
+- [x] Cơ sở dữ liệu và script nạp dữ liệu `scripts/seed-topics.mjs` / `lib/topic-store.ts` nạp và đồng bộ đầy đủ cả 10 chuyên đề với tên icon chuẩn FontAwesome 6 (FaCapsules, FaSchool, FaGamepad, FaCarSide, FaMoneyBillWave, FaTriangleExclamation, FaCopyright...).
+- [x] Giao diện Admin CMS `TopicManager.tsx` nâng cấp phần biểu tượng chủ đề: bổ sung Khung xem trước biểu tượng trực quan theo thời gian thực (Live Preview) và Lưới chọn nhanh biểu tượng chuyên đề (Icon Picker Grid), kèm ô nhập tự do mã icon hoặc ký tự.
+- [x] Nâng cấp `components/icons.tsx` và trang chủ `app/page.tsx`, `app/styles/topics.css`, `app/styles/base.css` để hiển thị biểu tượng React-Icons và màu sắc nhận diện đồng bộ cho tất cả các chuyên đề mới.
+- [x] Toàn bộ test suites liên quan (`tests/topic-icon.test.mjs`, `tests/situation-lookup.test.mjs`, `tests/seed-topics.test.mjs`, `tests/topic-store.test.mjs`, `tests/topic-manager-ui.test.mjs`) đều vượt qua 100% không hồi quy.
+
+**Evidence:** `components/TopicIcon.tsx`, `lib/topics.ts`, `lib/topic-store.ts`, `scripts/seed-topics.mjs`, `app/admin/TopicManager.tsx`, `components/icons.tsx`, `app/page.tsx`, `app/styles/topics.css`, `app/styles/base.css`, `package.json`; `tests/topic-icon.test.mjs` (1/1 pass), `tests/situation-lookup.test.mjs` (15/15 pass), `tests/seed-topics.test.mjs` (1/1 pass), `tests/topic-store.test.mjs` (5/5 pass), `tests/topic-manager-ui.test.mjs` (2/2 pass); `tsc --noEmit` sạch 0 lỗi.
+
+### [x] US-049 — Kho văn bản pháp luật và công cụ kiểm tra liên kết (Check Link 404)
+
+- **Priority:** P0
+- **Persona:** Quản trị viên, Học sinh, Giáo viên, Cán bộ tuyên truyền
+- **Mô tả:** Là người học và người quản trị, tôi muốn có chuyên mục tra cứu văn bản quy phạm pháp luật (kho luật, nghị định, thông tư phục vụ học tập - nghiên cứu) với tính năng tìm kiếm theo từ khóa, lĩnh vực, cơ quan ban hành; cấu trúc quản lý đơn giản cho phép dán link từ các cổng thông tin điện tử uy tín của Chính phủ (vanban.chinhphu.vn, vbpl.vn), đồng thời có công cụ Check Link tự động phát hiện mã HTTP (200 OK, 404 Not Found, Timeout, Redirect) để cảnh báo trực quan cho Admin.
+
+**Acceptance criteria**
+
+- [x] Bảng `legal_documents` được định nghĩa trong `db/pg-schema.ts` và tự động tạo qua bootstrap migration `db/pg-bootstrap.ts` (phiên bản `2026-09-12-legal-documents-v1`), lưu trữ: số hiệu, tên văn bản, loại văn bản (luật, nghị định, thông tư...), lĩnh vực, cơ quan ban hành, đường dẫn link chính thống, trích yếu tóm tắt, tình trạng hiệu lực, trạng thái liên kết (ok, broken, redirect, timeout, unchecked) và mã HTTP.
+- [x] Bộ văn bản mẫu `db/seeds/demo-documents.ts` với 10 văn bản quy phạm pháp luật chính thức dẫn nguồn Cổng TTĐT Chính phủ (vanban.chinhphu.vn, vbpl.vn) kèm 1 văn bản demo có link lỗi 404 để kiểm thử cơ chế cảnh báo.
+- [x] Tầng lưu trữ `lib/legal-document-store.ts` cung cấp đầy đủ nghiệp vụ CRUD, bộ lọc đa tiêu chí, tự động đồng bộ/nạp dữ liệu mẫu (`seedDefaultLegalDocuments`) và các hàm kiểm tra liên kết (`checkAndUpdateDocumentLink`, `checkAllDocumentLinks`) với cơ chế SSRF guard bảo mật.
+- [x] Public API `GET /api/legal-documents` hỗ trợ tra cứu văn bản theo từ khóa, lĩnh vực, loại văn bản, cơ quan ban hành và phân trang; Admin APIs `GET/POST/PUT/DELETE /admin/api/legal-documents` và `POST /admin/api/legal-documents/check-link` được bảo vệ phiên đăng nhập quản trị và CSRF check.
+- [x] Giao diện Admin CMS có component `LegalDocumentManager.tsx` chuẩn Stitch Design được tích hợp vào tab "Kho văn bản pháp luật" trong `AdminDashboard.tsx`: thẻ KPI tóm tắt (Tổng số, Đang hiệu lực, Hoạt động 200, Cảnh báo lỗi 404 nhấp nháy), thanh tìm kiếm & bộ lọc, bảng dữ liệu với badge trạng thái liên kết trực quan, nút kiểm tra từng liên kết (có spinner), nút kiểm tra toàn bộ liên kết, nút nạp văn bản mẫu, và modal thêm/sửa có tính năng "Kiểm tra link ngay" trước khi lưu.
+- [x] Tách riêng chuyên trang tra cứu văn bản độc lập `app/tra-cuu-van-ban/page.tsx` kèm metadata SEO và liên kết điều hướng từ trang chủ `app/page.tsx` (menu chính, nút CTA tại `#nguon`, chân trang), giữ trang chủ gọn nhẹ (`lineCount < 990`).
+- [x] 100% test suites liên quan (`tests/legal-documents-schema.test.mjs`, `tests/legal-document-store.test.mjs`, `tests/legal-documents-api.test.mjs`, `tests/legal-document-manager-ui.test.mjs`, `tests/tra-cuu-van-ban-page.test.mjs`, `tests/legal-aid.test.mjs`) đều vượt qua (528/528 pass, `tsc --noEmit` 0 lỗi).
+
+**Evidence:** `db/pg-schema.ts`, `db/pg-bootstrap.ts`, `db/seeds/demo-documents.ts`, `lib/legal-document-store.ts`, `app/api/legal-documents/route.ts`, `app/admin/api/legal-documents/route.ts`, `app/admin/api/legal-documents/check-link/route.ts`, `app/admin/LegalDocumentManager.tsx`, `app/admin/AdminDashboard.tsx`, `app/tra-cuu-van-ban/page.tsx`, `components/LegalDocumentLookup.tsx`, `app/page.tsx`, `scripts/seed-topics.mjs`; `tests/legal-documents-schema.test.mjs` (1/1 pass), `tests/legal-document-store.test.mjs` (1/1 pass), `tests/legal-documents-api.test.mjs` (3/3 pass), `tests/legal-document-manager-ui.test.mjs` (2/2 pass), `tests/tra-cuu-van-ban-page.test.mjs` (3/3 pass), `tests/legal-aid.test.mjs` (8/8 pass); toàn bộ test suite dự án 528/528 pass, `npx tsc --noEmit` 0 lỗi.
+
+### [x] US-050 — Phân quyền tài khoản theo chuyên mục & Nhật ký hệ thống (Audit Logs)
+
+- **Priority:** P0
+- **Persona:** Quản trị viên hệ thống (Admin), Biên tập viên chuyên đề (Editor), Cán bộ kiểm toán
+- **Mô tả:** Là người quản trị hệ thống, tôi muốn có khả năng tạo tài khoản cho các nhân sự biên tập viên và phân quyền thao tác chi tiết theo từng chuyên mục pháp luật (Topic-Based RBAC), biên tập viên chỉ được tạo, sửa, xóa nội dung thuộc các chuyên mục được cấp phép, đồng thời quản trị viên có thể xem lại toàn bộ lịch sử thao tác của hệ thống (System Audit Logs) để giám sát và truy vết minh bạch.
+
+**Acceptance criteria**
+
+- [x] Bảng `admin_accounts` và `system_audit_logs` được định nghĩa trong `db/pg-schema.ts` và tự động tạo qua bootstrap migration `db/pg-bootstrap.ts` (phiên bản `2026-09-13-rbac-and-audit-v1`), lưu trữ tài khoản quản trị/biên tập viên, vai trò (admin, editor, viewer), danh sách chuyên mục được cấp quyền (`allowed_topics`), trạng thái (active, disabled), và nhật ký bất biến ghi nhận: người thực hiện, vai trò, hành động, đối tượng tác động, chi tiết và địa chỉ IP.
+- [x] Mật khẩu tài khoản mới được mã hóa an toàn bằng PBKDF2/SHA-256 (`lib/password-hash.ts`); tài khoản cấu hình từ biến môi trường (`ADMIN_USERNAME`, `ADMIN_PASSWORD`) tiếp tục hoạt động trơn tru với vai trò `admin` và toàn quyền (`allowedTopics = ["*"]`).
+- [x] Tầng dịch vụ `lib/account-store.ts` và `lib/audit-log-store.ts` cung cấp đầy đủ nghiệp vụ CRUD tài khoản, kiểm tra quyền hạn chuyên mục (`canAccessTopic`), tự động khởi tạo tài khoản mẫu (`seedDefaultAdminAccounts`), ghi nhật ký bất biến (`recordAuditEvent`) và truy vấn có phân trang/bộ lọc (`queryAuditLogs`), có cơ chế fallback in-memory phục vụ môi trường test/offline.
+- [x] Admin APIs `GET/POST/PUT/DELETE /admin/api/accounts` và `GET /admin/api/audit-logs` được bảo vệ nghiêm ngặt bằng vai trò `admin`; các endpoint thao tác nội dung `app/admin/api/content/route.ts` bắt buộc kiểm tra `canAccessTopic` đối với vai trò `editor` (trả về HTTP 403 Forbidden nếu vi phạm quyền chuyên mục), đồng thời tự động ghi nhận nhật ký thao tác cho mọi hành động tạo, sửa, xóa, đăng nhập và đăng xuất.
+- [x] Giao diện Admin CMS tích hợp 2 module quản trị mới trong `AdminDashboard.tsx`:
+  - Tab "Tài khoản & Phân quyền" (`AccountManager.tsx`): Thẻ KPI thống kê, bảng danh sách tài khoản kèm badge vai trò/trạng thái và chips hiển thị chuyên mục được cấp quyền, modal thêm/sửa tài khoản với lưới chọn chuyên mục checkbox trực quan.
+  - Tab "Lịch sử hệ thống" (`AuditLogManager.tsx`): Thẻ KPI thống kê sự kiện, thanh tìm kiếm & bộ lọc theo loại hành động, bảng dòng thời gian chi tiết với mã màu nhận diện từng loại hành động.
+- [x] 100% test suites bao phủ toàn diện: `tests/admin-accounts-schema.test.mjs`, `tests/account-and-audit-store.test.mjs`, `tests/admin-accounts-api.test.mjs`, `tests/admin-accounts-ui.test.mjs`, `tests/rbac-and-audit-e2e.test.mjs`. Toàn bộ 540 bài kiểm thử dự án vượt qua 100%, `npx tsc --noEmit` đạt 0 lỗi.
+
+**Evidence:** `db/pg-schema.ts`, `db/pg-bootstrap.ts`, `lib/account-store.ts`, `lib/audit-log-store.ts`, `lib/admin-auth.ts`, `app/admin/api/accounts/route.ts`, `app/admin/api/audit-logs/route.ts`, `app/admin/api/content/route.ts`, `app/admin/api/login/route.ts`, `app/admin/api/logout/route.ts`, `app/admin/AccountManager.tsx`, `app/admin/AuditLogManager.tsx`, `app/admin/AdminDashboard.tsx`; `tests/admin-accounts-schema.test.mjs` (2/2 pass), `tests/account-and-audit-store.test.mjs` (3/3 pass), `tests/admin-accounts-api.test.mjs` (2/2 pass), `tests/admin-accounts-ui.test.mjs` (2/2 pass), `tests/rbac-and-audit-e2e.test.mjs` (1/1 pass); toàn bộ test suite dự án 540/540 pass, `npx tsc --noEmit` 0 lỗi.
+
+

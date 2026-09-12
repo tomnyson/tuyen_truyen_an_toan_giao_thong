@@ -33,6 +33,11 @@ export function getDb(): LegalDatabase {
   return cachedDb;
 }
 
+export function setTestDb(database: any) {
+  cachedDb = database;
+  schemaInitialization = Promise.resolve();
+}
+
 // Chạy DDL idempotent trên bất kỳ database Drizzle PG nào (Neon thật hoặc
 // PGlite trong test). Mỗi statement chạy riêng vì neon-http không nhận
 // nhiều statement trong một request.

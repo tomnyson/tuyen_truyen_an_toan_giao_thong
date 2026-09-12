@@ -22,13 +22,14 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 |---|---:|---:|---:|---:|
 | Tra cứu và hiểu pháp luật | 3 | 2 | 0 | 0 |
 | Hỏi đáp có kiểm soát | 2 | 3 | 0 | 0 |
-| Quản trị nội dung | 3 | 2 | 0 | 0 |
+| Quản trị nội dung | 4 | 2 | 0 | 0 |
 | Dữ liệu và nguồn | 0 | 3 | 0 | 0 |
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
 | Bản điều chỉnh 2026-09-05 | 9 | 0 | 0 | 0 |
-| Bản nâng cấp 2026-09-12 (GĐ1 & Truy cập) | 3 | 0 | 0 | 0 |
-| **Tổng** | **19** | **18** | **2** | **0** |
+| Bản nâng cấp 2026-09-12 (GĐ1 & Truy cập) | 5 | 0 | 0 | 0 |
+| Bản nâng cấp 2026-09-13 (RBAC & Audit) | 1 | 0 | 0 | 0 |
+| **Tổng** | **22** | **18** | **2** | **0** |
 
 ## Theo dõi theo user story
 
@@ -55,6 +56,10 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-038 — Khuyến cáo độ chính xác gắn vào từng câu trả lời | P0 | Done | Full-stack | `lib/ai-disclosure.ts`, `components/AiDisclaimer.tsx`, `components/ChatAnswerBody.tsx`, `lib/chat-answer-view.ts` (DEC-020); `tests/legal-aid.test.mjs` 7/7, `tests/chat-answer-view.test.mjs` 6/6, `tests/ai-disclaimer.test.mjs`/`tests/answer-origin.test.mjs` pass — xem mục GĐ1 2026-09-12 | 2026-09-12 |
 | US-039 — Mục trợ giúp pháp lý chỉ ra cơ quan có thẩm quyền | P0 | Done | Full-stack | `components/ReferralChain.tsx`, `components/HelpHotlines.tsx`, `components/LegalAidConsult.tsx`, `app/tro-giup-phap-ly/page.tsx`, `lib/authority-referral.ts`, `lib/authority-store.ts`, `app/api/co-quan/route.ts` (DEC-022); `tests/legal-aid.test.mjs` 7/7, `tests/authority-referral.test.mjs`, `tests/authority-store.test.mjs`, `tests/co-quan-api.test.mjs` pass — xem mục GĐ1 2026-09-12 | 2026-09-12 |
 | US-046 — Cấp tên miền cố định và quản trị kiểm tra link hết hạn | P0 | Done | Full-stack | `lib/canonical-url.ts`, `components/SiteQrCode.tsx`, `lib/link-checker.ts`, `lib/link-health.ts`, `app/admin/api/link-health/route.ts`, `app/admin/LinkHealthManager.tsx`, `app/admin/AdminDashboard.tsx`, `app/styles/link-health.css`; `tests/canonical-url.test.mjs` 6/6, `tests/link-checker.test.mjs` 5/5, `tests/link-health-api.test.mjs` 3/3, `tests/qr-code.test.mjs` 9/9 pass (DEC-026) | 2026-09-12 |
+| US-047 — Quản lý chủ đề và lưu trữ vào database | P0 | Done | Full-stack | `db/pg-schema.ts`, `db/pg-bootstrap.ts`, `lib/topic-store.ts`, `lib/topics.ts`, `scripts/seed-topics.mjs`, `app/api/topics/route.ts`, `app/admin/api/topics/route.ts`, `app/admin/TopicManager.tsx`, `app/admin/AdminDashboard.tsx`; `tests/topics-schema.test.mjs` 1/1, `tests/topic-store.test.mjs` 5/5, `tests/seed-topics.test.mjs` 1/1, `tests/topics-api.test.mjs` 6/6, `tests/topic-manager-ui.test.mjs` 2/2 pass (DEC-028) | 2026-09-12 |
+| US-048 — Bổ sung chuyên đề mới & biểu tượng React-Icons | P0 | Done | Full-stack | `components/TopicIcon.tsx`, `lib/topics.ts`, `lib/quiz-content.ts`, `lib/topic-store.ts`, `scripts/seed-topics.mjs`, `app/admin/TopicManager.tsx`, `components/icons.tsx`, `app/page.tsx`, `topics.css`, `base.css`; `tests/topic-icon.test.mjs` 1/1, `tests/situation-lookup.test.mjs` 15/15, `tests/grounded-chat-golden.test.mjs` 31/31, `tests/gamification.test.mjs` 11/11 pass (DEC-029) | 2026-09-12 |
+| US-049 — Kho văn bản pháp luật & công cụ kiểm tra link 404 | P0 | Done | Full-stack | `db/pg-schema.ts`, `db/pg-bootstrap.ts`, `db/seeds/demo-documents.ts`, `lib/legal-document-store.ts`, `app/api/legal-documents/route.ts`, `app/admin/api/legal-documents/route.ts`, `app/admin/api/legal-documents/check-link/route.ts`, `app/admin/LegalDocumentManager.tsx`, `app/admin/AdminDashboard.tsx`, `app/tra-cuu-van-ban/page.tsx`, `components/LegalDocumentLookup.tsx`, `app/styles/legal-lookup.css`, `app/page.tsx`, `scripts/seed-topics.mjs`; `tests/legal-documents-schema.test.mjs` 1/1, `tests/legal-document-store.test.mjs` 1/1, `tests/legal-documents-api.test.mjs` 3/3, `tests/legal-document-manager-ui.test.mjs` 2/2, `tests/tra-cuu-van-ban-page.test.mjs` 3/3, `tests/legal-aid.test.mjs` 8/8 pass (DEC-030) | 2026-09-12 |
+| US-050 — Phân quyền tài khoản theo chuyên mục & Nhật ký hệ thống | P0 | Done | Full-stack | `db/pg-schema.ts`, `db/pg-bootstrap.ts` (`pgSchemaVersion = 2026-09-13-rbac-and-audit-v1`), `lib/account-store.ts`, `lib/audit-log-store.ts`, `lib/admin-auth.ts`, `app/admin/api/accounts/route.ts`, `app/admin/api/audit-logs/route.ts`, `app/admin/api/content/route.ts`, `app/admin/api/login/route.ts`, `app/admin/api/logout/route.ts`, `app/admin/AccountManager.tsx`, `app/admin/AuditLogManager.tsx`, `app/admin/AdminDashboard.tsx`; `tests/admin-accounts-schema.test.mjs` 2/2, `tests/account-and-audit-store.test.mjs` 3/3, `tests/admin-accounts-api.test.mjs` 2/2, `tests/admin-accounts-ui.test.mjs` 2/2, `tests/rbac-and-audit-e2e.test.mjs` 1/1 pass (DEC-031) | 2026-09-13 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
 | US-010 — Auth khu vực quản trị | P0 | Done | Full-stack + Code review | Anonymous redirect, invalid credential, signed session và admin access regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
@@ -1090,6 +1095,44 @@ này.
 - **Kiểm thử:** `tests/canonical-url.test.mjs` **6/6 pass**, `tests/link-checker.test.mjs`
   **5/5 pass**, `tests/link-health-api.test.mjs` **3/3 pass**, `tests/qr-code.test.mjs`
   **9/9 pass**. `npx tsc --noEmit` sạch, ESLint 0 error.
+
+### 2026-09-12 — Nâng cấp giao diện Admin chuẩn 1:1 theo Stitch Design (DEC-027)
+
+- **Cấu hình MCP & Dữ liệu thiết kế:** Cấu hình MCP server `stitch` (`https://stitch.googleapis.com/mcp`)
+  trong `~/.gemini/config/mcp_config.json`, `.agents/mcp_config.json` và `~/.claude.json`.
+  Truy xuất dự án `6443370801926228413` và màn hình `641002d3475d4f1485fce160d51229a3`
+  ("Quản trị - Quản lý kho nội dung (Left Nav)").
+- **Tái cấu trúc Layout Admin:**
+  - `app/admin/admin.css`: Bổ sung hệ thống thanh cuộn mỏng `.custom-scroll`, chuẩn hóa `.admin-shell`
+    thành container 2 cột full-screen, giữ tương thích ngược với `/admin/login`.
+  - `app/admin/AdminDashboard.tsx`: Dựng Left Sidebar cố định (`w-72`) phân nhóm chức năng (Tổng quan,
+    Quản lý nội dung, Người dùng & Tư vấn, Hệ thống), badge đếm số lượng thời gian thực, menu con đa cấp,
+    Top Header Breadcrumb, 3 thẻ tổng quan (Điều luật, Tình huống, Đã xuất bản), dải sub-navigation pills
+    và hỗ trợ responsive menu trên thiết bị di động.
+  - `app/admin/LinkHealthManager.tsx`: Chuyển đổi 1:1 theo snapshot Stitch Design gồm thẻ Tên miền 3 cột,
+    4 thẻ metric thống kê liên kết, thanh công cụ tìm kiếm và lọc pill, bảng dữ liệu chuẩn hóa với
+    thời gian phản hồi (ms) và nút thao tác trực tiếp.
+- **Kiểm thử:** Toàn bộ **502/502 bài test pass 100%**, `npx tsc --noEmit` 0 lỗi.
+
+### 2026-09-12 — Quản lý chủ đề pháp luật và lưu trữ vào cơ sở dữ liệu (US-047, DEC-028)
+
+- **Database & Bootstrap:** Tạo bảng `content_topics` trong PostgreSQL (`db/pg-schema.ts`, `db/pg-bootstrap.ts`)
+  kèm các ràng buộc toàn vẹn dữ liệu (tên duy nhất, kiểm tra kiểu JSON array cho `abbreviations`, `keywords`, `situations`,
+  giới hạn độ dài và status check). Nâng `pgSchemaVersion` lên `2026-09-12-content-topics-v1` và bổ sung index `content_topics_status_order_idx`.
+- **Topic Store & Fallback Resolution:** `lib/topic-store.ts` cung cấp đầy đủ các thao tác nghiệp vụ CRUD và
+  cơ chế fail-safe: khi cơ sở dữ liệu chưa sẵn sàng hoặc bảng trống, `getActiveTopicDefinitions` và `listAllTopicsForAdmin`
+  tự động fallback về 5 chủ đề mặc định trong `lib/topics.ts`. Cung cấp `registerDynamicTopics` trong `lib/topics.ts`
+  để các validator đồng bộ nhận biết các chủ đề mới.
+- **Script nạp dữ liệu:** `scripts/seed-topics.mjs` và lệnh `npm run seed:topics` nạp đủ 5 chủ đề cơ sở vào DB
+  với cơ chế idempotent `ON CONFLICT (name) DO UPDATE`.
+- **API Endpoints:** `app/api/topics/route.ts` (public GET với cache control) và `app/admin/api/topics/route.ts`
+  (admin GET/POST/PUT/DELETE bảo vệ bằng admin session và CSRF origin check, hỗ trợ action `seed_defaults`).
+- **Giao diện Quản trị (CMS):** `app/admin/TopicManager.tsx` thiết kế theo chuẩn Stitch Design với 4 thẻ metric,
+  bộ lọc trạng thái, form modal thêm/sửa chi tiết và nút "Nạp 5 chủ đề mặc định". Tích hợp hoàn chỉnh vào Left Sidebar
+  và Sub-nav Pills của `app/admin/AdminDashboard.tsx`.
+- **Kiểm thử:** `tests/topics-schema.test.mjs` (1/1 pass), `tests/topic-store.test.mjs` (4/4 pass),
+  `tests/seed-topics.test.mjs` (1/1 pass), `tests/topics-api.test.mjs` (6/6 pass), `tests/topic-manager-ui.test.mjs` (2/2 pass).
+  `npx tsc --noEmit` sạch 0 lỗi.
 
 ## Cách cập nhật tracker
 

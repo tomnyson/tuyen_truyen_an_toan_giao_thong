@@ -276,6 +276,8 @@ export default function AdminDashboard() {
     link_health: "Liên kết & Tên miền",
     topics: "Chủ đề & Lĩnh vực",
     documents: "Kho văn bản pháp luật",
+    accounts: "Tài khoản & Phân quyền",
+    audit_logs: "Lịch sử hệ thống",
   };
 
   return (

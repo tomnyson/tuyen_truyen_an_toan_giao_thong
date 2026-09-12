@@ -48,12 +48,12 @@
   color: var(--brick-deep);
   text-decoration: underline;
   text-underline-offset: 3px;
-  transition: color var(--duration-fast, 150ms) ease;
+  transition: color var(--fast) var(--ease);
 }
 
 .ai-disclaimer a:hover,
 .ai-disclaimer a:focus-visible {
-  color: var(--brick-hover, var(--brick-deep));
+  color: var(--brick-hover);
 }
 
 .ai-disclaimer[data-level="unverified"] {

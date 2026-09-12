@@ -9,6 +9,7 @@ import {
   qrSvgPath,
 } from "@/lib/qr-code";
 import { DownloadIcon } from "./icons";
+import { resolveCanonicalSiteUrl } from "@/lib/canonical-url";
 
 // URL cấu hình sẵn (nếu có) dùng cho bản in đồng nhất giữa các máy; khi không
 // có thì lấy origin thật lúc chạy. Origin chỉ đọc được sau khi mount nên QR
@@ -16,8 +17,7 @@ import { DownloadIcon } from "./icons";
 const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
 
 export function resolveSiteUrl(configured: string, origin: string): string {
-  if (isQrTargetUrl(configured)) return configured;
-  return isQrTargetUrl(origin) ? origin : "";
+  return resolveCanonicalSiteUrl(configured, origin);
 }
 
 // Origin là giá trị của trình duyệt, không tồn tại khi render trên server.

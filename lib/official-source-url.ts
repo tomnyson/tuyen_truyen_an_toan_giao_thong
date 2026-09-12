@@ -1,3 +1,5 @@
+import { unverifiedDisclosure } from "./ai-disclosure";
+
 export type OfficialSourceLink = {
   title: string;
   url: string;
@@ -124,7 +126,8 @@ export function publicSourceUiCopy(
 ): PublicSourceUiCopy {
   if (sourceKind === "reference") {
     return {
-      warningTitle: "Thông tin tham khảo — chưa xác minh",
+      // DEC-020: tiêu đề khuyến cáo dùng chung một câu chữ cho cả hai nhánh.
+      warningTitle: unverifiedDisclosure.title,
       groupTitle: "Nguồn tham khảo ngoài — cần xác minh",
       fallbackTitle: "Nguồn tham khảo",
       openAction: "Mở nguồn tham khảo ↗",
@@ -132,7 +135,7 @@ export function publicSourceUiCopy(
     };
   }
   return {
-    warningTitle: "Kết quả tra cứu tự động",
+    warningTitle: unverifiedDisclosure.title,
     groupTitle: hasWarning
       ? "Nguồn chính thức đã tra cứu"
       : "Nguồn chính thức",

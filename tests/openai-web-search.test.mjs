@@ -358,7 +358,7 @@ test("reference UI copy and parsing are selected by runtime sourceKind", () => {
     referenceSources,
   );
   assert.deepEqual(publicSourceUiCopy("reference", true), {
-    warningTitle: "Thông tin tham khảo — chưa xác minh",
+    warningTitle: "Kết quả AI chưa được kiểm duyệt",
     groupTitle: "Nguồn tham khảo ngoài — cần xác minh",
     fallbackTitle: "Nguồn tham khảo",
     openAction: "Mở nguồn tham khảo ↗",

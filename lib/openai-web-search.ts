@@ -14,6 +14,10 @@ import {
   canonicalReferenceSourceUrl,
   type PublicSourceKind,
 } from "./official-source-url";
+import {
+  unverifiedOfficialSourceWarning,
+  unverifiedReferenceSourceWarning,
+} from "./ai-disclosure";
 
 export {
   canonicalOfficialSourceUrl,
@@ -37,10 +41,10 @@ export const WEB_SEARCH_DOMAINS = [
 export const WEB_SEARCH_POLICY_VERSION = "allowed-source-web-search-v1";
 export const REFERENCE_SEARCH_POLICY_VERSION =
   "reference-source-web-search-v1";
-export const WEB_SEARCH_WARNING =
-  "Đây là kết quả AI tra cứu trực tuyến từ nguồn Chính phủ và chưa đi qua quy trình kiểm duyệt nội dung của cổng. Bạn nên mở nguồn bên dưới để kiểm tra trước khi áp dụng.";
-export const REFERENCE_SEARCH_WARNING =
-  "Đây là kết quả AI từ nguồn tham khảo ngoài, không phải nguồn chính thống và chưa được cổng kiểm duyệt. Bạn cần xác minh lại bằng văn bản hoặc cơ quan chính thức trước khi áp dụng.";
+// DEC-020: câu chữ sống ở `lib/ai-disclosure.ts`. Hai tên này giữ nguyên vì
+// route chat và test đang import chúng.
+export const WEB_SEARCH_WARNING = unverifiedOfficialSourceWarning;
+export const REFERENCE_SEARCH_WARNING = unverifiedReferenceSourceWarning;
 const REFERENCE_SAFE_FALLBACK_ANSWER = [
   "Kết luận: Đã tìm thấy nội dung tham khảo liên quan đến tình huống bạn nêu, nhưng hệ thống không hiển thị chi tiết pháp lý chưa được xác minh.",
   "Bạn nên làm gì: Hãy mở nguồn tham khảo bên dưới và đối chiếu lại với văn bản hoặc cơ quan chính thức trước khi áp dụng.",

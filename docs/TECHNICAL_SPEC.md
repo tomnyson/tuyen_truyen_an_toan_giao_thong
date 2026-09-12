@@ -2438,6 +2438,18 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
   lý (`components/LegalAidConsult.tsx`, `components/ReferralChain.tsx`) đọc
   cùng một chuỗi này; trang chủ hiển thị nguyên cả chuỗi (không lọc theo cấp)
   để không mất đầu mối 113 ở cấp xã/phường.
+- **DEC-026:** cấu hình tên miền cố định và công cụ quản trị kiểm tra link hết hạn:
+  Tên miền cố định được quản lý tập trung tại `lib/canonical-url.ts` qua biến
+  môi trường `NEXT_PUBLIC_SITE_URL` / `CANONICAL_DOMAIN`. Mã QR sinh ra hoặc tải
+  về luôn ưu tiên mã hóa domain cấu hình này để tài liệu in ấn và chia sẻ không
+  bị hết hạn khi môi trường triển khai/preview thay đổi. Kiểm tra liên kết phía
+  server (`lib/link-checker.ts`) bắt buộc có SSRF Guard chặn truy cập IP nội bộ
+  (localhost, loopback, private IPv4, link-local), chỉ chấp nhận HTTP/HTTPS;
+  quá trình quét batch link giới hạn tối đa 5 luồng đồng thời và timeout 5.000ms.
+  Tập hợp liên kết tự động gom từ cả kho tĩnh (`lib/legal-content.ts`) lẫn các
+  bảng cơ sở dữ liệu (`legal_sources`, `showcases`). Admin API
+  `/admin/api/link-health` và giao diện CMS `LinkHealthManager.tsx` cho phép
+  kiểm tra tức thời từng link hoặc quét toàn bộ kho dữ liệu bất kỳ lúc nào.
 
 ### Điểm còn mở
 

@@ -85,6 +85,8 @@ export async function createAdminPasswordHash(password: string, salt?: Uint8Arra
   ].join("$");
 }
 
+export const hashAdminPassword = createAdminPasswordHash;
+
 export async function verifyAdminPassword(password: string, encodedHash: string) {
   const parsed = parsePasswordHash(encodedHash);
   if (!parsed) return false;

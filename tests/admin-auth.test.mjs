@@ -13,11 +13,24 @@ registerHooks({
         url: "data:text/javascript,export const env = globalThis.__adminAuthTestEnv",
       };
     }
+    if (specifier === "@/db") {
+      return {
+        shortCircuit: true,
+        url: new URL("../db/index.ts", import.meta.url).href,
+      };
+    }
     if (specifier.startsWith("@/")) {
       return {
         shortCircuit: true,
         url: new URL(`../${specifier.slice(2)}.ts`, import.meta.url).href,
       };
+    }
+    if (
+      specifier.startsWith(".") &&
+      !/\.[a-z]+$/i.test(specifier) &&
+      context.parentURL?.endsWith(".ts")
+    ) {
+      return nextResolve(`${specifier}.ts`, context);
     }
     return nextResolve(specifier, context);
   },

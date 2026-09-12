@@ -1,5 +1,6 @@
 import { env } from "@/lib/runtime-env";
 import { verifyAdminPassword } from "@/lib/password-hash";
+import { getAdminAccountByUsername } from "@/lib/account-store";
 
 export const adminCookieName = "law_school_admin";
 const sessionTtlSeconds = 8 * 60 * 60;
@@ -7,6 +8,8 @@ const sessionTtlSeconds = 8 * 60 * 60;
 export type AdminSessionActor = {
   username: string;
   principalId: string;
+  role?: string;
+  allowedTopics?: string[];
 };
 
 type AdminAccount = AdminSessionActor & {
@@ -142,6 +145,19 @@ export async function validateAdminCredentials(username: string, password: strin
   ) {
     return false;
   }
+
+  // 1. Kiểm tra tài khoản trong database
+  try {
+    const dbAccount = await getAdminAccountByUsername(username);
+    if (dbAccount && dbAccount.status === "active") {
+      const match = await verifyAdminPassword(password, dbAccount.passwordHash);
+      if (match) return true;
+    }
+  } catch {
+    // Database chưa kết nối hoặc đang test offline
+  }
+
+  // 2. Fallback kiểm tra cấu hình env (accountRegistry)
   const accounts = accountRegistry();
   const comparisons = await Promise.all(
     accounts.map(async (account) => {
@@ -158,21 +174,47 @@ export async function validateAdminCredentials(username: string, password: strin
 }
 
 export async function createAdminSession(username?: string) {
-  const accounts = accountRegistry();
-  const account = username
-    ? accounts.find((candidate) => candidate.username === username)
-    : accounts[0];
-  if (!account) throw new Error("Tài khoản quản trị chưa được cấu hình.");
+  let sessionUsername = "";
+  let principalId = "";
+  let role: string | undefined = undefined;
+  let allowedTopics: string[] | undefined = undefined;
+
+  let dbAccount = null;
+  if (username) {
+    try {
+      dbAccount = await getAdminAccountByUsername(username);
+    } catch {
+      dbAccount = null;
+    }
+  }
+
+  if (dbAccount && dbAccount.status === "active") {
+    sessionUsername = dbAccount.username;
+    principalId = `db:${dbAccount.id}`;
+    role = dbAccount.role;
+    allowedTopics = dbAccount.allowedTopics;
+  } else {
+    const accounts = accountRegistry();
+    const account = username
+      ? accounts.find((candidate) => candidate.username === username)
+      : accounts[0];
+    if (!account) throw new Error("Tài khoản quản trị chưa được cấu hình.");
+    sessionUsername = account.username;
+    principalId = account.principalId;
+  }
+
   const expiresAt = Math.floor(Date.now() / 1000) + sessionTtlSeconds;
+  const payloadData: Record<string, unknown> = {
+    version: 2,
+    username: sessionUsername,
+    principalId,
+    expiresAt,
+  };
+  if (role !== undefined) payloadData.role = role;
+  if (allowedTopics !== undefined) payloadData.allowedTopics = allowedTopics;
+
   const payload = toBase64Url(
-    new TextEncoder().encode(
-      JSON.stringify({
-        version: 2,
-        username: account.username,
-        principalId: account.principalId,
-        expiresAt,
-      }),
-    ),
+    new TextEncoder().encode(JSON.stringify(payloadData)),
   );
   const signature = await sign(payload);
   if (!signature) throw new Error("ADMIN_SESSION_SECRET phải có ít nhất 32 ký tự.");
@@ -207,14 +249,48 @@ export async function verifyAdminSessionActor(
   ) {
     return null;
   }
+
+  // 1. Kiểm tra tài khoản database
+  if (session.principalId.startsWith("db:")) {
+    try {
+      const dbAccount = await getAdminAccountByUsername(session.username);
+      if (
+        dbAccount &&
+        dbAccount.status === "active" &&
+        session.principalId === `db:${dbAccount.id}`
+      ) {
+        return {
+          username: dbAccount.username,
+          principalId: session.principalId,
+          role: dbAccount.role,
+          allowedTopics: dbAccount.allowedTopics,
+        };
+      }
+    } catch {
+      // Fallback
+    }
+    return null;
+  }
+
+  // 2. Kiểm tra tài khoản env
   const account = accountRegistry().find(
     (candidate) =>
       candidate.username === session.username &&
       candidate.principalId === session.principalId,
   );
-  return account
-    ? { username: account.username, principalId: account.principalId }
-    : null;
+  if (!account) return null;
+
+  const actor: AdminSessionActor = {
+    username: account.username,
+    principalId: account.principalId,
+  };
+  if (typeof session.role === "string") {
+    actor.role = session.role;
+  }
+  if (Array.isArray(session.allowedTopics)) {
+    actor.allowedTopics = session.allowedTopics.map(String);
+  }
+  return actor;
 }
 
 export async function verifyAdminSession(token: string | undefined) {

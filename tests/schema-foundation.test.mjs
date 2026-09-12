@@ -154,7 +154,7 @@ test("Sites build packages migration inputs but does not prove execution", () =>
   assert.equal(journal.entries[2]?.tag, "0002_reviewed_rag_bridge");
   assert.equal(
     journal.entries.at(-1)?.tag,
-    "0006_petite_lady_deathstrike",
+    "0007_referral_authorities",
   );
   assert.match(migration, /CREATE TABLE IF NOT EXISTS `legal_sources`/);
   assert.match(readinessMigration, /ALTER TABLE `legal_entries`/);
@@ -214,6 +214,12 @@ test("migration journal records citation foundation after baseline", () => {
         idx: 6,
         version: "6",
         tag: "0006_petite_lady_deathstrike",
+        breakpoints: true,
+      },
+      {
+        idx: 7,
+        version: "6",
+        tag: "0007_referral_authorities",
         breakpoints: true,
       },
     ],

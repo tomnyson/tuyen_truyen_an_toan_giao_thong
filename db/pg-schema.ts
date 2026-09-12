@@ -285,3 +285,31 @@ export const legalEntryCitations = pgTable(
     }),
   ],
 );
+
+// Cơ quan tiếp nhận theo thẩm quyền (US-039, DEC-022). CHECK thật nằm ở
+// db/pg-bootstrap.ts.
+export const referralAuthorities = pgTable("referral_authorities", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  level: text("level", {
+    enum: ["truong", "xa_phuong", "huyen", "tinh", "trung_uong"],
+  }).notNull(),
+  topics: text("topics").notNull().default("[]"),
+  scope: text("scope").notNull().default(""),
+  address: text("address").notNull().default(""),
+  phone: text("phone").notNull().default(""),
+  hotline: text("hotline").notNull().default(""),
+  note: text("note").notNull().default(""),
+  status: text("status", { enum: ["draft", "published"] })
+    .notNull()
+    .default("draft"),
+  createdBy: text("created_by").notNull(),
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: text("reviewed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(now())::text`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(now())::text`),
+});

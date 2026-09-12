@@ -282,6 +282,73 @@ export const legalEntryCitations = sqliteTable(
   ],
 );
 
+// Cơ quan tiếp nhận theo thẩm quyền (US-039, DEC-022). Đây là dữ liệu do
+// người biên soạn nhập và người khác duyệt — AI không được sinh tên, địa chỉ
+// hay số điện thoại cơ quan. `topics` rỗng nghĩa là đầu mối chung cho mọi
+// lĩnh vực ở cấp đó.
+export const referralAuthorities = sqliteTable(
+  "referral_authorities",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    level: text("level", {
+      enum: ["truong", "xa_phuong", "huyen", "tinh", "trung_uong"],
+    }).notNull(),
+    topics: text("topics").notNull().default("[]"),
+    scope: text("scope").notNull().default(""),
+    address: text("address").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    hotline: text("hotline").notNull().default(""),
+    note: text("note").notNull().default(""),
+    status: text("status", { enum: ["draft", "published"] })
+      .notNull()
+      .default("draft"),
+    createdBy: text("created_by").notNull(),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: text("reviewed_at"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("referral_authorities_status_level_idx").on(table.status, table.level),
+    check(
+      "referral_authorities_level_check",
+      sql`${table.level} in ('truong', 'xa_phuong', 'huyen', 'tinh', 'trung_uong')`,
+    ),
+    check(
+      "referral_authorities_status_check",
+      sql`${table.status} in ('draft', 'published')`,
+    ),
+    check(
+      "referral_authorities_name_check",
+      sql`length(trim(${table.name})) between 1 and 200`,
+    ),
+    check(
+      "referral_authorities_topics_json_check",
+      sql`json_valid(${table.topics})
+        and json_type(${table.topics}) = 'array'
+        and length(${table.topics}) <= 512`,
+    ),
+    check(
+      "referral_authorities_contact_length_check",
+      sql`length(${table.phone}) <= 40
+        and length(${table.hotline}) <= 40
+        and length(${table.address}) <= 300
+        and length(${table.scope}) <= 200
+        and length(${table.note}) <= 300`,
+    ),
+    // DEC-003: bản published phải do người khác duyệt, không tự duyệt.
+    check(
+      "referral_authorities_four_eyes_check",
+      sql`${table.status} != 'published' or (
+        ${table.reviewedBy} is not null
+        and ${table.reviewedAt} is not null
+        and ${table.reviewedBy} != ${table.createdBy}
+      )`,
+    ),
+  ],
+);
+
 export const editorialPrincipals = sqliteTable(
   "editorial_principals",
   {

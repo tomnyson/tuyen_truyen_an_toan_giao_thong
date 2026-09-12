@@ -295,5 +295,5 @@ test("nut kich ban gan voi kich ban va co rang buoc loai ket cuc", async () => {
 });
 
 test("phien ban schema da tang cho phan game hoa", () => {
-  assert.equal(pgSchemaVersion, "2026-09-05-gamification-v1");
+  assert.equal(pgSchemaVersion, "2026-09-12-referral-authorities-v1");
 });

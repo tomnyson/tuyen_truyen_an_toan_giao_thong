@@ -22,6 +22,7 @@ const { buildSituationAnswer, situationAnswerParts } = await import(
 const { laws } = await import("../lib/legal-content.ts");
 const { SituationAnswer } = await import("../components/SituationAnswer.tsx");
 const { ContentMedia } = await import("../components/ContentMedia.tsx");
+const { AiDisclaimer } = await import("../components/AiDisclaimer.tsx");
 
 test.after(async () => {
   await unregisterTsx();
@@ -221,4 +222,62 @@ test("media minh hoa render dung loai va bo qua khi rong", () => {
     ),
     "",
   );
+});
+
+test("khuyen cao render role note va danh dau muc do tin cay", () => {
+  const reviewed = renderToStaticMarkup(
+    React.createElement(AiDisclaimer, { origin: "library" }),
+  );
+  assert.match(reviewed, /role="note"/);
+  assert.match(reviewed, /data-level="reviewed"/);
+  assert.match(reviewed, /Thông tin tham khảo, cần đối chiếu văn bản gốc/);
+
+  const unverified = renderToStaticMarkup(
+    React.createElement(AiDisclaimer, { origin: "live_web" }),
+  );
+  assert.match(unverified, /data-level="unverified"/);
+  assert.match(unverified, /không bảo đảm chính xác 100%/);
+  assert.match(unverified, /không dùng làm căn cứ pháp lý/);
+});
+
+test("khuyen cao mo nguon goc bang link an toan, khong co url thi khong co link", () => {
+  const withSource = renderToStaticMarkup(
+    React.createElement(AiDisclaimer, {
+      origin: "library",
+      sourceUrl: "https://vbpl.vn/tw/Pages/vbpq-toanvan.aspx?ItemID=173920",
+    }),
+  );
+  assert.match(withSource, /target="_blank"/);
+  assert.match(withSource, /rel="noopener noreferrer"/);
+  assert.match(withSource, /Mở văn bản gốc/);
+
+  const withoutSource = renderToStaticMarkup(
+    React.createElement(AiDisclaimer, { origin: "library" }),
+  );
+  assert.doesNotMatch(withoutSource, /<a /);
+});
+
+test("ban gon chi giu mot dong nhung van la note", () => {
+  const compact = renderToStaticMarkup(
+    React.createElement(AiDisclaimer, { variant: "compact" }),
+  );
+  assert.match(compact, /role="note"/);
+  assert.match(compact, /data-variant="compact"/);
+  // Bản gọn không in tiêu đề in hoa để không chiếm chỗ trong hộp chat.
+  assert.doesNotMatch(compact, /<strong>/);
+});
+
+test("khoi tra loi tinh huong luon keo theo khuyen cao", () => {
+  const html = renderToStaticMarkup(
+    React.createElement(SituationAnswer, {
+      remedy: "Giữ bằng chứng.",
+      penalty: "400.000 – 600.000đ",
+      legalBasis: "Điều 7 Nghị định 168/2024/NĐ-CP",
+      citationUrl: "https://vbpl.vn/tw/Pages/ivbpq-thuoctinh.aspx?ItemID=173920",
+    }),
+  );
+  const listIndex = html.indexOf('<ol class="situation-answer">');
+  const disclaimerIndex = html.indexOf('class="ai-disclaimer"');
+  assert.ok(listIndex >= 0);
+  assert.ok(disclaimerIndex > listIndex);
 });

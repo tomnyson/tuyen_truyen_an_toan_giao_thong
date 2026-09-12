@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { AiDisclaimer } from "@/components/AiDisclaimer";
 import { ContentDetailLayout } from "@/components/ContentDetailLayout";
 import { ContentMedia } from "@/components/ContentMedia";
 import { EngagementBar } from "@/components/EngagementBar";
@@ -139,8 +140,11 @@ export default async function LawDetailPage({ params }: RouteProps) {
       </EngagementProvider>
       <p className="modal-note">
         Tình huống được biên soạn để giáo dục, không phải hồ sơ xử phạt có thật.
-        Mức áp dụng thực tế phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể.
       </p>
+      <AiDisclaimer
+        origin="library"
+        sourceUrl={law.citation?.officialUrl ?? ""}
+      />
     </ContentDetailLayout>
   );
 }

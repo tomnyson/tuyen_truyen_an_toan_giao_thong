@@ -1,0 +1,84 @@
+/* Khuyến cáo độ chính xác (US-038). Mức "unverified" phải nhận ra được từ xa
+   nên dùng nền vàng cảnh báo + viền trái dày; mức "reviewed" giữ tông giấy để
+   không làm người đọc mất tin vào nội dung đã duyệt. */
+
+.ai-disclaimer {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  border-left: 4px solid var(--line-strong);
+  background: var(--cream-warm);
+  color: var(--ink-soft);
+}
+
+.ai-disclaimer > svg {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.ai-disclaimer > div {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-disclaimer strong {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ai-disclaimer p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.ai-disclaimer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--brick-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--duration-fast, 150ms) ease;
+}
+
+.ai-disclaimer a:hover,
+.ai-disclaimer a:focus-visible {
+  color: var(--brick-hover, var(--brick-deep));
+}
+
+.ai-disclaimer[data-level="unverified"] {
+  border-left-color: var(--gold-deep);
+  background: var(--gold-soft);
+}
+
+/* Bản gọn nằm ở chân hộp chat: bỏ nền, thu nhỏ chữ, không chiếm chiều cao. */
+.ai-disclaimer[data-variant="compact"] {
+  margin-top: 0;
+  padding: 8px 0 0;
+  border-left: 0;
+  background: transparent;
+}
+
+.ai-disclaimer[data-variant="compact"] p {
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 420px) {
+  .ai-disclaimer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ai-disclaimer > svg {
+    display: none;
+  }
+}

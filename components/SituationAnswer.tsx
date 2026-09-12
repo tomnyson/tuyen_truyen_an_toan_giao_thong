@@ -7,6 +7,7 @@ import {
   type SituationAnswerPart,
 } from "@/lib/situation-answer";
 import { ArrowUpRightIcon, BoltIcon, ScalesIcon, WarningIcon } from "./icons";
+import { AiDisclaimer } from "./AiDisclaimer";
 
 const partIcons: Record<SituationAnswerPart, typeof BoltIcon> = {
   handling: BoltIcon,
@@ -17,26 +18,30 @@ const partIcons: Record<SituationAnswerPart, typeof BoltIcon> = {
 export function SituationAnswer(props: SituationAnswerInput) {
   const blocks = buildSituationAnswer(props);
   return (
-    <ol className="situation-answer">
-      {blocks.map((block) => {
-        const PartIcon = partIcons[block.part];
-        return (
-          <li key={block.part} className="situation-part" data-part={block.part}>
-            <span className="situation-step">
-              <PartIcon />
-            </span>
-            <div>
-              <h4>{block.title}</h4>
-              <p>{block.body}</p>
-              {block.url && (
-                <a href={block.url} target="_blank" rel="noopener noreferrer">
-                  Mở nguồn chính thức <ArrowUpRightIcon />
-                </a>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+    <>
+      <ol className="situation-answer">
+        {blocks.map((block) => {
+          const PartIcon = partIcons[block.part];
+          return (
+            <li key={block.part} className="situation-part" data-part={block.part}>
+              <span className="situation-step">
+                <PartIcon />
+              </span>
+              <div>
+                <h4>{block.title}</h4>
+                <p>{block.body}</p>
+                {block.url && (
+                  <a href={block.url} target="_blank" rel="noopener noreferrer">
+                    Mở nguồn chính thức <ArrowUpRightIcon />
+                  </a>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {/* DEC-020: khối tình huống là nội dung diễn giải nên luôn đi kèm khuyến cáo. */}
+      <AiDisclaimer origin="library" />
+    </>
   );
 }

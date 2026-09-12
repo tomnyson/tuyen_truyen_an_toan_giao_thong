@@ -74,6 +74,14 @@
   line-height: 1.45;
 }
 
+/* Bản gọn vẫn phải giữ dấu hiệu cảnh báo: nhánh tra cứu ngoài là nơi duy nhất
+   mức "unverified" xuất hiện, mà nơi đó lại chỉ dùng bản gọn. */
+.ai-disclaimer[data-variant="compact"][data-level="unverified"] {
+  border-left: 3px solid var(--gold-deep);
+  background: var(--gold-soft);
+  padding: 8px 10px;
+}
+
 @media (max-width: 420px) {
   .ai-disclaimer {
     grid-template-columns: minmax(0, 1fr);

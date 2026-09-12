@@ -106,3 +106,44 @@ test("app/page.tsx ngan di sau khi tach bang tro giup", async () => {
     `app/page.tsx phải ngắn hơn 990 dòng sau tác vụ này (hiện ${lineCount})`,
   );
 });
+
+// Finding 3+4 cua ban ra soat cuoi GD1: loadChain khong duoc xuat ra ngoai
+// component (khong co hook DOM trong repo nay de dung, xem final-fix-brief.md
+// muc "Kiem chung bat buoc" #3), nen kiem chung o muc ma nguon dung cau truc
+// moi: than loadChain tu bat loi rieng va moi nhanh hong deu roi ve
+// fallbackReferralAuthorities kem degraded true, khong con lam mat cau tra
+// loi chat da nhan duoc khi rieng /api/co-quan hong.
+test("loadChain tu nuot loi va luon fallback ve chuoi co quan khac rong", async () => {
+  const consult = await read("components/LegalAidConsult.tsx");
+
+  const loadChainMatch = consult.match(
+    /async function loadChain\([\s\S]*?\n  \}\n/,
+  );
+  assert.ok(loadChainMatch, "khong tim thay than ham loadChain");
+  const loadChainBody = loadChainMatch[0];
+
+  // Moi nhanh hong roi ve dung mot fallback duy nhat, xay tu du lieu da duyet.
+  assert.match(
+    loadChainBody,
+    /buildReferralChain\(fallbackReferralAuthorities, topic\)/,
+  );
+  assert.match(loadChainBody, /degraded:\s*true/);
+  // Than ham tu bat loi rieng cua no (fetch nem, JSON hong) — khong de loi
+  // thoat ra ngoai lam vo try/catch cua submit() va lam mat cau tra loi chat.
+  assert.match(loadChainBody, /\btry\s*{/);
+  assert.match(loadChainBody, /\}\s*catch\s*{\s*\n\s*return fallback;/);
+  // Chuoi rong hoac khong phai mang cung phai roi ve fallback, khong duoc
+  // tra thang [] nhu truoc khi sua.
+  assert.match(
+    loadChainBody,
+    /!Array\.isArray\(payload\.chain\) \|\| payload\.chain\.length === 0/,
+  );
+  assert.doesNotMatch(loadChainBody, /chain:\s*\[\]/);
+
+  // Cau tra loi chat khong con bi vut khi rieng /api/co-quan hong: khoi catch
+  // ngoai cua submit() gio chi con goi lai loadChain(null) truc tiep (khong
+  // con .catch() phong thu quanh no vi loadChain da tu an toan), va nhanh
+  // thanh cong khong dat lai answer ve null truoc khi cho loadChain.
+  assert.doesNotMatch(consult, /loadChain\(null\)\.catch/);
+  assert.match(consult, /const referral = await loadChain\(answer\.topic\);/);
+});

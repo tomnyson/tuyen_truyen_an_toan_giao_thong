@@ -9,12 +9,17 @@ import { useState, type FormEvent } from "react";
 import { AiDisclaimer } from "@/components/AiDisclaimer";
 import { ChatAnswerBody } from "@/components/ChatAnswerBody";
 import { ReferralChain } from "@/components/ReferralChain";
-import type { ReferralStep } from "@/lib/authority-referral";
+import {
+  buildReferralChain,
+  fallbackReferralAuthorities,
+  type ReferralStep,
+} from "@/lib/authority-referral";
 import {
   chatAnswerNetworkErrorText,
   parseChatAnswerPayload,
   type ChatAnswerView,
 } from "@/lib/chat-answer-view";
+import type { ContentTopic } from "@/lib/topics";
 
 type ConsultState = Readonly<{
   answer: ChatAnswerView | null;
@@ -35,18 +40,33 @@ export function LegalAidConsult() {
   const [isLoading, setLoading] = useState(false);
   const [state, setState] = useState<ConsultState>(emptyState);
 
-  async function loadChain(topic: string | null) {
-    const query = topic ? `?topic=${encodeURIComponent(topic)}` : "";
-    const response = await fetch(`/api/co-quan${query}`);
-    if (!response.ok) return { chain: [], degraded: true } as const;
-    const payload = (await response.json()) as {
-      chain?: readonly ReferralStep[];
-      degraded?: boolean;
-    };
-    return {
-      chain: Array.isArray(payload.chain) ? payload.chain : [],
-      degraded: payload.degraded === true,
+  // Không bao giờ ném lỗi, không bao giờ trả chuỗi rỗng (Finding 3+4 của bản
+  // rà soát cuối GĐ1): mọi nhánh hỏng — response lỗi, fetch ném, JSON hỏng,
+  // `payload.chain` rỗng hoặc không phải mảng — đều rơi về ba đầu mối công
+  // khai đã xác minh, giống cách HelpHotlines fail-safe.
+  async function loadChain(topic: ContentTopic | null) {
+    const fallback = {
+      chain: buildReferralChain(fallbackReferralAuthorities, topic),
+      degraded: true,
     } as const;
+    try {
+      const query = topic ? `?topic=${encodeURIComponent(topic)}` : "";
+      const response = await fetch(`/api/co-quan${query}`);
+      if (!response.ok) return fallback;
+      const payload = (await response.json()) as {
+        chain?: readonly ReferralStep[];
+        degraded?: boolean;
+      };
+      if (!Array.isArray(payload.chain) || payload.chain.length === 0) {
+        return fallback;
+      }
+      return {
+        chain: payload.chain,
+        degraded: payload.degraded === true,
+      } as const;
+    } catch {
+      return fallback;
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -70,10 +90,7 @@ export function LegalAidConsult() {
         error: "",
       });
     } catch {
-      const referral = await loadChain(null).catch(() => ({
-        chain: [] as readonly ReferralStep[],
-        degraded: true,
-      }));
+      const referral = await loadChain(null);
       setState({
         answer: null,
         chain: referral.chain,

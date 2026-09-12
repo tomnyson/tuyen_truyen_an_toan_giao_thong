@@ -872,7 +872,13 @@ function HomeContent() {
                 title={selectedLaw.title}
               />
             )}
-            <p className="modal-note">Tình huống được biên soạn để giáo dục, không phải hồ sơ xử phạt có thật. Mức áp dụng thực tế phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể.</p>
+            <p className="modal-note">
+              Tình huống được biên soạn để giáo dục, không phải hồ sơ xử phạt có thật.
+            </p>
+            <AiDisclaimer
+              origin="library"
+              sourceUrl={selectedLaw.citation?.officialUrl ?? ""}
+            />
           </section>
         </div>
       )}

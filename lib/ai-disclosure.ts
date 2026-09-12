@@ -57,3 +57,12 @@ export const unverifiedOfficialSourceWarning =
 
 export const unverifiedReferenceSourceWarning =
   "Đây là kết quả AI từ nguồn tham khảo ngoài, không phải nguồn chính thống và chưa được cổng kiểm duyệt. Bạn cần xác minh lại bằng văn bản hoặc cơ quan chính thức trước khi áp dụng.";
+
+// Câu ghi trong mục `limitations` của nhánh `grounded_library` (DEC-019). Sống
+// ở đây, không phải `lib/grounded-answer.ts`, vì đó cũng là câu khuyến cáo và
+// DEC-020 chỉ cho phép một nguồn viết câu khuyến cáo. Chỉ giữ phần xuất xứ
+// riêng ("soạn lại từ nội dung đã kiểm duyệt"); phần "mức áp dụng thực tế…"
+// đã trùng với `reviewedDisclosure.body` mà `<AiDisclaimer>` luôn hiển thị
+// cạnh đó nên không lặp lại ở đây.
+export const groundedRewriteNote =
+  "Câu trả lời được soạn lại từ nội dung đã kiểm duyệt của cổng.";

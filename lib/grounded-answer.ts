@@ -4,6 +4,7 @@
 // Đây là ranh giới duy nhất giữa route chat và bộ soạn `openai-evidence`. Mọi
 // thất bại đều trả mã lỗi để route đi tiếp cascade cũ; nhánh này không bao giờ
 // làm câu trả lời tệ hơn hiện tại.
+import { groundedRewriteNote } from "./ai-disclosure";
 import {
   CHAT_ANSWER_SECTION_KINDS,
   flattenChatAnswerSections,
@@ -38,9 +39,6 @@ const MAX_PARAGRAPHS_PER_SECTION = 4;
 const MAX_BULLETS_PER_SECTION = 6;
 const MAX_ITEM_LENGTH = 1_200;
 const MAX_FOLLOW_UPS = 3;
-
-const standingLimitation =
-  "Câu trả lời được soạn lại từ nội dung đã kiểm duyệt của cổng; mức áp dụng thực tế còn phụ thuộc độ tuổi, chủ thể và tình tiết cụ thể, bạn nên đối chiếu văn bản gốc khi cần.";
 
 export type GroundedChatConfig = Readonly<{
   enabled: boolean;
@@ -205,7 +203,7 @@ export function renderGroundedSections(
   sections.push({
     kind: "limitations",
     paragraphs: boundedTexts(
-      [...composition.warnings.map((item) => item.text), standingLimitation],
+      [...composition.warnings.map((item) => item.text), groundedRewriteNote],
       MAX_PARAGRAPHS_PER_SECTION,
     ),
     bullets: [],

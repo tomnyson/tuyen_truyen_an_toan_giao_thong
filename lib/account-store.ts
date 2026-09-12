@@ -43,7 +43,7 @@ export function canAccessTopic(
   topic: string,
 ): boolean {
   if (!actor) return false;
-  if (actor.role === "admin") return true;
+  if (!actor.role || actor.role === "admin") return true;
   const allowed = Array.isArray(actor.allowedTopics) ? actor.allowedTopics : [];
   if (allowed.includes("*")) return true;
   return allowed.includes(topic);

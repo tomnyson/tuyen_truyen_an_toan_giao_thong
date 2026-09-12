@@ -1,7 +1,9 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { getInitializedDb } from "@/db";
 import { legalEntries, showcases } from "@/db/pg-schema";
-import { hasTrustedOrigin, isAdminRequest } from "@/lib/admin-auth";
+import { getAdminRequestActor, hasTrustedOrigin, type AdminSessionActor } from "@/lib/admin-auth";
+import { canAccessTopic } from "@/lib/account-store";
+import { recordAuditEvent } from "@/lib/audit-log-store";
 import { hasBlockedLegalBasis } from "@/lib/legal-content";
 import { isExactDec004SourceUrl } from "@/lib/public-showcase";
 import { isSupportedShowcaseMediaUrl } from "@/lib/showcase-media";
@@ -95,19 +97,23 @@ function normalizeShowcase(body: Record<string, unknown>): ContentValidation {
   return { ok: true, values: { ...common, title, summary, sourceUrl, mediaUrl } };
 }
 
-async function authorize(request: Request, mutation = false) {
-  if (!(await isAdminRequest(request))) {
-    return Response.json({ error: "Phiên đăng nhập đã hết hạn." }, { status: 401 });
+async function authorize(
+  request: Request,
+  mutation = false,
+): Promise<{ actor?: AdminSessionActor; response?: Response }> {
+  const actor = await getAdminRequestActor(request);
+  if (!actor) {
+    return { response: Response.json({ error: "Phiên đăng nhập đã hết hạn." }, { status: 401 }) };
   }
   if (mutation && !hasTrustedOrigin(request)) {
-    return Response.json({ error: "Yêu cầu không hợp lệ." }, { status: 403 });
+    return { response: Response.json({ error: "Yêu cầu không hợp lệ." }, { status: 403 }) };
   }
-  return null;
+  return { actor };
 }
 
 export async function GET(request: Request) {
-  const denied = await authorize(request);
-  if (denied) return denied;
+  const auth = await authorize(request);
+  if (auth.response) return auth.response;
   const db = await getInitializedDb();
   const [laws, caseStudies] = await Promise.all([
     db.select().from(legalEntries).orderBy(desc(legalEntries.updatedAt), desc(legalEntries.id)),
@@ -117,8 +123,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const denied = await authorize(request, true);
-  if (denied) return denied;
+  const auth = await authorize(request, true);
+  if (auth.response) return auth.response;
+  const actor = auth.actor!;
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const entity = body?.entity as Entity | undefined;
 
@@ -128,6 +135,14 @@ export async function POST(request: Request) {
       : ({ ok: false, error: requiredError } as const);
     if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
     const values = parsed.values as typeof legalEntries.$inferInsert;
+
+    if (!canAccessTopic(actor, values.topic)) {
+      return Response.json(
+        { error: `Bạn không có quyền thêm nội dung vào chuyên mục '${values.topic}'.` },
+        { status: 403 },
+      );
+    }
+
     if (values.status === "published" && hasBlockedLegalBasis(values.legalBasis)) {
       return Response.json(
         { error: "Không thể xuất bản nội dung dùng căn cứ đã hết hiệu lực." },
@@ -136,6 +151,17 @@ export async function POST(request: Request) {
     }
     const db = await getInitializedDb();
     const [item] = await db.insert(legalEntries).values(values).returning();
+
+    await recordAuditEvent({
+      actor: actor.username,
+      actorRole: actor.role || "admin",
+      action: "CREATE_LAW",
+      targetType: "law",
+      targetId: String(item.id),
+      details: `Tạo bài học luật '${values.title}' trong chuyên mục '${values.topic}'`,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+    }).catch(() => {});
+
     return Response.json({ item }, { status: 201 });
   }
   if (entity === "showcase") {
@@ -143,65 +169,185 @@ export async function POST(request: Request) {
       ? normalizeShowcase(body)
       : ({ ok: false, error: requiredError } as const);
     if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
+    const values = parsed.values as typeof showcases.$inferInsert;
+
+    if (!canAccessTopic(actor, values.topic)) {
+      return Response.json(
+        { error: `Bạn không có quyền thêm nội dung vào chuyên mục '${values.topic}'.` },
+        { status: 403 },
+      );
+    }
+
     const db = await getInitializedDb();
     const [item] = await db
       .insert(showcases)
-      .values(parsed.values as typeof showcases.$inferInsert)
+      .values(values)
       .returning();
+
+    await recordAuditEvent({
+      actor: actor.username,
+      actorRole: actor.role || "admin",
+      action: "CREATE_SHOWCASE",
+      targetType: "showcase",
+      targetId: String(item.id),
+      details: `Tạo tình huống thực tế '${values.title}' trong chuyên mục '${values.topic}'`,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+    }).catch(() => {});
+
     return Response.json({ item }, { status: 201 });
   }
   return Response.json({ error: "Loại nội dung không hợp lệ." }, { status: 400 });
 }
 
 export async function PATCH(request: Request) {
-  const denied = await authorize(request, true);
-  if (denied) return denied;
+  const auth = await authorize(request, true);
+  if (auth.response) return auth.response;
+  const actor = auth.actor!;
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const entity = body?.entity as Entity | undefined;
   const id = parseId(body?.id);
   if (!body || !id) return Response.json({ error: "ID không hợp lệ." }, { status: 400 });
 
+  const db = await getInitializedDb();
+
   if (entity === "law") {
     const parsed = normalizeLaw(body);
     if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
     const values = parsed.values as typeof legalEntries.$inferInsert;
+
+    if (!canAccessTopic(actor, values.topic)) {
+      return Response.json(
+        { error: `Bạn không có quyền chỉnh sửa nội dung chuyên mục '${values.topic}'.` },
+        { status: 403 },
+      );
+    }
+
+    const [existing] = await db.select().from(legalEntries).where(eq(legalEntries.id, id)).limit(1);
+    if (!existing) return Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
+    if (!canAccessTopic(actor, existing.topic)) {
+      return Response.json(
+        { error: `Bạn không có quyền chỉnh sửa nội dung chuyên mục '${existing.topic}'.` },
+        { status: 403 },
+      );
+    }
+
     if (values.status === "published" && hasBlockedLegalBasis(values.legalBasis)) {
       return Response.json(
         { error: "Không thể xuất bản nội dung dùng căn cứ đã hết hiệu lực." },
         { status: 400 },
       );
     }
-    const db = await getInitializedDb();
     const [item] = await db.update(legalEntries).set({ ...values, updatedAt: sql`CURRENT_TIMESTAMP` }).where(eq(legalEntries.id, id)).returning();
+
+    await recordAuditEvent({
+      actor: actor.username,
+      actorRole: actor.role || "admin",
+      action: "UPDATE_LAW",
+      targetType: "law",
+      targetId: String(id),
+      details: `Cập nhật bài học luật '${item?.title || id}'`,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+    }).catch(() => {});
+
     return item ? Response.json({ item }) : Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
   }
   if (entity === "showcase") {
     const parsed = normalizeShowcase(body);
     if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
-    const db = await getInitializedDb();
+    const values = parsed.values as typeof showcases.$inferInsert;
+
+    if (!canAccessTopic(actor, values.topic)) {
+      return Response.json(
+        { error: `Bạn không có quyền chỉnh sửa nội dung chuyên mục '${values.topic}'.` },
+        { status: 403 },
+      );
+    }
+
+    const [existing] = await db.select().from(showcases).where(eq(showcases.id, id)).limit(1);
+    if (!existing) return Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
+    if (!canAccessTopic(actor, existing.topic)) {
+      return Response.json(
+        { error: `Bạn không có quyền chỉnh sửa nội dung chuyên mục '${existing.topic}'.` },
+        { status: 403 },
+      );
+    }
+
     const [item] = await db
       .update(showcases)
       .set({
-        ...(parsed.values as typeof showcases.$inferInsert),
+        ...values,
         updatedAt: sql`CURRENT_TIMESTAMP`,
       })
       .where(eq(showcases.id, id))
       .returning();
+
+    await recordAuditEvent({
+      actor: actor.username,
+      actorRole: actor.role || "admin",
+      action: "UPDATE_SHOWCASE",
+      targetType: "showcase",
+      targetId: String(id),
+      details: `Cập nhật tình huống thực tế '${item?.title || id}'`,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+    }).catch(() => {});
+
     return item ? Response.json({ item }) : Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
   }
   return Response.json({ error: "Loại nội dung không hợp lệ." }, { status: 400 });
 }
 
 export async function DELETE(request: Request) {
-  const denied = await authorize(request, true);
-  if (denied) return denied;
+  const auth = await authorize(request, true);
+  if (auth.response) return auth.response;
+  const actor = auth.actor!;
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const entity = body?.entity as Entity | undefined;
   const id = parseId(body?.id);
   if (!id) return Response.json({ error: "ID không hợp lệ." }, { status: 400 });
   const db = await getInitializedDb();
-  if (entity === "law") await db.delete(legalEntries).where(eq(legalEntries.id, id));
-  else if (entity === "showcase") await db.delete(showcases).where(eq(showcases.id, id));
-  else return Response.json({ error: "Loại nội dung không hợp lệ." }, { status: 400 });
+
+  if (entity === "law") {
+    const [existing] = await db.select().from(legalEntries).where(eq(legalEntries.id, id)).limit(1);
+    if (!existing) return Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
+    if (!canAccessTopic(actor, existing.topic)) {
+      return Response.json(
+        { error: `Bạn không có quyền xóa nội dung chuyên mục '${existing.topic}'.` },
+        { status: 403 },
+      );
+    }
+    await db.delete(legalEntries).where(eq(legalEntries.id, id));
+
+    await recordAuditEvent({
+      actor: actor.username,
+      actorRole: actor.role || "admin",
+      action: "DELETE_LAW",
+      targetType: "law",
+      targetId: String(id),
+      details: `Xóa bài học luật '${existing.title}' trong chuyên mục '${existing.topic}'`,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+    }).catch(() => {});
+  } else if (entity === "showcase") {
+    const [existing] = await db.select().from(showcases).where(eq(showcases.id, id)).limit(1);
+    if (!existing) return Response.json({ error: "Không tìm thấy nội dung." }, { status: 404 });
+    if (!canAccessTopic(actor, existing.topic)) {
+      return Response.json(
+        { error: `Bạn không có quyền xóa nội dung chuyên mục '${existing.topic}'.` },
+        { status: 403 },
+      );
+    }
+    await db.delete(showcases).where(eq(showcases.id, id));
+
+    await recordAuditEvent({
+      actor: actor.username,
+      actorRole: actor.role || "admin",
+      action: "DELETE_SHOWCASE",
+      targetType: "showcase",
+      targetId: String(id),
+      details: `Xóa tình huống thực tế '${existing.title}' trong chuyên mục '${existing.topic}'`,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+    }).catch(() => {});
+  } else {
+    return Response.json({ error: "Loại nội dung không hợp lệ." }, { status: 400 });
+  }
   return Response.json({ ok: true });
 }

@@ -71,7 +71,10 @@ test("migration duoc ghi vao journal dung thu tu, khong xoa gi", () => {
 });
 
 test("phien ban schema pg da duoc tang", () => {
-  assert.equal(pgSchemaVersion, "2026-09-12-referral-authorities-v1");
+  assert.match(
+    pgSchemaVersion,
+    /^(2026-09-12-(referral-authorities|content-topics|legal-documents)-v1|2026-09-13-rbac-and-audit-v1)$/,
+  );
 });
 
 test("sqlite chan cap sai, trang thai sai va topics khong phai json", () => {

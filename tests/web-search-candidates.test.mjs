@@ -15,6 +15,12 @@ registerHooks({
         url: "data:text/javascript,export const env = globalThis.__webCandidateWorkerEnv",
       };
     }
+    if (specifier === "@/db") {
+      return {
+        shortCircuit: true,
+        url: new URL("../db/index.ts", import.meta.url).href,
+      };
+    }
     if (specifier.startsWith("@/")) {
       return {
         shortCircuit: true,

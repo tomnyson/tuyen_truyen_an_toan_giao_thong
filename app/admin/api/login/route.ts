@@ -17,6 +17,7 @@ import {
   type Telemetry,
   type TelemetryOutcome,
 } from "@/lib/telemetry";
+import { recordAuditEvent } from "@/lib/audit-log-store";
 
 type LoginRateLimiter = {
   beforeLogin(request: Request, username: string): Promise<RateLimitDecision>;
@@ -91,6 +92,16 @@ export function createLoginHandler(
       }
 
       if (!(await validateCredentials(username, password))) {
+        await recordAuditEvent({
+          actor: username || "unknown",
+          actorRole: "anonymous",
+          action: "LOGIN_FAILED",
+          targetType: "system",
+          targetId: username || "",
+          details: "Đăng nhập thất bại (sai thông tin)",
+          ipAddress: request.headers.get("x-forwarded-for") || undefined,
+        }).catch(() => {});
+
         const failure = await limiter.recordLoginFailure(request, username);
         if (!failure.allowed) {
           return complete(
@@ -117,6 +128,16 @@ export function createLoginHandler(
         );
       }
       const session = await createSession(username);
+      await recordAuditEvent({
+        actor: username,
+        actorRole: "admin",
+        action: "LOGIN",
+        targetType: "system",
+        targetId: username,
+        details: "Đăng nhập thành công vào hệ thống quản trị",
+        ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      }).catch(() => {});
+
       const secure = new URL(request.url).protocol === "https:";
       return complete(
         Response.json(

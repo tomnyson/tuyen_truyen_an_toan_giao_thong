@@ -26,7 +26,6 @@ import {
   SearchIcon,
   SendIcon,
   ShieldIcon,
-  SparkleIcon,
   TopicIcon,
   TrafficIcon,
   WarningIcon,
@@ -42,12 +41,6 @@ import {
   brandName,
   brandShortName,
 } from "@/lib/brand";
-import {
-  chatAnswerSectionTitle,
-  parseChatAnswerSections,
-  parseChatFollowUps,
-  type ChatAnswerSection,
-} from "@/lib/chat-answer-presentation";
 import {
   laws,
   reviewedLegalBasisOf as reviewedLegalBasis,
@@ -66,27 +59,19 @@ import {
   parsePublicShowcases,
   type PublicShowcase,
 } from "@/lib/public-showcase";
+import { AiDisclaimer } from "@/components/AiDisclaimer";
+import { ChatAnswerBody } from "@/components/ChatAnswerBody";
 import {
-  parsePublicSourceLinks,
-  publicSourceUiCopy,
-  type OfficialSourceLink,
-  type PublicSourceKind,
-} from "@/lib/official-source-url";
-import {
-  answerOriginCopyOf,
-  parseAnswerOrigin,
-  type AnswerOrigin,
-} from "@/lib/answer-origin";
+  chatAnswerNetworkErrorText,
+  parseChatAnswerPayload,
+  type ChatAnswerView,
+} from "@/lib/chat-answer-view";
 
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
-  warning?: string;
-  sections?: ChatAnswerSection[];
-  sources?: OfficialSourceLink[];
-  sourceKind?: PublicSourceKind;
-  answerOrigin?: AnswerOrigin;
-  followUps?: string[];
+  // Câu trả lời của trợ lý; tin của người dùng không có view.
+  view?: ChatAnswerView;
 };
 
 type PublishedCitation = {
@@ -323,52 +308,15 @@ function HomeContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: pendingMessages.slice(-8) }),
       });
-      const data = (await response.json()) as {
-        answer?: string;
-        error?: string;
-        mode?: string;
-        warning?: string;
-        sourceKind?: string;
-        answerOrigin?: unknown;
-        sections?: unknown;
-        sources?: unknown;
-        followUps?: unknown;
-      };
-      const sourceKind: PublicSourceKind =
-        data.mode === "web_search" && data.sourceKind === "reference"
-          ? "reference"
-          : "official";
-      const searchedSources =
-        data.mode === "web_search" || data.mode === "knowledge"
-          ? parsePublicSourceLinks(data.sources, sourceKind)
-          : [];
-      const answerSections =
-        data.mode === "web_search" || data.mode === "knowledge"
-          ? parseChatAnswerSections(data.sections)
-          : null;
-      const followUps =
-        data.mode === "knowledge" ? parseChatFollowUps(data.followUps) : [];
+      const view = parseChatAnswerPayload(await response.json());
       setChatMessages((current) => [
         ...current,
-        {
-          role: "assistant",
-          content: data.answer ?? data.error ?? "Mình chưa thể trả lời lúc này. Bạn thử lại sau nhé.",
-          warning:
-            data.mode === "web_search" && typeof data.warning === "string"
-              ? data.warning
-              : undefined,
-          sections: answerSections ?? undefined,
-          sources: searchedSources.length > 0 ? searchedSources : undefined,
-          sourceKind:
-            searchedSources.length > 0 ? sourceKind : undefined,
-          answerOrigin: parseAnswerOrigin(data.answerOrigin) ?? undefined,
-          followUps: followUps.length > 0 ? followUps : undefined,
-        },
+        { role: "assistant", content: view.answer, view },
       ]);
     } catch {
       setChatMessages((current) => [
         ...current,
-        { role: "assistant", content: "Kết nối đang gián đoạn. Bạn thử gửi lại câu hỏi sau ít phút nhé." },
+        { role: "assistant", content: chatAnswerNetworkErrorText },
       ]);
     } finally {
       setIsChatLoading(false);
@@ -967,111 +915,40 @@ function HomeContent() {
           </div>
           <div className="chat-body" aria-live="polite">
             <div className="chat-messages">
-              {chatMessages.map((message, index) => {
-                const sourceCopy = publicSourceUiCopy(
-                  message.sourceKind,
-                  Boolean(message.warning),
-                );
-                const originCopy = message.answerOrigin
-                  ? answerOriginCopyOf(message.answerOrigin)
-                  : null;
-                return (
-                <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
-                  {originCopy && (
-                    <p
-                      className="chat-origin"
-                      data-origin={message.answerOrigin}
-                      title={originCopy.detail}
-                    >
-                      <SparkleIcon />
-                      <span>Nguồn trả lời: {originCopy.label}</span>
-                    </p>
-                  )}
-                  {message.warning && (
-                    <p className="chat-warning" role="note">
-                      <strong>
-                        {sourceCopy.warningTitle}
-                      </strong>
-                      <span>{message.warning}</span>
-                    </p>
-                  )}
-                  {message.sections ? (
-                    <div className="chat-answer-sections">
-                      {message.sections.map((section) => (
-                        <section
-                          key={section.kind}
-                          className={`chat-answer-section chat-answer-section-${section.kind.replaceAll("_", "-")}`}
-                          data-kind={section.kind}
-                        >
-                          <h3>{chatAnswerSectionTitle(section.kind)}</h3>
-                          {section.paragraphs.map((paragraph, paragraphIndex) => (
-                            <p key={`${section.kind}-p-${paragraphIndex}`}>
-                              {paragraph}
-                            </p>
-                          ))}
-                          {section.bullets.length > 0 && (
-                            <ul>
-                              {section.bullets.map((bullet, bulletIndex) => (
-                                <li key={`${section.kind}-b-${bulletIndex}`}>
-                                  {bullet}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </section>
-                      ))}
-                    </div>
+              {chatMessages.map((message, index) => (
+                <div
+                  key={`${message.role}-${index}`}
+                  className={`chat-message ${message.role}`}
+                >
+                  {message.view ? (
+                    <ChatAnswerBody answer={message.view} />
                   ) : (
                     <p>{message.content}</p>
                   )}
-                  {message.sources && (
-                    <div className="chat-source-group">
-                      <h3>
-                        {sourceCopy.groupTitle}
-                      </h3>
-                      <ul className="chat-sources">
-                        {message.sources.map((source) => (
-                          <li key={source.url}>
-                            <span>
-                              {source.title || sourceCopy.fallbackTitle}
-                            </span>
-                            <small>{new URL(source.url).hostname}</small>
-                            <a
-                              href={source.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label={`${sourceCopy.openAriaPrefix}: ${source.title || sourceCopy.fallbackTitle}`}
-                            >
-                              {sourceCopy.openAction}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {message.followUps && index === chatMessages.length - 1 && (
-                    <div className="chat-follow-ups">
-                      <h3>Bạn có thể hỏi tiếp</h3>
-                      <ul>
-                        {message.followUps.map((followUp) => (
-                          <li key={followUp}>
-                            <button
-                              type="button"
-                              disabled={isChatLoading}
-                              onClick={() =>
-                                void submitChatQuestion(undefined, followUp)
-                              }
-                            >
-                              {followUp}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  {message.view &&
+                    message.view.followUps.length > 0 &&
+                    index === chatMessages.length - 1 && (
+                      <div className="chat-follow-ups">
+                        <h3>Bạn có thể hỏi tiếp</h3>
+                        <ul>
+                          {message.view.followUps.map((followUp) => (
+                            <li key={followUp}>
+                              <button
+                                type="button"
+                                disabled={isChatLoading}
+                                onClick={() =>
+                                  void submitChatQuestion(undefined, followUp)
+                                }
+                              >
+                                {followUp}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                 </div>
-                );
-              })}
+              ))}
               {isChatLoading && <div className="chat-message assistant typing">Đang tìm hiểu<span>•••</span></div>}
             </div>
             {chatMessages.length === 1 && (
@@ -1096,7 +973,7 @@ function HomeContent() {
               </button>
             </form>
           </div>
-          <p>Nội dung chỉ để học tập, không thay thế tư vấn pháp lý.</p>
+          <AiDisclaimer variant="compact" />
         </div>
       )}
     </>

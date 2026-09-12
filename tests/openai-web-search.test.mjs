@@ -299,8 +299,12 @@ test("public answer projector rejects active content and section parser fails cl
 });
 
 test("chat UI keeps warning, structured text and canonical source actions in safe DOM order", async () => {
-  const [pageSource, globalsSource] = await Promise.all([
+  const [pageSource, bodySource, globalsSource] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../components/ChatAnswerBody.tsx", import.meta.url),
+      "utf8",
+    ),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   // globals.css chỉ còn danh sách @import; gom cả các tệp con để guard vẫn soi
@@ -316,34 +320,29 @@ test("chat UI keeps warning, structured text and canonical source actions in saf
       ),
     )),
   ].join("\n");
-  const warningIndex = pageSource.indexOf(
-    '{message.warning && (',
-  );
-  const sectionsIndex = pageSource.indexOf(
-    "{message.sections ? (",
-  );
-  const sourcesIndex = pageSource.indexOf(
-    "{message.sources && (",
-  );
-  assert.ok(warningIndex >= 0);
+  // Thứ tự DOM của thân câu trả lời giờ do ChatAnswerBody quyết định.
+  const disclaimerIndex = bodySource.indexOf("<AiDisclaimer");
+  const warningIndex = bodySource.indexOf("{answer.warning && (");
+  const sectionsIndex = bodySource.indexOf("{answer.sections ? (");
+  const sourcesIndex = bodySource.indexOf("{answer.sources.length > 0 && (");
+  assert.ok(disclaimerIndex >= 0);
+  assert.ok(disclaimerIndex < warningIndex);
   assert.ok(warningIndex < sectionsIndex);
   assert.ok(sectionsIndex < sourcesIndex);
-  assert.match(pageSource, /parseChatAnswerSections\(data\.sections\)/);
-  assert.match(
-    pageSource,
-    /parsePublicSourceLinks\(data\.sources, sourceKind\)/,
-  );
-  assert.match(pageSource, /publicSourceUiCopy\(/);
-  assert.match(pageSource, /target="_blank"/);
-  assert.match(pageSource, /rel="noopener noreferrer"/);
-  assert.match(pageSource, /role="note"/);
-  assert.match(pageSource, /data-kind=\{section\.kind\}/);
+  assert.match(bodySource, /publicSourceUiCopy\(/);
+  assert.match(bodySource, /target="_blank"/);
+  assert.match(bodySource, /rel="noopener noreferrer"/);
+  assert.match(bodySource, /role="note"/);
+  assert.match(bodySource, /data-kind=\{section\.kind\}/);
+  assert.doesNotMatch(bodySource, /dangerouslySetInnerHTML/);
+  assert.match(pageSource, /parseChatAnswerPayload\(/);
+  assert.doesNotMatch(pageSource, /dangerouslySetInnerHTML/);
   assert.match(cssSource, /\.chat-answer-section-legal-basis/);
   assert.match(cssSource, /\.chat-answer-section-sanctions/);
-  assert.doesNotMatch(pageSource, /dangerouslySetInnerHTML/);
   assert.match(cssSource, /@media \(max-width: 420px\)/);
   assert.match(cssSource, /\.chat-message \{[^}]*overflow-wrap: anywhere;/);
   assert.match(cssSource, /\.chat-panel \{[^}]*width: calc\(100vw - 24px\)/);
+  assert.match(cssSource, /\.ai-disclaimer\[data-level="unverified"\]/);
 });
 
 test("reference UI copy and parsing are selected by runtime sourceKind", () => {

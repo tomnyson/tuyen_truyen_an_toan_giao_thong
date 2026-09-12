@@ -27,8 +27,8 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | Bảo mật, vận hành, chất lượng | 1 | 4 | 0 | 0 |
 | RAG và nhập dữ liệu ngoài | 0 | 4 | 0 | 0 |
 | Bản điều chỉnh 2026-09-05 | 9 | 0 | 0 | 0 |
-| Bản nâng cấp 2026-09-12 (GĐ1) | 2 | 0 | 0 | 0 |
-| **Tổng** | **18** | **18** | **2** | **0** |
+| Bản nâng cấp 2026-09-12 (GĐ1 & Truy cập) | 3 | 0 | 0 | 0 |
+| **Tổng** | **19** | **18** | **2** | **0** |
 
 ## Theo dõi theo user story
 
@@ -54,7 +54,7 @@ dù riêng production execution đang bị chặn bởi Sites control plane.
 | US-037 — QR code truy cập nhanh | P2 | Done | Full-stack | `lib/qr-code.ts`, `components/SiteQrCode.tsx`; QR sinh client-side, tải SVG in được; `tests/qr-code.test.mjs` 9/9 pass | 2026-09-05 |
 | US-038 — Khuyến cáo độ chính xác gắn vào từng câu trả lời | P0 | Done | Full-stack | `lib/ai-disclosure.ts`, `components/AiDisclaimer.tsx`, `components/ChatAnswerBody.tsx`, `lib/chat-answer-view.ts` (DEC-020); `tests/legal-aid.test.mjs` 7/7, `tests/chat-answer-view.test.mjs` 6/6, `tests/ai-disclaimer.test.mjs`/`tests/answer-origin.test.mjs` pass — xem mục GĐ1 2026-09-12 | 2026-09-12 |
 | US-039 — Mục trợ giúp pháp lý chỉ ra cơ quan có thẩm quyền | P0 | Done | Full-stack | `components/ReferralChain.tsx`, `components/HelpHotlines.tsx`, `components/LegalAidConsult.tsx`, `app/tro-giup-phap-ly/page.tsx`, `lib/authority-referral.ts`, `lib/authority-store.ts`, `app/api/co-quan/route.ts` (DEC-022); `tests/legal-aid.test.mjs` 7/7, `tests/authority-referral.test.mjs`, `tests/authority-store.test.mjs`, `tests/co-quan-api.test.mjs` pass — xem mục GĐ1 2026-09-12 | 2026-09-12 |
-| US-046 — Cấp tên miền cố định và quản trị kiểm tra link hết hạn | P0 | In Progress | Full-stack | Kế hoạch triển khai tại `docs/superpowers/plans/2026-09-12-kiem-tra-link-va-ten-mien-co-dinh.md` (DEC-026) | 2026-09-12 |
+| US-046 — Cấp tên miền cố định và quản trị kiểm tra link hết hạn | P0 | Done | Full-stack | `lib/canonical-url.ts`, `components/SiteQrCode.tsx`, `lib/link-checker.ts`, `lib/link-health.ts`, `app/admin/api/link-health/route.ts`, `app/admin/LinkHealthManager.tsx`, `app/admin/AdminDashboard.tsx`, `app/styles/link-health.css`; `tests/canonical-url.test.mjs` 6/6, `tests/link-checker.test.mjs` 5/5, `tests/link-health-api.test.mjs` 3/3, `tests/qr-code.test.mjs` 9/9 pass (DEC-026) | 2026-09-12 |
 | US-008 — Guard citation/mức phạt của AI | P0 | Partial | Full-stack + Code review | Evidence composer vẫn tách khỏi chat và không cho model output citation/sanction/URL/chữ số; direct web fallback là boundary US-027 riêng. D1 citation/sanction assembly chưa triển khai | 2026-07-31 |
 | US-009 — Phân biệt ảnh riêng tư/bản quyền | P0 | Done | Full-stack + Code review | `image-intent-v2`: guarded accentless image, generic-default ambiguous + traffic allowlist, risk-gated peer/class và mixed consent/authorship privacy precedence; focused 39/39, current full 198/198 pass | 2026-07-31 |
 | US-010 — Auth khu vực quản trị | P0 | Done | Full-stack + Code review | Anonymous redirect, invalid credential, signed session và admin access regressions đã chạy trong rendered suite 15/15 pass | 2026-07-31 |
@@ -1056,9 +1056,40 @@ này.
   `tel:113`, có viền `:focus-visible` hiển thị rõ. Trang chủ vẫn hiện đủ 3 thẻ
   hotline với badge `113`, `TGPL`, `111`; đúng 2 liên kết tới
   `/tro-giup-phap-ly` (nav + chân trang).
-- Không đổi schema nên không bump `pgSchemaVersion`.
 - Kế hoạch: `.superpowers/sdd/2026-09-12-minh-bach-va-tro-giup-phap-ly/`
   (task-8-brief.md, global-constraints.md).
+
+### 2026-09-12 — US-046 cấp tên miền cố định và quản trị kiểm tra link hết hạn
+
+- **Vấn đề gốc (Dòng 2 Google Sheet):** Khi in ấn tài liệu truyền thông hoặc tạo
+  mã QR dán bảng tin ở các trường học, nếu hệ thống dùng tên miền tạm thời hoặc
+  đổi link định kỳ thì toàn bộ ấn phẩm và link chia sẻ bị hết hạn. Đồng thời ban
+  quản trị chưa có công cụ phát hiện các liên kết ngoài (nguồn văn bản VBPL,
+  Cổng Chính phủ, link bài viết tình huống, media) bị hỏng, đổi link hoặc hết hạn.
+- **Tên miền cố định & permalinks:** `lib/canonical-url.ts` quản lý tập trung biến
+  `NEXT_PUBLIC_SITE_URL` / `CANONICAL_DOMAIN`, sinh permalinks bất biến cho các
+  trang (`buildCanonicalPermalink`, `buildSituationPermalink`,
+  `buildDocumentPermalink`). `components/SiteQrCode.tsx` dùng
+  `resolveCanonicalSiteUrl` đảm bảo mọi mã QR SVG tải xuống luôn mã hóa canonical
+  domain, tránh việc in lại mã QR định kỳ. `checkDomainHealth` kiểm tra kết nối,
+  HTTPS và thời gian phản hồi của tên miền.
+- **Engine kiểm tra link an toàn (DEC-026):** `lib/link-checker.ts` cài đặt SSRF Guard
+  chặn toàn bộ IP nội bộ/riêng tư (localhost, 127.0.0.1, 10.x, 192.168.x, 172.16-31.x,
+  link-local 169.254.x, IPv6 loopback), chỉ chấp nhận HTTP/HTTPS; `checkSingleLink`
+  thử HEAD (fallback GET với stream cắt ngắn) có timeout 5.000ms, tự động phân loại
+  200 OK, 301/302 Redirect (lấy URL đích), 404/5xx Broken, Timeout, SSL error;
+  `batchCheckLinks` giới hạn concurrency 5 luồng song song.
+- **Tổng hợp dữ liệu liên kết:** `lib/link-health.ts#extractSystemLinks` gom toàn bộ
+  link từ kho tĩnh `lib/legal-content.ts` lẫn database (`legal_sources`, `showcases`),
+  hoạt động bền vững ngay cả khi database offline.
+- **Admin API & UI:** `app/admin/api/link-health/route.ts` bảo vệ bởi `isAdminRequest`
+  và `hasTrustedOrigin`, hỗ trợ `scan_all`, `check_single` và `verify_domain`.
+  Tab "Liên kết & Tên miền" trong `app/admin/AdminDashboard.tsx` và component
+  `app/admin/LinkHealthManager.tsx` hiển thị thẻ trạng thái tên miền, 4 thẻ thống kê
+  tổng quan, thanh tìm kiếm/lọc và bảng danh sách có thao tác kiểm tra tức thời.
+- **Kiểm thử:** `tests/canonical-url.test.mjs` **6/6 pass**, `tests/link-checker.test.mjs`
+  **5/5 pass**, `tests/link-health-api.test.mjs` **3/3 pass**, `tests/qr-code.test.mjs`
+  **9/9 pass**. `npx tsc --noEmit` sạch, ESLint 0 error.
 
 ## Cách cập nhật tracker
 

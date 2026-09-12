@@ -1721,7 +1721,7 @@ ngày 2026-09-12. Mọi story dưới đây chưa có bằng chứng triển kha
 - [ ] Theo DEC-024, form nêu rõ đây là góp ý về ứng dụng và chỉ dẫn gọi 111/113
   khi là việc cần can thiệp; không có đính kèm tệp.
 
-### [ ] US-046 — Cấp tên miền cố định và quản trị kiểm tra link hết hạn
+### [x] US-046 — Cấp tên miền cố định và quản trị kiểm tra link hết hạn
 
 - **Priority:** P0
 - **Persona:** Quản trị viên, Nhà trường, Học sinh
@@ -1730,11 +1730,13 @@ ngày 2026-09-12. Mọi story dưới đây chưa có bằng chứng triển kha
 
 **Acceptance criteria**
 
-- [ ] Cấu hình tên miền cố định (`NEXT_PUBLIC_SITE_URL` / `CANONICAL_DOMAIN`) được quản lý tập trung tại `lib/canonical-url.ts`, hỗ trợ kiểm tra tính hợp lệ và chuẩn hóa HTTPS.
-- [ ] QR code tải về và các permalink chia sẻ luôn gắn với canonical domain cố định, không bị phụ thuộc vào URL tạm thời của máy phát triển hay bản xem trước.
-- [ ] Engine kiểm tra liên kết `lib/link-checker.ts` có SSRF guard chặn truy cập vào IP nội bộ (localhost, 127.0.0.1, 10.x, 192.168.x, 172.16-31.x, link-local), chỉ chấp nhận HTTP/HTTPS.
-- [ ] Quá trình quét link hỗ trợ HEAD với fallback GET, tự động phát hiện mã trạng thái (200 OK, 301/302 Redirect kèm URL đích, 404/5xx Broken, Timeout) với timeout 5 giây và giới hạn concurrency 5 luồng song song.
-- [ ] Tập hợp liên kết `lib/link-health.ts` tự động gom các link từ: nguồn văn bản (`legal_sources`), tình huống (`showcases.sourceUrl` & `mediaUrl`), nội dung nền (`lib/legal-content.ts`), và đầu mối trợ giúp (`referral_authorities`).
-- [ ] Admin API `GET /admin/api/link-health` và `POST /admin/api/link-health` được bảo vệ bởi phiên đăng nhập quản trị và CSRF origin check; hỗ trợ quét toàn bộ (`scan_all`), kiểm tra link lẻ (`check_single`) và kiểm tra tình trạng tên miền (`verify_domain`).
-- [ ] Giao diện CMS có tab "Liên kết & Tên miền" hiển thị trạng thái tên miền cố định, các chỉ số thống kê link (Tổng số, Hoạt động, Chuyển hướng, Hết hạn/Lỗi), nút quét toàn bộ và bảng danh sách có bộ lọc nhanh, điều hướng sửa đổi.
-- [ ] Đầy đủ unit tests và API tests bao phủ SSRF protection, link crawler, concurrency limiter, canonical URL resolver và admin route authorization.
+- [x] Cấu hình tên miền cố định (`NEXT_PUBLIC_SITE_URL` / `CANONICAL_DOMAIN`) được quản lý tập trung tại `lib/canonical-url.ts`, hỗ trợ kiểm tra tính hợp lệ và chuẩn hóa HTTPS.
+- [x] QR code tải về và các permalink chia sẻ luôn gắn với canonical domain cố định, không bị phụ thuộc vào URL tạm thời của máy phát triển hay bản xem trước.
+- [x] Engine kiểm tra liên kết `lib/link-checker.ts` có SSRF guard chặn truy cập vào IP nội bộ (localhost, 127.0.0.1, 10.x, 192.168.x, 172.16-31.x, link-local), chỉ chấp nhận HTTP/HTTPS.
+- [x] Quá trình quét link hỗ trợ HEAD với fallback GET, tự động phát hiện mã trạng thái (200 OK, 301/302 Redirect kèm URL đích, 404/5xx Broken, Timeout) với timeout 5 giây và giới hạn concurrency 5 luồng song song.
+- [x] Tập hợp liên kết `lib/link-health.ts` tự động gom các link từ: nguồn văn bản (`legal_sources`), tình huống (`showcases.sourceUrl` & `mediaUrl`), nội dung nền (`lib/legal-content.ts`), và đầu mối trợ giúp (`referral_authorities`).
+- [x] Admin API `GET /admin/api/link-health` và `POST /admin/api/link-health` được bảo vệ bởi phiên đăng nhập quản trị và CSRF origin check; hỗ trợ quét toàn bộ (`scan_all`), kiểm tra link lẻ (`check_single`) và kiểm tra tình trạng tên miền (`verify_domain`).
+- [x] Giao diện CMS có tab "Liên kết & Tên miền" hiển thị trạng thái tên miền cố định, các chỉ số thống kê link (Tổng số, Hoạt động, Chuyển hướng, Hết hạn/Lỗi), nút quét toàn bộ và bảng danh sách có bộ lọc nhanh, điều hướng sửa đổi.
+- [x] Đầy đủ unit tests và API tests bao phủ SSRF protection, link crawler, concurrency limiter, canonical URL resolver và admin route authorization.
+
+**Evidence:** `lib/canonical-url.ts`, `components/SiteQrCode.tsx`, `lib/link-checker.ts`, `lib/link-health.ts`, `app/admin/api/link-health/route.ts`, `app/admin/LinkHealthManager.tsx`, `app/admin/AdminDashboard.tsx`, `app/styles/link-health.css`; `tests/canonical-url.test.mjs` (6/6 pass), `tests/link-checker.test.mjs` (5/5 pass), `tests/link-health-api.test.mjs` (3/3 pass), `tests/qr-code.test.mjs` (9/9 pass); `tsc --noEmit` sạch, ESLint 0 error.

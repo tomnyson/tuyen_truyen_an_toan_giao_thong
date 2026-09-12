@@ -18,31 +18,37 @@ export function LinkHealthManager() {
   const [error, setError] = useState("");
   const [checkingUrl, setCheckingUrl] = useState<string | null>(null);
 
-  async function loadData() {
-    try {
-      setIsLoading(true);
-      setError("");
-      const res = await fetch("/admin/api/link-health", { cache: "no-store" });
-      if (!res.ok) {
-        if (res.status === 401) {
-          window.location.assign("/admin/login");
-          return;
-        }
-        throw new Error("Không thể tải thông tin liên kết.");
-      }
-      const data = await res.json();
-      setDomain(data.domain);
-      setSummary(data.summary);
-      setLinks(data.links ?? []);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải dữ liệu.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadData();
+    let active = true;
+    fetch("/admin/api/link-health", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            window.location.assign("/admin/login");
+            return null;
+          }
+          throw new Error("Không thể tải thông tin liên kết.");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!active || !data) return;
+        setDomain(data.domain);
+        setSummary(data.summary);
+        setLinks(data.links ?? []);
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải dữ liệu.");
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleScanAll() {

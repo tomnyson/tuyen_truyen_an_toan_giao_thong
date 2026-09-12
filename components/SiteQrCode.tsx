@@ -3,7 +3,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 import {
   createQrMatrix,
-  isQrTargetUrl,
   qrSvgDataUrl,
   qrSvgMarkup,
   qrSvgPath,

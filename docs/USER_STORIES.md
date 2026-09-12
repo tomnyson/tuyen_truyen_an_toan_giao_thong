@@ -1,6 +1,6 @@
 # User Stories — Luật Học Đường
 
-> Cập nhật gần nhất: 2026-09-05
+> Cập nhật gần nhất: 2026-09-12
 > Quy ước: checkbox ở tiêu đề chỉ được đánh dấu `[x]` khi tất cả acceptance
 > criteria của story đã có bằng chứng. Story chưa hoàn tất có thể có một số
 > acceptance criteria con đã được đánh dấu.
@@ -1526,3 +1526,175 @@ chừng không giúp tích điểm.
 `app/globals.css`; `tests/qr-code.test.mjs` **9/9 pass** (finder pattern, kích
 thước phiên bản hợp lệ, gộp path theo hàng, quiet zone, sanitize `<title>`,
 data URL round-trip và thứ tự ưu tiên site URL).
+
+## Epic H — Bản nâng cấp 2026-09-12 (chức năng đã duyệt trên sheet)
+
+Thiết kế: `docs/superpowers/specs/2026-09-12-nang-cap-chuc-nang-duyet-design.md`.
+Phạm vi lấy theo cột `duyệt thực hiện` của sheet danh mục nâng cấp, snapshot
+ngày 2026-09-12. Mọi story dưới đây chưa có bằng chứng triển khai.
+
+### [ ] US-038 — Khuyến cáo độ chính xác gắn vào từng câu trả lời
+
+- **Priority:** P0
+- **Persona:** Học sinh, phụ huynh, giáo viên
+- **Mô tả:** Là người đọc, tôi muốn thấy rõ mức độ tin cậy của từng câu trả lời
+  để biết khi nào phải đối chiếu văn bản gốc trước khi làm theo.
+- **Dòng sheet:** 7
+
+**Acceptance criteria**
+
+- [ ] Mọi câu trả lời AI đều hiển thị khuyến cáo, không chỉ một dòng ở chân hộp
+  chat.
+- [ ] Khuyến cáo có hai mức phân biệt được: nội dung dựng từ dữ liệu đã duyệt và
+  nội dung AI/nguồn ngoài chưa xác minh.
+- [ ] Mức chưa xác minh nêu rõ kết quả mang tính tham khảo, không bảo đảm chính
+  xác 100% và không dùng làm căn cứ pháp lý.
+- [ ] Khuyến cáo kèm hành động mở văn bản gốc khi có nguồn thuộc allowlist.
+- [ ] Câu chữ khuyến cáo chỉ tồn tại một bản trong `lib/ai-disclosure.ts`; không
+  còn bản viết rời trong `lib/openai-web-search.ts` và `lib/official-source-url.ts`.
+
+### [ ] US-039 — Mục trợ giúp pháp lý chỉ ra cơ quan có thẩm quyền
+
+- **Priority:** P0
+- **Persona:** Học sinh, sinh viên
+- **Mô tả:** Là học sinh gặp việc thật, tôi muốn nêu tình huống rồi được chỉ
+  hướng xử lý và biết chính xác cơ quan nào giải quyết việc của mình.
+- **Dòng sheet:** 6
+
+**Acceptance criteria**
+
+- [ ] Có trang riêng nhận tình huống và trả về câu trả lời ba phần đã có.
+- [ ] Câu trả lời kèm khối cơ quan có thẩm quyền theo thứ tự leo thang: trong
+  trường, công an xã/phường, phòng/sở chuyên môn, hotline quốc gia.
+- [ ] Tên, địa chỉ, số điện thoại cơ quan chỉ lấy từ record đã publish trong
+  database; AI không sinh ra thông tin cơ quan.
+- [ ] Lĩnh vực chưa có dữ liệu cơ quan thì hiện đầu mối mặc định cấp tỉnh, không
+  suy diễn.
+- [ ] Ba đầu mối ở trang chủ đọc từ cùng nguồn dữ liệu, có fallback tĩnh khi
+  database không phản hồi.
+
+### [ ] US-040 — Chuyên mục tra cứu văn bản pháp luật
+
+- **Priority:** P0
+- **Persona:** Học sinh, sinh viên, giáo viên
+- **Mô tả:** Là người học, tôi muốn tra cứu luật, nghị định, thông tư theo từ
+  khóa, lĩnh vực và cơ quan ban hành để phục vụ học tập và nghiên cứu.
+- **Dòng sheet:** 8
+
+**Acceptance criteria**
+
+- [ ] `legal_sources` có loại văn bản, cơ quan ban hành, lĩnh vực và trích yếu.
+- [ ] Trang danh sách lọc được đồng thời theo từ khóa không dấu, lĩnh vực, loại
+  văn bản và cơ quan ban hành; bộ lọc phản ánh vào URL để chia sẻ được.
+- [ ] Trang chi tiết hiện metadata, các điều trích yếu đã publish kèm bản giản
+  lược, và nút mở toàn văn tại nguồn thuộc allowlist DEC-004.
+- [ ] API công khai không trả provision ngoài `status=published` và không trả
+  source còn `draft`.
+- [ ] Danh sách phân trang, mặc định 20 và trần 50 bản ghi mỗi lượt.
+- [ ] Admin quản lý được văn bản và điều khoản, giữ bốn mắt DEC-003 và giữ
+  nguyên guard deny-list Nghị định 131/2013.
+
+### [ ] US-041 — Nhãn hiệu lực văn bản trong kho tra cứu
+
+- **Priority:** P1
+- **Persona:** Học sinh, giáo viên
+- **Mô tả:** Là người tra cứu, tôi muốn biết văn bản đang đọc còn hiệu lực hay
+  đã bị thay thế để không áp dụng quy định cũ.
+- **Dòng sheet:** 10 — dòng này ở trạng thái `chưa duyệt`; story tồn tại trong
+  phạm vi nhờ DEC-021 và giới hạn ở nhãn hiển thị, không phải cơ chế theo dõi
+  hiệu lực đầy đủ.
+
+**Acceptance criteria**
+
+- [ ] Kho văn bản hiện bốn trạng thái: còn hiệu lực, hết hiệu lực, được thay
+  thế, chưa xác định.
+- [ ] Nhãn lấy từ `legal_sources.status` và `legal_provisions.effectivity_status`
+  đã có, không thêm nguồn sự thật thứ hai.
+- [ ] Văn bản hết hiệu lực hoặc được thay thế vẫn tra cứu được nhưng có cảnh báo
+  nổi bật.
+
+### [ ] US-042 — Bốn chuyên đề nội dung mới
+
+- **Priority:** P0 (ma túy, an ninh trật tự trường học) / P1 (game và không gian
+  mạng, tín dụng đen, tệ nạn xã hội)
+- **Persona:** Học sinh, sinh viên
+- **Mô tả:** Là học sinh, tôi muốn có chuyên đề về ma túy, an ninh trật tự
+  trường học, game và không gian mạng, tín dụng đen và tệ nạn xã hội để hiểu
+  đúng chế tài và cách phòng tránh.
+- **Dòng sheet:** 16, 17, 18, 19
+
+**Acceptance criteria**
+
+- [ ] `lib/topics.ts` có thêm bốn lĩnh vực: Ma túy, Game & không gian mạng, Tín
+  dụng đen, Tệ nạn xã hội; danh sách vẫn là nguồn duy nhất.
+- [ ] Lĩnh vực An ninh trật tự bao phủ gây rối trật tự công cộng, tụ tập đông
+  người và mang vũ khí đến trường.
+- [ ] Nội dung ma túy gồm nhận biết, tác hại, chế tài, kỹ năng từ chối, và không
+  chứa bất kỳ chỉ dẫn thực hành nào.
+- [ ] Mỗi văn bản được seed đã được đối soát trên `vbpl.vn` về số hiệu, ngày hiệu
+  lực, tình trạng và điều/khoản/điểm; văn bản không xác nhận được thì không seed.
+- [ ] Provision mới vào ở `pending_review` và entry mới vào ở `draft` theo
+  DEC-025; không tự publish.
+- [ ] Lĩnh vực chỉ xuất hiện trong dải chip và bộ lọc khi có tối thiểu một entry
+  đã publish.
+- [ ] Mỗi chuyên đề có bộ câu trắc nghiệm và một kịch bản nhập vai.
+- [ ] `impact` trên `contentTopicNames` được chạy và blast radius được báo trước
+  khi sửa.
+
+### [ ] US-043 — Rà soát và chỉnh giao diện cho HSSV
+
+- **Priority:** P0
+- **Persona:** Học sinh, sinh viên
+- **Mô tả:** Là học sinh, tôi muốn câu chữ đơn giản, hình ảnh trực quan và thao
+  tác ngắn để dùng được ngay mà không cần ai hướng dẫn.
+- **Dòng sheet:** 20
+
+**Acceptance criteria**
+
+- [ ] Có bản đo trước khi sửa: câu dài quá 25 từ, thuật ngữ pháp lý chưa giải
+  thích tại chỗ, từ viết tắt chưa mở ngoặc lần đầu.
+- [ ] Có số bước từ trang chủ tới câu trả lời cho 5 tình huống mẫu.
+- [ ] Kiểm tra tiếp cận tự động không còn lỗi nghiêm trọng; tương phản màu, điều
+  hướng bàn phím đủ vòng, `prefers-reduced-motion` và vùng chạm tối thiểu 44px
+  đều đạt.
+- [ ] Ảnh chụp 320, 375, 768, 1024, 1440 cho năm trang chính, không tràn ngang.
+- [ ] Dải chip lĩnh vực dùng được ở 320px sau khi có chín lĩnh vực.
+- [ ] Mỗi mục đã sửa trỏ được về một phát hiện cụ thể trong bản đo.
+
+### [ ] US-044 — Xếp hạng và khen thưởng
+
+- **Priority:** P1
+- **Persona:** Học sinh, sinh viên, nhà trường
+- **Mô tả:** Là học sinh, tôi muốn thấy thứ hạng của mình trong trường và giữa
+  các trường, và nhận được giấy khen khi đạt mốc.
+- **Dòng sheet:** 22
+
+**Acceptance criteria**
+
+- [ ] Có danh mục trường do quản trị nhập; học sinh chỉ chọn, không tự gõ.
+- [ ] Hồ sơ người chơi chỉ gồm biệt danh tự chọn và mã trường; không có tên
+  thật, lớp, ngày sinh, số điện thoại hay email; không có đăng nhập.
+- [ ] `game_progress` giữ nguyên phi định danh theo DEC-015/DEC-018.
+- [ ] Biệt danh qua bộ lọc từ ngữ và giới hạn độ dài.
+- [ ] Người chơi tự xóa được hồ sơ; điểm phi định danh được giữ, hồ sơ đã xóa
+  không còn trên bảng xếp hạng.
+- [ ] Bảng xếp hạng đọc điểm từ server, không nhận điểm do client gửi lên.
+- [ ] Giấy khen sinh phía client dạng vector tải về được, không gọi dịch vụ bên
+  thứ ba.
+
+### [ ] US-045 — Thu phản hồi đợt trải nghiệm tại trường
+
+- **Priority:** P0
+- **Persona:** Nhà trường, chủ dự án
+- **Mô tả:** Là người tổ chức, tôi muốn thu phản hồi của HSSV theo từng trường
+  sau khi cho trải nghiệm để quyết định có triển khai diện rộng hay không.
+- **Dòng sheet:** 21
+
+**Acceptance criteria**
+
+- [ ] Form ngắn gồm ba thang điểm 1–5 và một ô góp ý giới hạn 500 ký tự.
+- [ ] Bản ghi phản hồi không chứa IP, `player_key` hay bất kỳ định danh nào.
+- [ ] Có rate limit dùng lại `lib/rate-limit.ts`.
+- [ ] Admin xem được điểm trung bình theo trường và export CSV.
+- [ ] Theo DEC-024, form nêu rõ đây là góp ý về ứng dụng và chỉ dẫn gọi 111/113
+  khi là việc cần can thiệp; không có đính kèm tệp.

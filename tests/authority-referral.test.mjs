@@ -1,8 +1,19 @@
 import assert from "node:assert/strict";
-import { register } from "node:module";
+import { registerHooks } from "node:module";
 import test from "node:test";
 
-register("tsx/esm/api", import.meta.url);
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (
+      specifier.startsWith(".") &&
+      !/\.[a-z]+$/i.test(specifier) &&
+      context.parentURL?.endsWith(".ts")
+    ) {
+      return nextResolve(`${specifier}.ts`, context);
+    }
+    return nextResolve(specifier, context);
+  },
+});
 
 const {
   authorityBadge,

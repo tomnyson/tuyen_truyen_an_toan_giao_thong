@@ -5,8 +5,8 @@
 // cơ quan — dữ liệu chỉ đến từ bảng `referral_authorities` đã duyệt, hoặc từ
 // `fallbackReferralAuthorities` bên dưới (ba đầu mối công khai đã xác minh).
 
-import { brandLocality } from "./brand.ts";
-import { isContentTopic, type ContentTopic } from "./topics.ts";
+import { brandLocality } from "./brand";
+import { isContentTopic, type ContentTopic } from "./topics";
 
 export const authorityLevels = [
   "truong",
@@ -46,7 +46,6 @@ const levelLabels: Readonly<Record<AuthorityLevel, string>> = Object.freeze({
   trung_uong: "Trung ương",
 });
 
-// Nhãn ngắn dùng cho huy hiệu khi cơ quan không có số máy công khai.
 const levelSet: ReadonlySet<string> = new Set(authorityLevels);
 
 export function isAuthorityLevel(value: unknown): value is AuthorityLevel {
@@ -77,6 +76,7 @@ function safeParse(value: string): unknown {
   }
 }
 
+// Nhãn ngắn dùng cho huy hiệu khi cơ quan không có số máy công khai.
 export function authorityBadge(authority: ReferralAuthority): string {
   return (
     authority.hotline.trim() ||

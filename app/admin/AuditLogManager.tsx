@@ -4,18 +4,18 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   FaClockRotateLeft,
   FaMagnifyingGlass,
+  FaFilter,
   FaArrowsRotate,
-  FaShieldHalved,
   FaUser,
   FaRightToBracket,
   FaRightFromBracket,
-  FaCircleExclamation,
-  FaPlus,
+  FaUserGear,
+  FaFileLines,
   FaPenToSquare,
   FaTrashCan,
-  FaUserGear,
-  FaFilter,
-  FaFileLines,
+  FaPlus,
+  FaCircleExclamation,
+  FaCircleCheck,
 } from "react-icons/fa6";
 
 type AuditLog = {
@@ -26,16 +26,18 @@ type AuditLog = {
   targetType: string;
   targetId: string;
   details: string;
-  ipAddress?: string | null;
+  ipAddress: string | null;
   createdAt: string;
 };
 
 export function AuditLogManager() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [actionCategory, setActionCategory] = useState<string>("all");
-  const [totalCount, setTotalCount] = useState(0);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchLogs();
@@ -44,17 +46,24 @@ export function AuditLogManager() {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      let url = "/admin/api/audit-logs?limit=100";
+      setError("");
+      const params = new URLSearchParams();
+      params.set("limit", "100");
+
       if (actionCategory !== "all") {
-        url += `&action=${encodeURIComponent(actionCategory)}`;
+        params.set("action", actionCategory);
       }
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Không thể tải nhật ký kiểm toán");
+
+      const res = await fetch(`/admin/api/audit-logs?${params.toString()}`);
+      if (!res.ok) {
+        throw new Error("Không thể tải danh sách nhật ký kiểm toán");
+      }
+
       const data = await res.json();
       setLogs(data.logs || []);
-      setTotalCount(data.total || (data.logs ? data.logs.length : 0));
+      setTotal(data.total || 0);
     } catch (err: any) {
-      console.error(err);
+      setError(err?.message || "Lỗi kết nối khi tải lịch sử hệ thống.");
     } finally {
       setLoading(false);
     }
@@ -62,71 +71,76 @@ export function AuditLogManager() {
 
   // KPIs
   const stats = useMemo(() => {
-    const total = totalCount || logs.length;
     const authLogs = logs.filter((l) => l.action.startsWith("LOGIN") || l.action === "LOGOUT").length;
-    const accountLogs = logs.filter((l) => l.action.includes("ACCOUNT") || l.action.includes("PERM")).length;
-    const contentLogs = logs.filter((l) => l.action.includes("LAW") || l.action.includes("SHOWCASE") || l.action.includes("TOPIC")).length;
-    return { total, authLogs, accountLogs, contentLogs };
-  }, [logs, totalCount]);
+    const accountLogs = logs.filter((l) => l.action.includes("ACCOUNT")).length;
+    const contentLogs = logs.filter((l) => l.action.includes("LAW") || l.action.includes("SHOWCASE")).length;
+    return {
+      total,
+      authLogs,
+      accountLogs,
+      contentLogs,
+    };
+  }, [logs, total]);
 
-  // Client search
+  // Client-side search filtering
   const filteredLogs = useMemo(() => {
     if (!search.trim()) return logs;
-    const query = search.toLowerCase();
+    const q = search.toLowerCase();
     return logs.filter(
-      (l) =>
-        l.actor.toLowerCase().includes(query) ||
-        l.details.toLowerCase().includes(query) ||
-        l.action.toLowerCase().includes(query) ||
-        l.targetId.toLowerCase().includes(query),
+      (log) =>
+        log.actor.toLowerCase().includes(q) ||
+        log.action.toLowerCase().includes(q) ||
+        log.targetType.toLowerCase().includes(q) ||
+        log.targetId.toLowerCase().includes(q) ||
+        log.details.toLowerCase().includes(q),
     );
   }, [logs, search]);
 
   const getActionBadge = (action: string) => {
     if (action === "LOGIN") {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-          <FaRightToBracket className="text-2xs" /> Đăng nhập
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <FaRightToBracket className="text-[10px]" /> Đăng nhập
         </span>
       );
     }
     if (action === "LOGOUT") {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-          <FaRightFromBracket className="text-2xs" /> Đăng xuất
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+          <FaRightFromBracket className="text-[10px]" /> Đăng xuất
         </span>
       );
     }
     if (action === "LOGIN_FAILED") {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-          <FaCircleExclamation className="text-2xs" /> Đăng nhập thất bại
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+          <FaCircleExclamation className="text-[10px]" /> Đăng nhập thất bại
         </span>
       );
     }
     if (action.startsWith("CREATE_")) {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-          <FaPlus className="text-2xs" /> {action.replace("CREATE_", "Thêm ")}
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">
+          <FaPlus className="text-[10px]" /> {action.replace("CREATE_", "Thêm ")}
         </span>
       );
     }
     if (action.startsWith("UPDATE_")) {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-          <FaPenToSquare className="text-2xs" /> {action.replace("UPDATE_", "Sửa ")}
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+          <FaPenToSquare className="text-[10px]" /> {action.replace("UPDATE_", "Sửa ")}
         </span>
       );
     }
     if (action.startsWith("DELETE_")) {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-          <FaTrashCan className="text-2xs" /> {action.replace("DELETE_", "Xóa ")}
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
+          <FaTrashCan className="text-[10px]" /> {action.replace("DELETE_", "Xóa ")}
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-stone-100 text-slate-700 border border-stone-200">
         {action}
       </span>
     );
@@ -134,91 +148,125 @@ export function AuditLogManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Alert Notices */}
+      {notice && (
+        <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm shadow-xs">
+          <div className="flex items-center gap-2">
+            <FaCircleCheck className="text-emerald-600 shrink-0 text-base" />
+            <span>{notice}</span>
+          </div>
+          <button type="button" onClick={() => setNotice("")} className="text-emerald-500 hover:text-emerald-700 cursor-pointer">
+            &times;
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center justify-between p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm shadow-xs">
+          <div className="flex items-center gap-2">
+            <FaCircleExclamation className="text-rose-600 shrink-0 text-base" />
+            <span>{error}</span>
+          </div>
+          <button type="button" onClick={() => setError("")} className="text-rose-500 hover:text-rose-700 cursor-pointer">
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* Header Banner - Standard Stitch Design */}
+      <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2.5">
-            <FaClockRotateLeft className="text-indigo-600 dark:text-indigo-400" />
-            Lịch sử hệ thống (Audit Logs)
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Theo dõi nhật ký kiểm toán bất biến của mọi thao tác quản trị, biên tập nội dung và truy cập hệ thống
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-600 mb-1">
+            <span>HỆ THỐNG</span>
+            <span>/</span>
+            <span>NHẬT KÝ KIỂM TOÁN</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Lịch sử hệ thống (Audit Logs)</h1>
+          <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+            Theo dõi nhật ký kiểm toán bất biến của mọi thao tác quản trị, biên tập nội dung và truy cập hệ thống.
           </p>
         </div>
-        <button
-          onClick={fetchLogs}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm hover:bg-slate-50 transition-colors text-sm font-medium"
-        >
-          <FaArrowsRotate className={`${loading ? "animate-spin text-indigo-600" : ""}`} />
-          Làm mới
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={fetchLogs}
+            disabled={loading}
+            className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-stone-50 hover:bg-stone-100 border border-stone-300 rounded-lg transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            <FaArrowsRotate className={`w-3.5 h-3.5 text-slate-500 ${loading ? "animate-spin" : ""}`} />
+            <span>Làm mới nhật ký</span>
+          </button>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-lg">
-            <FaClockRotateLeft />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.total}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Tổng lượt sự kiện</div>
+      {/* Metrics Row - Standard Stitch Design */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Tổng lượt sự kiện</p>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-slate-900">{stats.total}</span>
+            <span className="text-xs font-medium text-slate-400">bản ghi</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-lg">
-            <FaRightToBracket />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.authLogs}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Xác thực & Phiên</div>
+        <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Xác thực &amp; Phiên</p>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-emerald-600">{stats.authLogs}</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Đăng nhập</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 text-lg">
-            <FaUserGear />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.accountLogs}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Quản trị tài khoản</div>
+        <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Quản trị tài khoản</p>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-purple-600">{stats.accountLogs}</span>
+            <span className="text-xs font-medium text-slate-400">phân quyền</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg">
-            <FaFileLines />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.contentLogs}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Thao tác nội dung</div>
+        <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Thao tác nội dung</p>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-sky-600">{stats.contentLogs}</span>
+            <span className="text-xs font-medium text-slate-400">bài viết / luật</span>
           </div>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <FaMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
-          <input
-            type="text"
-            placeholder="Tìm theo người thực hiện, chi tiết..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-          />
-        </div>
+      {/* Filter and Search Bar - Standard Stitch Design */}
+      <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+          {(
+            [
+              { key: "all", label: "Tất cả sự kiện" },
+              { key: "LOGIN", label: "Đăng nhập" },
+              { key: "CREATE_ACCOUNT", label: "Tài khoản" },
+              { key: "CREATE_LAW", label: "Bài học luật" },
+              { key: "CREATE_SHOWCASE", label: "Tình huống" },
+            ] as const
+          ).map((filter) => (
+            <button
+              key={filter.key}
+              type="button"
+              onClick={() => setActionCategory(filter.key)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                actionCategory === filter.key
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <FaFilter className="text-slate-400 text-xs hidden sm:block" />
           <select
             value={actionCategory}
             onChange={(e) => setActionCategory(e.target.value)}
-            className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="text-xs py-1.5 px-2.5 bg-stone-50 border border-stone-200 rounded-lg text-slate-700 focus:outline-none focus:border-sky-500 cursor-pointer ml-1"
           >
-            <option value="all">Tất cả loại hành động</option>
+            <option value="all">Chi tiết loại hành động...</option>
             <option value="LOGIN">Đăng nhập</option>
             <option value="LOGIN_FAILED">Đăng nhập thất bại</option>
             <option value="LOGOUT">Đăng xuất</option>
@@ -233,67 +281,88 @@ export function AuditLogManager() {
             <option value="DELETE_SHOWCASE">Xóa tình huống thực tế</option>
           </select>
         </div>
+
+        <div className="relative w-full md:w-72">
+          <input
+            type="text"
+            placeholder="Tìm theo người thực hiện, chi tiết..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full text-xs pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-sky-500 focus:bg-white"
+          />
+          <FaMagnifyingGlass className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+        </div>
       </div>
 
-      {/* Logs Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      {/* Logs Table - Standard Stitch Design */}
+      <div className="bg-white rounded-xl border border-stone-200 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center gap-3">
-            <FaArrowsRotate className="animate-spin text-2xl text-indigo-500" />
-            <span className="text-sm">Đang tải nhật ký kiểm toán...</span>
+          <div className="p-12 text-center text-slate-400 text-sm">
+            <FaArrowsRotate className="w-6 h-6 mx-auto mb-2 animate-spin text-sky-600" />
+            Đang tải nhật ký kiểm toán...
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div className="py-16 text-center text-slate-500 dark:text-slate-400">
-            <FaClockRotateLeft className="text-4xl text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-            <p className="font-medium text-slate-600 dark:text-slate-300">Không có bản ghi nhật ký nào</p>
-            <p className="text-xs mt-1">Các thao tác trên hệ thống sẽ được tự động ghi lại tại đây.</p>
+          <div className="p-12 text-center text-slate-400 text-sm">
+            <FaClockRotateLeft className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+            <p className="font-semibold text-slate-700">Không có bản ghi nhật ký nào</p>
+            <p className="text-xs text-slate-400 mt-1">Các thao tác trên hệ thống sẽ được tự động ghi lại tại đây.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-stone-50 border-b border-stone-200">
                 <tr>
-                  <th className="px-5 py-3.5">Thời gian</th>
-                  <th className="px-4 py-3.5">Người thực hiện</th>
-                  <th className="px-4 py-3.5">Hành động</th>
-                  <th className="px-4 py-3.5">Đối tượng</th>
-                  <th className="px-5 py-3.5">Nội dung chi tiết</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Thời gian
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Người thực hiện
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Hành động
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Đối tượng
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Nội dung chi tiết
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-sans">
+              <tbody className="divide-y divide-stone-100 font-sans">
                 {filteredLogs.map((log) => {
                   return (
                     <tr
                       key={log.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors"
+                      className="border-b border-stone-100 hover:bg-stone-50/80 transition-colors"
                     >
-                      <td className="px-5 py-3.5 text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
+                      <td className="px-4 py-3 text-xs text-slate-500 font-mono whitespace-nowrap">
                         {new Date(log.createdAt).toLocaleString("vi-VN", {
                           dateStyle: "short",
                           timeStyle: "medium",
                         })}
                       </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1.5 font-medium text-slate-800 dark:text-slate-200 text-xs">
-                          <FaUser className="text-slate-400 text-2xs" />
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 font-semibold text-slate-900 text-xs">
+                          <FaUser className="text-slate-400 text-[10px]" />
                           <span>{log.actor}</span>
-                          <span className="text-2xs px-1.5 py-0.2 bg-slate-100 dark:bg-slate-700 rounded text-slate-500 dark:text-slate-400">
+                          <span className="text-[10px] px-1.5 py-0.2 bg-stone-100 rounded text-slate-500 border border-stone-200 font-medium">
                             {log.actorRole}
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         {getActionBadge(log.action)}
                       </td>
-                      <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                        <span className="font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded">
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        <span className="font-mono text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded text-[11px] font-medium">
                           {log.targetType}: {log.targetId || "system"}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-xs text-slate-600 dark:text-slate-300 max-w-md break-words">
+                      <td className="px-4 py-3 text-xs text-slate-600 max-w-md break-words">
                         {log.details}
                         {log.ipAddress && (
-                          <span className="ml-2 text-2xs font-mono text-slate-400">
+                          <span className="ml-2 text-[11px] font-mono text-slate-400">
                             ({log.ipAddress})
                           </span>
                         )}

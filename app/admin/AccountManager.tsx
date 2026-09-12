@@ -147,7 +147,6 @@ export function AccountManager() {
 
   const handleToggleTopic = (topic: string) => {
     if (formData.allowedTopics.includes("*")) {
-      // Đang có toàn quyền, nếu click bỏ thì chỉ giữ lại các topic khác ngoài topic này
       const remaining = contentTopicNames.filter((t) => t !== topic);
       setFormData((prev) => ({ ...prev, allowedTopics: remaining }));
       return;
@@ -264,229 +263,262 @@ export function AccountManager() {
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
+      {/* Toast / Alert Notification */}
       {toastMsg && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-xl text-white text-sm font-medium transition-all ${
-            toastMsg.type === "success" ? "bg-emerald-600" : "bg-rose-600"
+          className={`flex items-center justify-between p-4 rounded-xl text-sm shadow-xs border ${
+            toastMsg.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-rose-50 border-rose-200 text-rose-800"
           }`}
         >
-          {toastMsg.type === "success" ? (
-            <FaCircleCheck className="text-lg" />
-          ) : (
-            <FaCircleExclamation className="text-lg" />
-          )}
-          <span>{toastMsg.text}</span>
+          <div className="flex items-center gap-2">
+            {toastMsg.type === "success" ? (
+              <FaCircleCheck className="text-emerald-600 shrink-0 text-base" />
+            ) : (
+              <FaCircleExclamation className="text-rose-600 shrink-0 text-base" />
+            )}
+            <span>{toastMsg.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastMsg(null)}
+            className="text-slate-400 hover:text-slate-600 cursor-pointer"
+          >
+            &times;
+          </button>
         </div>
       )}
 
-      {/* Header & KPI Summary */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header Banner - Standard Stitch Design */}
+      <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2.5">
-            <FaUserGear className="text-indigo-600 dark:text-indigo-400" />
-            Tài khoản & Phân quyền chuyên mục
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Quản trị danh sách nhân sự, phân cấp vai trò và giới hạn quyền biên tập theo từng chuyên đề pháp luật
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-600 mb-1">
+            <span>QUẢN TRỊ HỆ THỐNG</span>
+            <span>/</span>
+            <span>TÀI KHOẢN &amp; PHÂN QUYỀN</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tài khoản &amp; Phân quyền chuyên mục</h1>
+          <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+            Quản trị danh sách nhân sự, phân cấp vai trò và giới hạn quyền biên tập theo từng chuyên đề pháp luật.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={fetchAccounts}
             disabled={loading}
-            className="p-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm hover:bg-slate-50 transition-colors"
-            title="Làm mới danh sách"
+            className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-stone-50 hover:bg-stone-100 border border-stone-300 rounded-lg transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            <FaArrowsRotate className={`${loading ? "animate-spin" : ""}`} />
+            <FaArrowsRotate className={`w-3.5 h-3.5 text-slate-500 ${loading ? "animate-spin" : ""}`} />
+            <span>Làm mới</span>
           </button>
+
           <button
+            type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
+            className="px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-lg transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
           >
-            <FaPlus /> Thêm tài khoản mới
+            <FaPlus className="w-3.5 h-3.5" />
+            <span>Thêm tài khoản mới</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-lg">
-            <FaUsers />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.total}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Tổng tài khoản</div>
+      {/* Metrics Row - Standard Stitch Design */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Tổng số tài khoản</p>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-slate-900">{stats.total}</span>
+            <span className="text-xs font-medium text-slate-400">nhân sự</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 text-lg">
-            <FaShieldHalved />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.admins}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Quản trị viên (Admin)</div>
+        <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Quản trị viên (Admin)</p>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-purple-600">{stats.admins}</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">Toàn quyền</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg">
-            <FaUserPen />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.editors}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Biên tập viên (Editor)</div>
+        <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Biên tập viên (Editor)</p>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-sky-600">{stats.editors}</span>
+            <span className="text-xs font-medium text-slate-400">theo chuyên đề</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-lg">
-            <FaUserCheck />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.active}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Đang hoạt động</div>
+        <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Đang hoạt động</p>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-emerald-600">{stats.active}</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Kích hoạt</span>
           </div>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <FaMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
-          <input
-            type="text"
-            placeholder="Tìm theo username, họ tên..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-          />
-        </div>
-
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          >
-            <option value="all">Tất cả vai trò</option>
-            <option value="admin">Quản trị viên (Admin)</option>
-            <option value="editor">Biên tập viên (Editor)</option>
-            <option value="viewer">Người xem (Viewer)</option>
-          </select>
+      {/* Filter and Search Bar - Standard Stitch Design */}
+      <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+          {(
+            [
+              { key: "all", label: "Tất cả vai trò" },
+              { key: "admin", label: "Quản trị viên" },
+              { key: "editor", label: "Biên tập viên" },
+              { key: "viewer", label: "Người xem" },
+            ] as const
+          ).map((filter) => (
+            <button
+              key={filter.key}
+              type="button"
+              onClick={() => setRoleFilter(filter.key)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                roleFilter === filter.key
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="text-xs py-1.5 px-2.5 bg-stone-50 border border-stone-200 rounded-lg text-slate-700 focus:outline-none focus:border-sky-500 cursor-pointer ml-1"
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="active">Đang hoạt động</option>
             <option value="disabled">Tạm khóa</option>
           </select>
         </div>
+
+        <div className="relative w-full md:w-72">
+          <input
+            type="text"
+            placeholder="Tìm theo username, họ tên..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full text-xs pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-sky-500 focus:bg-white"
+          />
+          <FaMagnifyingGlass className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+        </div>
       </div>
 
-      {/* Accounts Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      {/* Accounts Table - Standard Stitch Design */}
+      <div className="bg-white rounded-xl border border-stone-200 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center gap-3">
-            <FaArrowsRotate className="animate-spin text-2xl text-indigo-500" />
-            <span className="text-sm">Đang tải danh sách tài khoản...</span>
+          <div className="p-12 text-center text-slate-400 text-sm">
+            <FaArrowsRotate className="w-6 h-6 mx-auto mb-2 animate-spin text-sky-600" />
+            Đang tải danh sách tài khoản...
           </div>
         ) : filteredAccounts.length === 0 ? (
-          <div className="py-16 text-center text-slate-500 dark:text-slate-400">
-            <FaUsers className="text-4xl text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-            <p className="font-medium text-slate-600 dark:text-slate-300">Không tìm thấy tài khoản nào</p>
-            <p className="text-xs mt-1">Thử thay đổi bộ lọc hoặc thêm tài khoản mới.</p>
+          <div className="p-12 text-center text-slate-400 text-sm">
+            <FaUsers className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+            <p className="font-semibold text-slate-700">Không tìm thấy tài khoản nào</p>
+            <p className="text-xs text-slate-400 mt-1">Thử thay đổi bộ lọc hoặc thêm tài khoản mới.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-stone-50 border-b border-stone-200">
                 <tr>
-                  <th className="px-5 py-3.5">Người dùng</th>
-                  <th className="px-4 py-3.5">Vai trò</th>
-                  <th className="px-4 py-3.5">Phân quyền chuyên mục</th>
-                  <th className="px-4 py-3.5">Trạng thái</th>
-                  <th className="px-4 py-3.5">Đăng nhập cuối</th>
-                  <th className="px-5 py-3.5 text-right">Thao tác</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Người dùng
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Vai trò
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Phân quyền chuyên mục
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Trạng thái
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Đăng nhập cuối
+                  </th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
+              <tbody className="divide-y divide-stone-100 font-sans">
                 {filteredAccounts.map((acc) => {
                   const isSuper = acc.role === "admin" || acc.allowedTopics.includes("*");
                   return (
                     <tr
                       key={acc.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors"
+                      className="border-b border-stone-100 hover:bg-stone-50/80 transition-colors"
                     >
-                      <td className="px-5 py-4">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100">
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-slate-900 text-xs">
                           {acc.fullName}
                         </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                        <div className="text-[11px] text-slate-400 font-mono">
                           @{acc.username}
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3">
                         {acc.role === "admin" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                            <FaShieldHalved className="text-2xs" /> Quản trị viên
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                            <FaShieldHalved className="text-[10px]" /> Quản trị viên
                           </span>
                         )}
                         {acc.role === "editor" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                            <FaUserPen className="text-2xs" /> Biên tập viên
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                            <FaUserPen className="text-[10px]" /> Biên tập viên
                           </span>
                         )}
                         {acc.role === "viewer" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                             Người xem
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3">
                         {isSuper ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800">
-                            <FaCheck className="text-xs" /> Toàn bộ chuyên mục (*)
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            <FaCheck className="text-[10px]" /> Toàn bộ chuyên mục (*)
                           </span>
                         ) : acc.allowedTopics.length === 0 ? (
                           <span className="text-xs text-slate-400 italic">Chưa cấp chuyên mục nào</span>
                         ) : (
-                          <div className="flex flex-wrap gap-1.5 max-w-sm">
+                          <div className="flex flex-wrap gap-1 max-w-sm">
                             {acc.allowedTopics.slice(0, 3).map((topic) => (
                               <span
                                 key={topic}
-                                className="inline-flex items-center gap-1 text-2xs font-medium bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium bg-stone-100 text-slate-700 px-2 py-0.5 rounded-md border border-stone-200"
                               >
                                 <TopicIcon icon={getTopicIconKey(topic)} size={11} />
                                 {topic}
                               </span>
                             ))}
                             {acc.allowedTopics.length > 3 && (
-                              <span className="text-2xs font-medium bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded-md">
+                              <span className="text-[11px] font-medium bg-stone-200 text-slate-600 px-1.5 py-0.5 rounded-md">
                                 +{acc.allowedTopics.length - 3}
                               </span>
                             )}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3">
                         {acc.status === "active" ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                             Hoạt động
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300">
-                            <FaLock className="text-2xs" /> Tạm khóa
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                            <FaLock className="text-[10px]" /> Tạm khóa
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-xs text-slate-500 dark:text-slate-400">
+                      <td className="px-4 py-3 text-xs text-slate-500">
                         {acc.lastLoginAt
                           ? new Date(acc.lastLoginAt).toLocaleString("vi-VN", {
                               dateStyle: "short",
@@ -494,21 +526,23 @@ export function AccountManager() {
                             })
                           : "Chưa đăng nhập"}
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <button
+                            type="button"
                             onClick={() => openEditModal(acc)}
-                            className="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-700 rounded-md transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
                             title="Chỉnh sửa tài khoản"
                           >
-                            <FaPenToSquare />
+                            <FaPenToSquare className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => setDeleteTarget(acc)}
-                            className="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-700 rounded-md transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             title="Xóa tài khoản"
                           >
-                            <FaTrashCan />
+                            <FaTrashCan className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -521,33 +555,31 @@ export function AccountManager() {
         )}
       </div>
 
-      {/* Modal Thêm / Chỉnh sửa */}
+      {/* Modal Thêm / Chỉnh sửa - Stitch Design */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-700/60">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                {modalMode === "create" ? (
-                  <>
-                    <FaPlus className="text-indigo-600 text-sm" /> Thêm tài khoản mới
-                  </>
-                ) : (
-                  <>
-                    <FaPenToSquare className="text-indigo-600 text-sm" /> Chỉnh sửa tài khoản
-                  </>
-                )}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-stone-100 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-sky-600 mb-0.5">
+                  {modalMode === "create" ? "TẠO MỚI NHÂN SỰ" : "CẬP NHẬT THÔNG TIN"}
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">
+                  {modalMode === "create" ? "Thêm tài khoản quản trị mới" : "Chỉnh sửa tài khoản"}
+                </h3>
+              </div>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold cursor-pointer p-1"
               >
-                <FaXmark className="text-lg" />
+                <FaXmark />
               </button>
             </div>
 
-            <form onSubmit={handleSaveAccount} className="p-5 space-y-4">
+            <form onSubmit={handleSaveAccount} className="p-6 space-y-4">
               {errorMsg && (
-                <div className="p-3 text-xs bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 rounded-lg flex items-center gap-2">
+                <div className="p-3 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center gap-2">
                   <FaCircleExclamation className="text-sm shrink-0" />
                   <span>{errorMsg}</span>
                 </div>
@@ -555,7 +587,7 @@ export function AccountManager() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Tên đăng nhập (Username) *
                   </label>
                   <input
@@ -565,12 +597,12 @@ export function AccountManager() {
                     placeholder="vd: bientap_giaothong"
                     value={formData.username}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    className="w-full text-xs px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:border-sky-500 focus:bg-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Họ và tên hiển thị *
                   </label>
                   <input
@@ -579,33 +611,33 @@ export function AccountManager() {
                     placeholder="vd: Nguyễn Văn A"
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    className="w-full text-xs px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   {modalMode === "create" ? "Mật khẩu *" : "Mật khẩu mới (bỏ trống nếu giữ nguyên)"}
                 </label>
                 <input
                   type="password"
-                  placeholder={modalMode === "create" ? "Ít nhất 6 ký tự" : "Nhập mật khẩu mới..."}
+                  placeholder={modalMode === "create" ? "Ít nhất 6 ký tự" : "Nhập mật khẩu mới nếu muốn đổi..."}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="w-full text-xs px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Vai trò hệ thống *
                   </label>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    className="w-full text-xs px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white cursor-pointer"
                   >
                     <option value="editor">Biên tập viên (Editor)</option>
                     <option value="admin">Quản trị viên (Admin - Toàn quyền)</option>
@@ -614,13 +646,13 @@ export function AccountManager() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Trạng thái tài khoản *
                   </label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    className="w-full text-xs px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white cursor-pointer"
                   >
                     <option value="active">Hoạt động bình thường</option>
                     <option value="disabled">Tạm khóa tài khoản</option>
@@ -629,17 +661,17 @@ export function AccountManager() {
               </div>
 
               {/* Phân quyền chuyên mục Section */}
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60">
+              <div className="pt-3 border-t border-stone-100">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <FaLayerGroup className="text-indigo-600" />
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <FaLayerGroup className="text-sky-600" />
                     Phân quyền chuyên mục được phép quản lý
                   </label>
                   {formData.role !== "admin" && (
                     <button
                       type="button"
                       onClick={handleSelectAllTopics}
-                      className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                      className="text-xs font-semibold text-sky-600 hover:text-sky-800 hover:underline cursor-pointer"
                     >
                       {isAllTopicsSelected ? "Bỏ chọn tất cả" : "Chọn tất cả chuyên mục"}
                     </button>
@@ -647,11 +679,11 @@ export function AccountManager() {
                 </div>
 
                 {formData.role === "admin" ? (
-                  <div className="p-3 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg text-xs text-purple-700 dark:text-purple-300">
-                    <span className="font-semibold">Lưu ý:</span> Tài khoản Quản trị viên (Admin) tự động có toàn quyền thao tác trên toàn bộ 10 chuyên mục và toàn bộ cấu hình hệ thống.
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
+                    <span className="font-semibold">Lưu ý:</span> Tài khoản Quản trị viên (Admin) tự động có toàn quyền thao tác trên toàn bộ các chuyên đề pháp luật và cấu hình hệ thống.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 bg-stone-50 rounded-lg border border-stone-200">
                     {contentTopicNames.map((topic) => {
                       const isChecked =
                         formData.allowedTopics.includes("*") ||
@@ -660,17 +692,17 @@ export function AccountManager() {
                         <label
                           key={topic}
                           onClick={() => handleToggleTopic(topic)}
-                          className={`flex items-center gap-2 p-2 rounded-md cursor-pointer text-xs font-medium transition-colors select-none ${
+                          className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer text-xs font-medium transition-colors select-none ${
                             isChecked
-                              ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800"
-                              : "hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300 border border-transparent"
+                              ? "bg-sky-50 text-sky-900 border border-sky-200"
+                              : "hover:bg-stone-100 text-slate-700 border border-transparent"
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {}}
-                            className="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 pointer-events-none"
+                            className="w-3.5 h-3.5 text-sky-600 rounded border-stone-300 focus:ring-sky-500 pointer-events-none"
                           />
                           <TopicIcon icon={getTopicIconKey(topic)} size={12} className="shrink-0" />
                           <span className="truncate">{topic}</span>
@@ -681,18 +713,18 @@ export function AccountManager() {
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/60">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-stone-100 border border-stone-300 rounded-lg transition cursor-pointer"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50 rounded-lg transition shadow-sm flex items-center gap-1.5 cursor-pointer"
                 >
                   {submitting && <FaArrowsRotate className="animate-spin text-xs" />}
                   {modalMode === "create" ? "Tạo tài khoản" : "Lưu thay đổi"}
@@ -703,21 +735,21 @@ export function AccountManager() {
         </div>
       )}
 
-      {/* Modal Xác nhận Xóa */}
+      {/* Modal Xác nhận Xóa - Stitch Design */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-5">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-rose-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 text-rose-600">
               <FaTrashCan /> Xác nhận xóa tài khoản
             </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
+            <p className="text-xs text-slate-600 mt-2 leading-relaxed">
               Bạn có chắc chắn muốn xóa tài khoản <strong>@{deleteTarget.username}</strong> ({deleteTarget.fullName}) khỏi hệ thống? Thao tác này sẽ ghi nhận vào nhật ký kiểm toán và không thể hoàn tác.
             </p>
             <div className="flex items-center justify-end gap-3 mt-6">
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-stone-100 border border-stone-300 rounded-lg transition cursor-pointer"
               >
                 Hủy
               </button>
@@ -725,7 +757,7 @@ export function AccountManager() {
                 type="button"
                 disabled={deleting}
                 onClick={handleDeleteAccount}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-lg transition shadow-sm flex items-center gap-1.5 cursor-pointer"
               >
                 {deleting && <FaArrowsRotate className="animate-spin text-xs" />}
                 Xác nhận xóa

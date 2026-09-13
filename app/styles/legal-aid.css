@@ -166,8 +166,80 @@ a.referral-badge:focus-visible {
 .shadow-paper {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
 }
-.legal-doc {
+
+.text-brand-rust { color: #B84724 !important; }
+.bg-brand-rust { background-color: #B84724 !important; }
+.bg-brand-rust-hover:hover,
+.hover\:bg-brand-rust-hover:hover { background-color: #9F3A1B !important; }
+.hover\:bg-brand-rust:hover { background-color: #B84724 !important; }
+.hover\:text-brand-rust:hover { color: #B84724 !important; }
+.hover\:border-brand-rust:hover { border-color: #B84724 !important; }
+.border-brand-rust { border-color: #B84724 !important; }
+.border-brand-cream-border { border-color: #EFE5DA !important; }
+.bg-brand-cream-card { background-color: #FFFFFF !important; }
+.bg-brand-rust-light { background-color: #FDF4EF !important; }
+
+.legal-doc,
+.legal-doc * {
   font-family: "Times New Roman", Times, serif;
   line-height: 1.45;
 }
+.legal-doc .font-sans,
+.legal-doc .font-sans * {
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* Ensure button background and border override base.css reset */
+button.btn-stone-dark,
+button.bg-stone-700,
+button[class*="bg-stone-700"] {
+  background-color: #44403C !important;
+  color: #F5F5F4 !important;
+  border: 1px solid rgba(120, 113, 108, 0.5) !important;
+}
+button.btn-stone-dark:hover,
+button.bg-stone-700:hover,
+button[class*="bg-stone-700"]:hover {
+  background-color: #57534E !important;
+}
+
+button.btn-brand-rust,
+button.bg-\[\#B84724\],
+button.bg-brand-rust,
+button[class*="bg-\[\#B84724\]"],
+button[class*="bg-brand-rust"] {
+  background-color: #B84724 !important;
+  color: #FFFFFF !important;
+  border: 1px solid transparent !important;
+}
+button.btn-brand-rust:hover,
+button.bg-\[\#B84724\]:hover,
+button.bg-brand-rust:hover,
+button[class*="bg-\[\#B84724\]"]:hover,
+button[class*="bg-brand-rust"]:hover {
+  background-color: #9F3A1B !important;
+}
+
+button.btn-scan-cccd {
+  background-color: #FFFFFF !important;
+  border: 1px solid #D6D3D1 !important;
+  color: #374151 !important;
+}
+button.btn-scan-cccd:hover {
+  background-color: #F9FAFB !important;
+  border-color: #B84724 !important;
+  color: #B84724 !important;
+}
+
+button.btn-quick-pill {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+  color: #374151 !important;
+}
+button.btn-quick-pill:hover {
+  background-color: #B84724 !important;
+  border-color: #B84724 !important;
+  color: #FFFFFF !important;
+}
+
 

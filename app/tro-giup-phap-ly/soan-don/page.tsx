@@ -305,12 +305,14 @@ export default function SoanDonToGiacPage() {
         {/* Main Dual Workspace */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* LEFT COLUMN: Legal Assistant Chatbot & Guidance (5 Cols) */}
-          <section className="lg:col-span-5 flex flex-col bg-white dark:bg-stone-900 rounded-2xl border border-[#EFE5DA] dark:border-stone-800 shadow-warm-md overflow-hidden h-[760px] print:hidden">
+          <section className="lg:col-span-5 flex flex-col bg-white dark:bg-stone-900 rounded-2xl border border-[#EFE5DA] dark:border-stone-800 shadow-warm-md overflow-hidden h-[740px] print:hidden">
             {/* Assistant Header */}
             <div className="p-4 bg-gradient-to-r from-[#FAF5F0] via-white to-[#FAF5F0] dark:from-stone-900 dark:via-stone-850 dark:to-stone-900 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[#B84724]/10 border border-[#B84724]/20 flex items-center justify-center text-[#B84724] shadow-sm">
-                  <FaScaleBalanced className="w-5 h-5 text-[#B84724]" />
+                  <svg className="w-5 h-5 text-[#B84724]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-stone-900 dark:text-white tracking-tight uppercase">
@@ -327,9 +329,11 @@ export default function SoanDonToGiacPage() {
               <button
                 onClick={() => setIsScannerOpen(true)}
                 type="button"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-750 text-xs font-medium text-stone-700 dark:text-stone-200 shadow-sm transition-all hover:border-[#B84724] hover:text-[#B84724] cursor-pointer"
+                className="btn-scan-cccd inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm transition-all cursor-pointer"
               >
-                <FaQrcode className="w-3.5 h-3.5 text-[#B84724]" />
+                <svg className="w-4 h-4 text-[#B84724]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
                 <span>Quét CCCD</span>
               </button>
             </div>
@@ -405,7 +409,7 @@ export default function SoanDonToGiacPage() {
                     key={idx}
                     onClick={() => handleSendMessage(prompt)}
                     type="button"
-                    className="whitespace-nowrap px-3 py-1 bg-white dark:bg-stone-800 hover:bg-[#B84724] hover:text-white dark:hover:bg-[#B84724] border border-stone-200 dark:border-stone-700 rounded-full text-stone-700 dark:text-stone-300 transition-colors shadow-2xs shrink-0 cursor-pointer"
+                    className="btn-quick-pill whitespace-nowrap px-3 py-1 text-xs transition-colors shadow-2xs shrink-0 cursor-pointer"
                   >
                     {prompt}
                   </button>
@@ -436,15 +440,19 @@ export default function SoanDonToGiacPage() {
                     className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
                     title="Đính kèm thông tin bằng chứng"
                   >
-                    <FaPaperclip className="w-4 h-4" />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                   <button
                     type="submit"
                     disabled={!inputMsg.trim() || isAiThinking}
-                    className="p-2 bg-[#B84724] text-white rounded-lg hover:bg-[#9F3A1B] disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
+                    className="btn-brand-rust p-2 text-white rounded-lg disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
                     title="Gửi phản hồi"
                   >
-                    <FaPaperPlane className="w-3.5 h-3.5" />
+                    <svg className="w-4 h-4 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                    </svg>
                   </button>
                 </div>
               </form>
@@ -456,7 +464,7 @@ export default function SoanDonToGiacPage() {
           </section>
 
           {/* RIGHT COLUMN: Real-Time A4 Document Preview (7 Cols) */}
-          <div className="lg:col-span-7 h-[760px]">
+          <div className="lg:col-span-7 h-[740px]">
             <ComplaintDocumentPreview
               state={formState}
               onDownloadDocx={handleDownloadDocx}

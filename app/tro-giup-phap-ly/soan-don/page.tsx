@@ -22,12 +22,13 @@ import {
   FaShieldHalved,
   FaQrcode,
   FaPaperPlane,
-  FaRotateRight,
   FaRobot,
   FaUser,
   FaChevronRight,
   FaTrashCan,
-  FaCircleCheck,
+  FaPaperclip,
+  FaPhone,
+  FaScaleBalanced,
 } from "react-icons/fa6";
 
 interface ChatMessage {
@@ -35,13 +36,14 @@ interface ChatMessage {
   sender: "ai" | "user";
   text: string;
   time: string;
+  isExtractedUpdate?: boolean;
 }
 
 const QUICK_PROMPTS = [
-  "Bị lừa đảo chuyển tiền làm nhiệm vụ trên mạng",
-  "Bị bạn cùng trường đe dọa đánh và chặn đường",
-  "Bị người lạ tống tiền và phát tán ảnh nhạy cảm",
-  "Chưa rõ tên đối tượng, chỉ có link Facebook",
+  "Lừa đảo qua mạng",
+  "Bị bạn cùng trường đe dọa đánh & chặn đường",
+  "Tống tiền bằng ảnh riêng tư",
+  "Mượn tài khoản ngân hàng",
 ];
 
 export default function SoanDonToGiacPage() {
@@ -54,7 +56,7 @@ export default function SoanDonToGiacPage() {
     {
       id: "welcome-1",
       sender: "ai",
-      text: "Chào em, anh/chị là Trợ lý Pháp lý ảo. Em hãy bình tĩnh nhé, mọi thông tin em chia sẻ tại đây hoàn toàn được bảo mật trong máy của em và không gửi lên máy chủ. Để bắt đầu, em có thể bấm nút 'Quét thẻ CCCD' để tự động điền phần thông tin cá nhân, hoặc kể cho anh/chị nghe sự việc em đang gặp phải.",
+      text: "Chào em, em đừng quá lo lắng nhé. Trợ lý ở đây để bảo vệ quyền lợi hợp pháp cho em. Em hãy kể lại tóm tắt sự việc đang gặp phải: Ai là người đã làm tổn hại/lừa dối em, hành vi cụ thể là gì và diễn ra vào thời gian nào?",
       time: "Vừa xong",
     },
   ]);
@@ -116,6 +118,7 @@ export default function SoanDonToGiacPage() {
         sender: "ai",
         text: `Tuyệt vời! Thông tin của em (${data.fullName}) đã được cập nhật vào tờ đơn bên phải. Bây giờ, em hãy cho anh/chị biết: Đối tượng vi phạm là ai và họ đã có hành vi gì gây hại cho em?`,
         time: "Vừa xong",
+        isExtractedUpdate: true,
       },
     ]);
   };
@@ -151,20 +154,25 @@ export default function SoanDonToGiacPage() {
 
       if (res.ok) {
         const data = await res.json();
+        let hasExtracted = false;
+
         if (data.extractedFields) {
           updateFormState((prev) => {
             const next = { ...prev };
             if (data.extractedFields.incident) {
               next.incident = { ...next.incident, ...data.extractedFields.incident };
+              hasExtracted = true;
             }
             if (data.extractedFields.accused) {
               next.accused = { ...next.accused, ...data.extractedFields.accused };
+              hasExtracted = true;
             }
             if (data.extractedFields.evidence?.items) {
               const mergedItems = Array.from(
                 new Set([...next.evidence.items, ...data.extractedFields.evidence.items]),
               );
               next.evidence = { ...next.evidence, items: mergedItems };
+              hasExtracted = true;
             }
             return next;
           });
@@ -177,6 +185,7 @@ export default function SoanDonToGiacPage() {
             sender: "ai",
             text: data.assistantReply || "Anh/chị đã ghi nhận thông tin vào đơn.",
             time: "Vừa xong",
+            isExtractedUpdate: hasExtracted,
           },
         ]);
       } else {
@@ -190,6 +199,7 @@ export default function SoanDonToGiacPage() {
           sender: "ai",
           text: "Anh/chị đã ghi nhận lời kể của em vào phần diễn biến đơn. Em hãy kiểm tra bản xem trước ở cột bên phải nhé!",
           time: "Vừa xong",
+          isExtractedUpdate: true,
         },
       ]);
       updateFormState((prev) => ({
@@ -212,7 +222,7 @@ export default function SoanDonToGiacPage() {
       if (blobOrBuffer instanceof Blob) {
         downloadDocxInBrowser(blobOrBuffer, `don-to-giac-${formState.complainant.fullName || "toi-pham"}.docx`);
       }
-    } catch (err) {
+    } catch {
       alert("Không thể tạo file Word. Vui lòng thử lại!");
     }
   };
@@ -232,7 +242,7 @@ export default function SoanDonToGiacPage() {
         {
           id: "welcome-reset",
           sender: "ai",
-          text: "Đã dọn dẹp sạch sẽ toàn bộ dữ liệu. Em có thể bắt đầu lại từ đầu bằng cách Quét CCCD hoặc nhắn tin cho anh/chị.",
+          text: "Đã dọn dẹp sạch sẽ toàn bộ dữ liệu phiên. Em có thể bắt đầu lại từ đầu bằng cách Quét CCCD hoặc nhắn tin cho anh/chị.",
           time: "Vừa xong",
         },
       ]);
@@ -242,158 +252,210 @@ export default function SoanDonToGiacPage() {
   const { percentage } = calculateFormCompletionProgress(formState);
 
   return (
-    <div className="legal-lookup-page-wrapper min-h-screen flex flex-col justify-between bg-[#FBF9F5] dark:bg-stone-950 text-slate-900 dark:text-stone-100">
+    <div className="legal-lookup-page-wrapper min-h-screen flex flex-col justify-between bg-[#FAF6F0] dark:bg-stone-950 text-stone-800 dark:text-stone-100">
       <SiteHeader currentPath="/tro-giup-phap-ly" />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-4 print:hidden">
-          <Link href="/" className="hover:text-sky-600 transition-colors">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        {/* Breadcrumb & System Sub-nav */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm text-stone-500 mb-4 print:hidden">
+          <Link href="/" className="hover:text-stone-800 transition-colors">
             Trang chủ
           </Link>
-          <FaChevronRight className="w-2.5 h-2.5" />
-          <Link href="/tro-giup-phap-ly" className="hover:text-sky-600 transition-colors">
+          <span className="text-stone-400">›</span>
+          <Link href="/tro-giup-phap-ly" className="hover:text-stone-800 transition-colors">
             Trợ giúp pháp lý
           </Link>
-          <FaChevronRight className="w-2.5 h-2.5" />
-          <span className="text-slate-800 dark:text-slate-200 font-semibold">
+          <span className="text-stone-400">›</span>
+          <span className="font-semibold text-[#B84724]">
             Hỗ trợ soạn đơn tố giác tội phạm
           </span>
         </nav>
 
-        {/* Security Banner */}
-        <div className="mb-6 p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-between gap-3 shadow-2xs print:hidden">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
-              <FaShieldHalved className="w-3.5 h-3.5" />
+        {/* Security Guarantee Banner (Stitch Design Standard) */}
+        <section className="bg-[#EFF8F3] dark:bg-emerald-950/40 border border-[#BDE5D2] dark:border-emerald-800 rounded-2xl p-3.5 sm:px-5 mb-5 shadow-warm-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-stone-700 dark:text-stone-200 print:hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <FaShieldHalved className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                Cam kết bảo mật 100% (Zero-Knowledge Privacy)
-              </p>
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                Dữ liệu cá nhân từ thẻ CCCD và nội dung đơn được lưu trữ cục bộ tại trình duyệt máy bạn, tuyệt đối không lưu trên hệ thống máy chủ.
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                  Cam kết bảo mật 100% (Zero-Knowledge Privacy)
+                </h2>
+                <span className="hidden sm:inline-flex bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 text-[11px] font-semibold px-2 py-0.5 rounded-md">
+                  An toàn tuyệt đối
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-0.5 leading-relaxed">
+                Dữ liệu cá nhân từ thẻ CCCD và nội dung khai báo chỉ được xử lý và lưu tạm cục bộ trong trình duyệt máy bạn, tuyệt đối không lưu trữ trên máy chủ công cộng.
               </p>
             </div>
           </div>
           <button
             onClick={handleResetAll}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-lg transition-colors cursor-pointer shrink-0"
+            type="button"
+            className="text-xs font-semibold text-stone-600 dark:text-stone-300 hover:text-red-700 dark:hover:text-red-400 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/60 transition-colors px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 ml-auto shrink-0 cursor-pointer"
             title="Xóa toàn bộ dữ liệu phiên làm việc"
           >
-            <FaTrashCan className="w-3 h-3" />
-            <span className="hidden sm:inline">Xóa dữ liệu phiên</span>
+            <FaTrashCan className="w-3.5 h-3.5 text-stone-500 hover:text-red-600" />
+            <span>Xóa dữ liệu phiên</span>
           </button>
-        </div>
+        </section>
 
-        {/* 2-Column Work Area */}
+        {/* Main Dual Workspace */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Column Left: AI Chat Assistant (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col h-[760px] bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-xs overflow-hidden print:hidden">
-            {/* Chat Header */}
-            <div className="p-4 border-b border-stone-200 dark:border-stone-800 bg-stone-50/70 dark:bg-stone-800/40 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400 flex items-center justify-center">
-                  <FaRobot className="w-4 h-4" />
+          {/* LEFT COLUMN: Legal Assistant Chatbot & Guidance (5 Cols) */}
+          <section className="lg:col-span-5 flex flex-col bg-white dark:bg-stone-900 rounded-2xl border border-[#EFE5DA] dark:border-stone-800 shadow-warm-md overflow-hidden h-[760px] print:hidden">
+            {/* Assistant Header */}
+            <div className="p-4 bg-gradient-to-r from-[#FAF5F0] via-white to-[#FAF5F0] dark:from-stone-900 dark:via-stone-850 dark:to-stone-900 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#B84724]/10 border border-[#B84724]/20 flex items-center justify-center text-[#B84724] shadow-sm">
+                  <FaScaleBalanced className="w-5 h-5 text-[#B84724]" />
                 </div>
                 <div>
-                  <h2 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    Trợ lý Pháp lý Đồng hành
-                  </h2>
-                  <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Sẵn sàng hỗ trợ
-                  </span>
+                  <h3 className="text-sm font-bold text-stone-900 dark:text-white tracking-tight uppercase">
+                    TRỢ LÝ PHÁP LÝ ĐỒNG HÀNH
+                  </h3>
+                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                    Sẵn sàng lắng nghe & hỗ trợ em
+                  </p>
                 </div>
               </div>
 
+              {/* CCCD Scan Action */}
               <button
                 onClick={() => setIsScannerOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-2xs transition-all cursor-pointer"
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-750 text-xs font-medium text-stone-700 dark:text-stone-200 shadow-sm transition-all hover:border-[#B84724] hover:text-[#B84724] cursor-pointer"
               >
-                <FaQrcode className="w-3.5 h-3.5" />
+                <FaQrcode className="w-3.5 h-3.5 text-[#B84724]" />
                 <span>Quét CCCD</span>
               </button>
             </div>
 
-            {/* Chat Messages */}
-            <div ref={chatListRef} className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+            {/* Chat Conversation Stream */}
+            <div
+              ref={chatListRef}
+              className="flex-1 p-4 overflow-y-auto space-y-4 text-sm bg-[#FCFAF8] dark:bg-stone-950/60"
+              data-purpose="chat-messages-container"
+            >
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  className={`flex gap-2.5 ${m.sender === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex items-start gap-3 ${
+                    m.sender === "user" ? "justify-end" : "justify-start"
+                  }`}
                 >
                   {m.sender === "ai" && (
-                    <div className="w-6 h-6 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 flex items-center justify-center shrink-0 mt-0.5">
-                      <FaRobot className="w-3 h-3" />
+                    <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950 text-[#B84724] dark:text-orange-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 border border-orange-200 dark:border-orange-800">
+                      AI
                     </div>
                   )}
+
                   <div
-                    className={`max-w-[85%] p-3 rounded-2xl leading-relaxed whitespace-pre-wrap ${
+                    className={
                       m.sender === "user"
-                        ? "bg-sky-600 text-white rounded-tr-xs shadow-2xs"
-                        : "bg-stone-100 dark:bg-stone-800 text-slate-800 dark:text-stone-200 rounded-tl-xs border border-stone-200 dark:border-stone-700"
-                    }`}
+                        ? "bg-gradient-to-r from-[#B84724] to-stone-800 text-white rounded-2xl rounded-tr-none px-4 py-2.5 shadow-sm max-w-[80%] leading-relaxed text-sm"
+                        : "bg-white dark:bg-stone-850 border border-stone-200/90 dark:border-stone-750 rounded-2xl rounded-tl-none p-3.5 shadow-sm text-stone-800 dark:text-stone-200 max-w-[85%] leading-relaxed"
+                    }
                   >
-                    {m.text}
+                    {m.sender === "ai" && (
+                      <p className="font-medium text-[#B84724] mb-1 text-xs">
+                        Luật sư ảo hỗ trợ học sinh:
+                      </p>
+                    )}
+                    <p className="whitespace-pre-wrap">{m.text}</p>
+
+                    {m.isExtractedUpdate && (
+                      <p className="mt-2 text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-900 p-2 rounded-lg border border-dashed border-stone-300 dark:border-stone-700">
+                        ✍️ Bản thảo đơn tố giác phía bên phải đã được tự động cập nhật vào các mục tương ứng.
+                      </p>
+                    )}
                   </div>
+
                   {m.sender === "user" && (
-                    <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-stone-700 text-slate-600 dark:text-stone-300 flex items-center justify-center shrink-0 mt-0.5">
-                      <FaUser className="w-3 h-3" />
+                    <div className="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 flex items-center justify-center font-semibold text-xs shrink-0 mt-0.5">
+                      Em
                     </div>
                   )}
                 </div>
               ))}
 
               {isAiThinking && (
-                <div className="flex gap-2.5 items-center text-slate-400 italic text-xs">
-                  <div className="w-6 h-6 rounded-full bg-sky-50 text-sky-500 flex items-center justify-center shrink-0">
-                    <FaRobot className="w-3 h-3" />
+                <div className="flex items-start gap-3 text-xs text-stone-500 italic">
+                  <div className="w-8 h-8 rounded-full bg-orange-50 text-[#B84724] flex items-center justify-center shrink-0">
+                    <FaRobot className="w-3.5 h-3.5 animate-spin" />
                   </div>
-                  <span>Trợ lý đang phân tích và trích xuất dữ liệu vào đơn...</span>
+                  <div className="bg-white dark:bg-stone-850 p-3 rounded-2xl rounded-tl-none border border-stone-200 dark:border-stone-750">
+                    <span>Trợ lý đang phân tích và trích xuất dữ liệu vào đơn...</span>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Quick Prompts */}
-            <div className="p-2.5 border-t border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/20 overflow-x-auto whitespace-nowrap scrollbar-none flex gap-2">
-              {QUICK_PROMPTS.map((prompt, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendMessage(prompt)}
-                  className="px-2.5 py-1 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 hover:border-sky-400 text-slate-600 dark:text-stone-300 text-[11px] rounded-lg transition-colors cursor-pointer shrink-0"
-                >
-                  {prompt}
-                </button>
-              ))}
+            {/* Suggestion Chips & Prompt Quick-Pills */}
+            <div className="p-2.5 bg-stone-50 dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800">
+              <p className="text-[11px] font-bold text-stone-500 uppercase tracking-wider px-1 mb-1.5">
+                Gợi ý nhanh theo tình huống phổ biến:
+              </p>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
+                {QUICK_PROMPTS.map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSendMessage(prompt)}
+                    type="button"
+                    className="whitespace-nowrap px-3 py-1 bg-white dark:bg-stone-800 hover:bg-[#B84724] hover:text-white dark:hover:bg-[#B84724] border border-stone-200 dark:border-stone-700 rounded-full text-stone-700 dark:text-stone-300 transition-colors shadow-2xs shrink-0 cursor-pointer"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Chat Input */}
-            <div className="p-3 border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 flex gap-2">
-              <input
-                type="text"
-                value={inputMsg}
-                onChange={(e) => setInputMsg(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
+            {/* Chat Input Field */}
+            <div className="p-3.5 bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
                 }}
-                placeholder="Kể về sự việc em đang gặp phải..."
-                className="flex-1 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 focus:border-sky-500 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-hidden"
-              />
-              <button
-                onClick={() => handleSendMessage()}
-                disabled={!inputMsg.trim() || isAiThinking}
-                className="px-4 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer shadow-2xs"
+                className="relative flex items-center"
               >
-                <FaPaperPlane className="w-3.5 h-3.5" />
-              </button>
+                <input
+                  type="text"
+                  value={inputMsg}
+                  onChange={(e) => setInputMsg(e.target.value)}
+                  placeholder="Kể về sự việc em đang gặp phải (ví dụ: bị đe dọa, bị lừa chuyển khoản...)"
+                  className="w-full pl-4 pr-24 py-3 bg-stone-50 dark:bg-stone-800/80 border border-stone-300 dark:border-stone-700 rounded-xl text-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#B84724]/30 focus:border-[#B84724] placeholder-stone-400"
+                />
+                <div className="absolute right-2 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => alert("Em có thể gõ mô tả các tài liệu/ảnh chụp bằng chứng vào ô chat, Trợ lý sẽ tự động trích xuất vào mục Chứng cứ đính kèm của đơn.")}
+                    className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
+                    title="Đính kèm thông tin bằng chứng"
+                  >
+                    <FaPaperclip className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!inputMsg.trim() || isAiThinking}
+                    className="p-2 bg-[#B84724] text-white rounded-lg hover:bg-[#9F3A1B] disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
+                    title="Gửi phản hồi"
+                  >
+                    <FaPaperPlane className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </form>
+              <div className="flex items-center justify-between mt-2 px-1 text-[11px] text-stone-400">
+                <span>Nhấn Enter để gửi phản hồi</span>
+                <span className="text-stone-500 font-medium">Bảo mật chuẩn luật trợ giúp pháp lý</span>
+              </div>
             </div>
-          </div>
+          </section>
 
-          {/* Column Right: Live Preview A4 Document (7 cols) */}
+          {/* RIGHT COLUMN: Real-Time A4 Document Preview (7 Cols) */}
           <div className="lg:col-span-7 h-[760px]">
             <ComplaintDocumentPreview
               state={formState}
@@ -403,6 +465,45 @@ export default function SoanDonToGiacPage() {
             />
           </div>
         </div>
+
+        {/* Civic Hotline Bar (Stitch Design Standard) */}
+        <section className="mt-6 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-4 sm:p-5 shadow-warm-sm flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 flex items-center justify-center font-bold text-lg shrink-0">
+              <FaPhone className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-stone-900 dark:text-white">
+                Đường dây nóng khẩn cấp & tư vấn bảo vệ trẻ em, học sinh 24/7
+              </h4>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                Nếu bạn đang bị đe dọa bạo lực hoặc nguy hiểm ngay lập tức, hãy gọi ngay đường dây khẩn cấp miễn phí:
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href="tel:111"
+              className="px-3.5 py-1.5 rounded-full bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 text-xs font-bold border border-red-200 dark:border-red-800 flex items-center gap-1.5 transition-colors"
+            >
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
+              Tổng đài 111 (Bảo vệ trẻ em)
+            </a>
+            <a
+              href="tel:113"
+              className="px-3.5 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold border border-amber-200 dark:border-amber-800 flex items-center gap-1.5 transition-colors"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-600" />
+              113 (Công an khẩn cấp)
+            </a>
+            <a
+              href="tel:115"
+              className="px-3.5 py-1.5 rounded-full bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-bold border border-stone-300 dark:border-stone-700 flex items-center gap-1.5 transition-colors"
+            >
+              115 (Cấp cứu y tế)
+            </a>
+          </div>
+        </section>
       </main>
 
       {/* Modals */}

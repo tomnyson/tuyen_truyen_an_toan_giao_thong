@@ -1,10 +1,9 @@
-/* Trang trợ giúp pháp lý (US-039). Dùng lại token chung; không đặt lại màu. */
+/* Trang trợ giúp pháp lý (US-039). Kế thừa tokens.css và hệ thống màu chung. */
 
 .legal-aid-page {
   display: grid;
-  gap: 16px;
-  padding-block: clamp(32px, 4vw, 64px);
-  max-width: 760px;
+  gap: 20px;
+  padding-block: clamp(24px, 3vw, 48px);
 }
 .legal-aid-kicker {
   font-size: 0.8125rem;
@@ -24,96 +23,151 @@
   color: var(--brick);
 }
 
-.legal-aid { display: grid; gap: 16px; }
-.legal-aid-form { display: grid; gap: 10px; justify-items: start; }
-.legal-aid-form label { font-weight: 700; }
+.legal-aid { display: grid; gap: 20px; }
+.legal-aid-form { display: grid; gap: 12px; justify-items: start; }
+.legal-aid-form label { font-weight: 700; color: var(--ink); }
 .legal-aid-form textarea {
   width: 100%;
-  padding: 12px 14px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--line-strong);
-  background: var(--cream-warm);
-  color: inherit;
+  padding: 14px 16px;
+  border-radius: var(--r-md, 12px);
+  border: 1px solid var(--line-card);
+  background: var(--paper, #ffffff);
+  color: var(--ink);
   font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.6;
   resize: vertical;
-  transition: border-color var(--fast) var(--ease);
+  transition: all var(--fast) var(--ease);
+  box-shadow: var(--shadow-xs);
 }
 .legal-aid-form textarea:focus-visible {
-  outline: 2px solid var(--gold-deep);
-  outline-offset: 2px;
+  outline: none;
   border-color: var(--gold-deep);
+  box-shadow: 0 0 0 3px rgba(230, 168, 34, 0.2);
 }
-.legal-aid-error { color: var(--brick-deep); font-weight: 700; }
+.legal-aid-error {
+  color: var(--brick-deep);
+  font-weight: 700;
+  padding: 12px 16px;
+  background: var(--blush);
+  border-radius: var(--r-md);
+  border: 1px solid rgba(184, 67, 42, 0.2);
+}
 
-/* ---- Chuỗi cơ quan ---- */
+/* ---- Chuỗi cơ quan tiếp nhận ---- */
 .referral-chain {
   display: grid;
-  gap: 12px;
-  padding: 20px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--line-strong);
-  background: var(--sand);
+  gap: 16px;
+  padding: clamp(20px, 3vw, 28px);
+  border-radius: var(--r-xl, 16px);
+  border: 1px solid var(--line-card);
+  background: var(--cream-warm);
 }
-.referral-chain h3 { font-size: 1.125rem; }
-.referral-lead { color: var(--ink-soft); font-size: 0.9375rem; }
-.referral-chain ol { display: grid; gap: 10px; list-style: none; padding: 0; }
+.referral-chain h3 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.referral-lead {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.referral-chain ol { display: grid; gap: 12px; list-style: none; padding: 0; }
 .referral-chain li {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
-  border-radius: var(--r-xs);
-  background: var(--cream-warm);
-  border: 1px solid var(--line-strong);
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: var(--r-md, 12px);
+  background: var(--paper, #ffffff);
+  border: 1px solid var(--line-card);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.referral-chain li:hover {
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 .referral-order {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--gold-soft);
   color: var(--brick-deep);
   font-weight: 800;
+  font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
+  border: 1px solid rgba(230, 168, 34, 0.3);
 }
-.referral-body { display: grid; gap: 2px; min-width: 0; }
+.referral-body { display: grid; gap: 4px; min-width: 0; }
 .referral-level {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--brick-deep);
 }
-.referral-body small { color: var(--ink-soft); font-size: 0.8125rem; }
+.referral-body strong {
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.referral-body small { color: var(--ink-soft); font-size: 0.8125rem; line-height: 1.4; }
 .referral-badge {
-  padding: 6px 10px;
-  border-radius: var(--r-xs);
+  padding: 8px 14px;
+  border-radius: var(--r-pill, 9999px);
   background: var(--gold-soft);
   color: var(--brick-deep);
   font-weight: 800;
+  font-size: 0.8125rem;
   white-space: nowrap;
   text-decoration: none;
-  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+  border: 1px solid rgba(230, 168, 34, 0.4);
+  transition: all var(--fast) var(--ease);
 }
 a.referral-badge:hover,
 a.referral-badge:focus-visible {
   background: var(--gold-deep);
   color: #fff8ec;
+  transform: scale(1.03);
 }
 a.referral-badge:focus-visible {
   outline: 2px solid var(--brick-deep);
   outline-offset: 2px;
 }
 .referral-degraded {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--ink-soft);
-  border-left: 4px solid var(--gold-deep);
-  padding-left: 10px;
+  border-left: 3px solid var(--gold-deep);
+  padding: 8px 12px;
+  background: var(--paper);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
 
 @media (max-width: 720px) {
   .referral-chain li { grid-template-columns: auto minmax(0, 1fr); }
   .referral-badge { grid-column: 2; justify-self: start; }
 }
+
+/* ---- Soạn đơn tố giác & Trợ lý đồng hành (Stitch Design System) ---- */
+.shadow-warm-sm {
+  box-shadow: 0 1px 3px rgba(184, 71, 36, 0.05);
+}
+.shadow-warm-md {
+  box-shadow: 0 4px 14px 0 rgba(100, 60, 40, 0.08);
+}
+.shadow-warm-lg {
+  box-shadow: 0 10px 25px -4px rgba(184, 71, 36, 0.1);
+}
+.shadow-paper {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.legal-doc {
+  font-family: "Times New Roman", Times, serif;
+  line-height: 1.45;
+}
+

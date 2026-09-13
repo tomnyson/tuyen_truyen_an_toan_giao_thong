@@ -21,18 +21,21 @@ async function authorize(request: Request, mutation = false) {
   return null;
 }
 
-export async function GET(request: Request, context?: { db?: any }) {
+async function resolveDb(injectedDb?: unknown) {
+  if (injectedDb) return injectedDb;
+  try {
+    return await getInitializedDb();
+  } catch {
+    return null;
+  }
+}
+
+// ---- GET ----
+async function handleGet(request: Request, injectedDb?: unknown) {
   const authError = await authorize(request, false);
   if (authError) return authError;
 
-  let db = context?.db ?? null;
-  if (!db) {
-    try {
-      db = await getInitializedDb();
-    } catch {
-      // Fallback khi DB chua khoi tao
-    }
-  }
+  const db = await resolveDb(injectedDb);
 
   const url = new URL(request.url);
   const filter: LegalDocumentFilter = {
@@ -60,7 +63,13 @@ export async function GET(request: Request, context?: { db?: any }) {
   }
 }
 
-export async function POST(request: Request, context?: { db?: any }) {
+export async function GET(request: Request) {
+  return handleGet(request);
+}
+GET.withDb = (db: unknown) => (request: Request) => handleGet(request, db);
+
+// ---- POST ----
+async function handlePost(request: Request, injectedDb?: unknown) {
   const authError = await authorize(request, true);
   if (authError) return authError;
 
@@ -69,14 +78,7 @@ export async function POST(request: Request, context?: { db?: any }) {
     return Response.json({ error: "Dữ liệu yêu cầu không hợp lệ." }, { status: 400 });
   }
 
-  let db = context?.db ?? null;
-  if (!db) {
-    try {
-      db = await getInitializedDb();
-    } catch {
-      // Fallback
-    }
-  }
+  const db = await resolveDb(injectedDb);
 
   try {
     const input: CreateLegalDocumentInput = {
@@ -102,7 +104,13 @@ export async function POST(request: Request, context?: { db?: any }) {
   }
 }
 
-export async function PUT(request: Request, context?: { db?: any }) {
+export async function POST(request: Request) {
+  return handlePost(request);
+}
+POST.withDb = (db: unknown) => (request: Request) => handlePost(request, db);
+
+// ---- PUT ----
+async function handlePut(request: Request, injectedDb?: unknown) {
   const authError = await authorize(request, true);
   if (authError) return authError;
 
@@ -116,14 +124,7 @@ export async function PUT(request: Request, context?: { db?: any }) {
     return Response.json({ error: "ID văn bản không hợp lệ." }, { status: 400 });
   }
 
-  let db = context?.db ?? null;
-  if (!db) {
-    try {
-      db = await getInitializedDb();
-    } catch {
-      // Fallback
-    }
-  }
+  const db = await resolveDb(injectedDb);
 
   try {
     const updateData: UpdateLegalDocumentInput = {};
@@ -160,7 +161,13 @@ export async function PUT(request: Request, context?: { db?: any }) {
   }
 }
 
-export async function DELETE(request: Request, context?: { db?: any }) {
+export async function PUT(request: Request) {
+  return handlePut(request);
+}
+PUT.withDb = (db: unknown) => (request: Request) => handlePut(request, db);
+
+// ---- DELETE ----
+async function handleDelete(request: Request, injectedDb?: unknown) {
   const authError = await authorize(request, true);
   if (authError) return authError;
 
@@ -171,14 +178,7 @@ export async function DELETE(request: Request, context?: { db?: any }) {
     return Response.json({ error: "ID văn bản cần xóa không hợp lệ." }, { status: 400 });
   }
 
-  let db = context?.db ?? null;
-  if (!db) {
-    try {
-      db = await getInitializedDb();
-    } catch {
-      // Fallback
-    }
-  }
+  const db = await resolveDb(injectedDb);
 
   try {
     const result = await deleteLegalDocument(id, db);
@@ -193,3 +193,8 @@ export async function DELETE(request: Request, context?: { db?: any }) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  return handleDelete(request);
+}
+DELETE.withDb = (db: unknown) => (request: Request) => handleDelete(request, db);

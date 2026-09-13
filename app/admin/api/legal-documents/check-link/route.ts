@@ -18,7 +18,7 @@ async function authorize(request: Request, mutation = true) {
   return null;
 }
 
-export async function POST(request: Request, context?: { db?: any }) {
+async function handlePost(request: Request, injectedDb?: unknown) {
   const authError = await authorize(request, true);
   if (authError) return authError;
 
@@ -27,7 +27,7 @@ export async function POST(request: Request, context?: { db?: any }) {
     return Response.json({ error: "Dữ liệu yêu cầu không hợp lệ." }, { status: 400 });
   }
 
-  let db = context?.db ?? null;
+  let db = injectedDb ?? null;
   if (!db) {
     try {
       db = await getInitializedDb();
@@ -81,3 +81,11 @@ export async function POST(request: Request, context?: { db?: any }) {
     );
   }
 }
+
+// Next.js 15-compatible route handler (no custom context)
+export async function POST(request: Request) {
+  return handlePost(request);
+}
+
+// Test-only export — allows direct injection of db without violating Next.js types
+POST.withDb = (db: unknown) => (request: Request) => handlePost(request, db);

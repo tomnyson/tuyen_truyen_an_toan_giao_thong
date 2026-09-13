@@ -71,7 +71,7 @@ const { POST: adminCheckLinkPost } = await import(
 
 test("Public GET /api/legal-documents returns 200 with documents array", async () => {
   const req = new Request("http://localhost:3000/api/legal-documents?topic=Giao%20thông");
-  const res = await publicGet(req, { db });
+  const res = await publicGet.withDb(db)(req);
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.ok(Array.isArray(data.documents));
@@ -80,14 +80,14 @@ test("Public GET /api/legal-documents returns 200 with documents array", async (
 
 test("Admin endpoints require authentication", async () => {
   const req = new Request("http://localhost:3000/admin/api/legal-documents");
-  const res = await adminGet(req, { db });
+  const res = await adminGet.withDb(db)(req);
   assert.equal(res.status, 401);
 
   const postReq = new Request("http://localhost:3000/admin/api/legal-documents", {
     method: "POST",
     body: JSON.stringify({ title: "Test" }),
   });
-  const postRes = await adminPost(postReq, { db });
+  const postRes = await adminPost.withDb(db)(postReq);
   assert.equal(postRes.status, 401);
 });
 
@@ -99,7 +99,7 @@ test("Admin GET and POST with valid session", async () => {
   const getReq = new Request("http://localhost:3000/admin/api/legal-documents", {
     headers: { cookie },
   });
-  const getRes = await adminGet(getReq, { db });
+  const getRes = await adminGet.withDb(db)(getReq);
   assert.equal(getRes.status, 200);
   const data = await getRes.json();
   assert.ok(Array.isArray(data.documents));
@@ -121,7 +121,7 @@ test("Admin GET and POST with valid session", async () => {
       summary: "Tài liệu kiểm thử",
     }),
   });
-  const postRes = await adminPost(postReq, { db });
+  const postRes = await adminPost.withDb(db)(postReq);
   assert.equal(postRes.status, 201);
   const created = await postRes.json();
   assert.equal(created.document.documentNumber, "99/2026/QH15");
@@ -138,7 +138,7 @@ test("Admin GET and POST with valid session", async () => {
       summary: "Tóm tắt đã cập nhật",
     }),
   });
-  const putRes = await adminPut(putReq, { db });
+  const putRes = await adminPut.withDb(db)(putReq);
   assert.equal(putRes.status, 200);
 
   // Admin Check-Link single
@@ -152,7 +152,7 @@ test("Admin GET and POST with valid session", async () => {
       documentId: created.document.id,
     }),
   });
-  const checkRes = await adminCheckLinkPost(checkReq, { db });
+  const checkRes = await adminCheckLinkPost.withDb(db)(checkReq);
   assert.equal(checkRes.status, 200);
   const checkData = await checkRes.json();
   assert.ok(checkData.document);
@@ -166,6 +166,6 @@ test("Admin GET and POST with valid session", async () => {
       headers: { cookie },
     }
   );
-  const deleteRes = await adminDelete(deleteReq, { db });
+  const deleteRes = await adminDelete.withDb(db)(deleteReq);
   assert.equal(deleteRes.status, 200);
 });

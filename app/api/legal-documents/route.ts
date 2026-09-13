@@ -1,9 +1,9 @@
 import { getInitializedDb } from "@/db";
 import { listLegalDocuments, type LegalDocumentFilter } from "@/lib/legal-document-store";
 
-export async function GET(request: Request, context?: { db?: any }) {
+async function handleGet(request: Request, injectedDb?: unknown) {
   try {
-    let db = context?.db ?? null;
+    let db = injectedDb ?? null;
     if (!db) {
       try {
         db = await getInitializedDb();
@@ -40,3 +40,11 @@ export async function GET(request: Request, context?: { db?: any }) {
     );
   }
 }
+
+// Next.js 15-compatible route handler
+export async function GET(request: Request) {
+  return handleGet(request);
+}
+
+// Test-only factory for db injection
+GET.withDb = (db: unknown) => (request: Request) => handleGet(request, db);

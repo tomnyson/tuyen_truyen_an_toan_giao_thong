@@ -301,6 +301,236 @@ const seeds: readonly QuizSeed[] = Object.freeze([
       "Bản bẻ khóa xâm phạm quyền của chủ sở hữu và thường bị cài kèm mã độc đánh cắp tài khoản. Nhiều phần mềm học tập có bản miễn phí cho học sinh, sinh viên.",
     points: 10,
   },
+  // Chuyên đề phòng chống ma túy
+  {
+    id: 18,
+    topic: "Chuyên đề phòng chống ma túy",
+    prompt:
+      "Một người quen rủ bạn thử viên ngậm màu sắc sặc sỡ và bảo đây là 'kẹo vui' giúp tỉnh táo học bài. Bạn nên xử lý thế nào?",
+    options: [
+      "Dùng thử một lần vì nghĩ chỉ là kẹo ngậm thông thường",
+      "Từ chối dứt khoát và báo ngay cho thầy cô, cha mẹ hoặc người có trách nhiệm",
+      "Cầm lấy đem về phòng chia cho các bạn cùng thử",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Nhiều loại ma túy tổng hợp mới được ngụy trang tinh vi dưới dạng bánh kẹo, đồ uống. Tuyệt đối không thử và cần báo người lớn khi bị rủ rê.",
+    points: 10,
+  },
+  {
+    id: 19,
+    topic: "Chuyên đề phòng chống ma túy",
+    prompt:
+      "Hành vi sử dụng bóng cười chứa khí N2O để giải trí trong giới trẻ bị pháp luật xử lý như thế nào?",
+    options: [
+      "Khí N2O thuộc danh mục hóa chất hạn chế sản xuất kinh doanh; hành vi sử dụng sai mục đích làm bóng cười giải trí là vi phạm và bị xử phạt",
+      "Được sử dụng tự do ở bất kỳ nơi nào vì không phải chất cấm",
+      "Chỉ bị nhắc nhở khi hít ở trường học, ngoài quán xá thì được phép",
+    ],
+    correctIndex: 0,
+    explanation:
+      "Khí dinitơ monoxit (N2O) là hóa chất hạn chế sản xuất, kinh doanh trong lĩnh vực công nghiệp và y tế; hành vi chiết rót, sử dụng vào mục đích vui chơi giải trí là vi phạm quy định pháp luật.",
+    points: 10,
+  },
+  {
+    id: 20,
+    topic: "Chuyên đề phòng chống ma túy",
+    prompt:
+      "Nếu vô tình phát hiện bạn bè hoặc người khác có hành vi tàng trữ chất ma túy, học sinh nên làm gì để bảo vệ bản thân?",
+    options: [
+      "Giấu kín giúp bạn vì sợ bạn bị kỷ luật",
+      "Tìm cách tống tiền người tàng trữ để kiếm lợi ích",
+      "Giữ khoảng cách an toàn và bí mật trình báo với nhà trường hoặc cơ quan công an nơi gần nhất",
+    ],
+    correctIndex: 2,
+    explanation:
+      "Bao che hành vi tàng trữ chất ma túy có thể dẫn tới trách nhiệm pháp lý liên đới. Việc báo cáo kịp thời giúp ngăn chặn tội phạm và bảo vệ an toàn cho bản thân, học đường.",
+    points: 10,
+  },
+  // Chuyên đề an ninh trật tự trường học
+  {
+    id: 21,
+    topic: "Chuyên đề an ninh trật tự trường học",
+    prompt:
+      "Thấy người lạ mặt trèo tường hoặc lẻn vào khu vực lớp học khi không có bảo vệ, hành động đúng đắn nhất là gì?",
+    options: [
+      "Tự mình lao vào bắt giữ người lạ ngay lập tức",
+      "Báo ngay cho nhân viên bảo vệ, giám thị hoặc giáo viên gần nhất",
+      "Không quan tâm vì không liên quan đến đồ đạc của mình",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Bảo đảm an toàn bản thân là ưu tiên hàng đầu. Khi phát hiện kẻ lạ xâm nhập trường học, học sinh cần báo ngay cho lực lượng bảo vệ và nhà trường để kịp thời xử lý.",
+    points: 10,
+  },
+  {
+    id: 22,
+    topic: "Chuyên đề an ninh trật tự trường học",
+    prompt:
+      "Học sinh cố ý làm hư hỏng bàn ghế, thiết bị máy chiếu trong phòng học của trường thì phát sinh trách nhiệm gì?",
+    options: [
+      "Không chịu trách nhiệm vì tài sản là của chung nhà trường",
+      "Chỉ cần xin lỗi giáo viên chủ nhiệm là xong",
+      "Bị xử lý kỷ luật học sinh và người vi phạm (hoặc phụ huynh) phải bồi thường thiệt hại tài sản đã gây ra",
+    ],
+    correctIndex: 2,
+    explanation:
+      "Hành vi phá hoại tài sản trường học ngoài việc bị xử lý kỷ luật theo nội quy còn phải chịu trách nhiệm dân sự bồi thường thiệt hại theo quy định pháp luật.",
+    points: 10,
+  },
+  {
+    id: 23,
+    topic: "Chuyên đề an ninh trật tự trường học",
+    prompt:
+      "Để bảo đảm an toàn khuôn viên trường học, điều nào sau đây là đúng quy định?",
+    options: [
+      "Học sinh phải chấp hành nội quy, đeo thẻ học sinh và không được dẫn người lạ vào trường khi chưa được phép",
+      "Học sinh có quyền dẫn bạn bè ngoài trường vào lớp chơi tự do bất kỳ lúc nào",
+      "Bảo vệ không có quyền kiểm tra người ra vào cổng trường",
+    ],
+    correctIndex: 0,
+    explanation:
+      "Nội quy trường học nhằm bảo đảm môi trường giáo dục an toàn, lành mạnh; việc quản lý người ra vào khuôn viên trường là biện pháp phòng ngừa rủi ro an ninh.",
+    points: 10,
+  },
+  // Chuyên đề game và không gian mạng
+  {
+    id: 24,
+    topic: "Chuyên đề game và không gian mạng",
+    prompt:
+      "Theo quy định pháp luật về quản lý trò chơi điện tử trực tuyến, tổng thời gian chơi của người dưới 18 tuổi đối với các trò chơi của một doanh nghiệp là bao nhiêu?",
+    options: [
+      "Không quá 180 phút mỗi ngày",
+      "Không quá 60 phút mỗi ngày",
+      "Chơi không giới hạn thời gian",
+    ],
+    correctIndex: 0,
+    explanation:
+      "Nghị định quy định về quản lý dịch vụ Internet và thông tin trên mạng quy định tổng thời gian chơi trò chơi điện tử G1 của người dưới 18 tuổi không quá 180 phút trong 24 giờ mỗi ngày để tránh ảnh hưởng học tập và sức khỏe.",
+    points: 10,
+  },
+  {
+    id: 25,
+    topic: "Chuyên đề game và không gian mạng",
+    prompt:
+      "Tham gia các trò chơi điện tử có tính chất đổi điểm lấy tiền thật, thẻ cào hoặc hiện vật có giá trị có bị coi là đánh bạc không?",
+    options: [
+      "Không, vì chơi qua mạng chỉ là trò chơi giải trí ảo",
+      "Có, hành vi dùng tiền ảo trong game đổi ra tiền thật hoặc hiện vật có thể bị xem là hành vi đánh bạc trái phép",
+      "Chỉ là đánh bạc nếu chơi ở tiệm nét, chơi trên điện thoại cá nhân thì không vi phạm",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Game bài đổi thưởng hoặc quy đổi vật phẩm ảo sang tiền thật/thẻ cào có dấu hiệu của tội đánh bạc hoặc tổ chức đánh bạc trái phép trên không gian mạng.",
+    points: 10,
+  },
+  {
+    id: 26,
+    topic: "Chuyên đề game và không gian mạng",
+    prompt:
+      "Người lạ trên mạng nhắn tin tặng 'code quà tặng xịn' và yêu cầu bạn nhập tài khoản, mật khẩu kèm mã OTP để nhận quà. Bạn nên làm gì?",
+    options: [
+      "Lập tức cung cấp tài khoản và OTP để nhận quà miễn phí",
+      "Cảnh giác đây là chiêu trò lừa đảo (phishing), tuyệt đối không cung cấp mật khẩu và mã OTP cho bất kỳ ai",
+      "Nhờ bạn cùng lớp nhập thử tài khoản của bạn ấy trước",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Mã OTP và mật khẩu là thông tin bảo mật tối mật. Cung cấp OTP cho đối tượng lạ sẽ dẫn tới mất quyền kiểm soát tài khoản hoặc mất tiền.",
+    points: 10,
+  },
+  // Tài chính - tín dụng đen
+  {
+    id: 27,
+    topic: "Tài chính - tín dụng đen",
+    prompt:
+      "Người lạ đề nghị trả 500.000đ để học sinh/sinh viên mở tài khoản ngân hàng rồi giao lại thẻ và thông tin đăng nhập cho họ. Việc này có vi phạm không?",
+    options: [
+      "Không vi phạm vì tài khoản đứng tên mình thì mình có quyền cho mượn",
+      "Hành vi mở hộ, cho mượn hoặc bán tài khoản ngân hàng là vi phạm pháp luật và có thể bị phạt tiền hoặc truy cứu trách nhiệm hình sự",
+      "Chỉ vi phạm nếu tài khoản đó có số dư lớn hơn 100 triệu",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Nghị định xử phạt vi phạm hành chính trong lĩnh vực tiền tệ và ngân hàng nghiêm cấm hành vi thuê, cho thuê, mượn, cho mượn, mua bán tài khoản thanh toán; các tài khoản này thường bị tội phạm dùng để rửa tiền hoặc lừa đảo.",
+    points: 10,
+  },
+  {
+    id: 28,
+    topic: "Tài chính - tín dụng đen",
+    prompt:
+      "Dấu hiệu nhận biết các ứng dụng (app) vay tiền tín dụng đen là gì?",
+    options: [
+      "Thủ tục mập mờ, giải ngân nhanh nhưng trừ phí dịch vụ rất cao, lãi suất thực tế hàng trăm phần trăm một năm và đòi quyền truy cập danh bạ điện thoại",
+      "Hợp đồng công khai, lãi suất đúng quy định Ngân hàng Nhà nước và không đòi quyền truy cập danh bạ",
+      "Chỉ cho người có chứng minh thu nhập cao vay tiền",
+    ],
+    correctIndex: 0,
+    explanation:
+      "App tín dụng đen thường gài bẫy lãi suất cắt cổ, phí dịch vụ vô lý và ép cấp quyền truy cập danh bạ để đe dọa, khủng bố tinh thần người vay và người thân khi chậm trả.",
+    points: 10,
+  },
+  {
+    id: 29,
+    topic: "Tài chính - tín dụng đen",
+    prompt:
+      "Khi bị các đối tượng đòi nợ thuê gọi điện đe dọa, ghép ảnh vu khống xúc phạm danh dự, người bị hại nên xử lý như thế nào?",
+    options: [
+      "Lập tức vay app khác với lãi cao hơn để trả nợ cho yên chuyện",
+      "Lưu lại chứng cứ (tin nhắn, ghi âm, hình ảnh vu khống) và gửi đơn tố giác đến cơ quan Công an có thẩm quyền",
+      "Đăng bài chửi bới thách thức lại các đối tượng đòi nợ trên mạng",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Người dân cần bình tĩnh ghi lại các bằng chứng quấy rối, khủng bố và làm đơn tố giác đến cơ quan Công an để được bảo vệ quyền lợi hợp pháp, tránh sa vào vòng xoáy nợ nần.",
+    points: 10,
+  },
+  // Phòng chống tệ nạn xã hội
+  {
+    id: 30,
+    topic: "Phòng chống tệ nạn xã hội",
+    prompt:
+      "Học sinh rủ nhau chơi bài ăn tiền trong lớp học (kể cả số tiền vài nghìn đồng mỗi ván) có bị xem là đánh bạc trái phép không?",
+    options: [
+      "Không, tiền lẻ vài nghìn chỉ là vui chơi giải trí",
+      "Có, mọi hành vi được thua bằng tiền hoặc hiện vật mà không được cơ quan có thẩm quyền cho phép đều là đánh bạc trái phép và vi phạm nội quy, pháp luật",
+      "Chỉ bị tính là đánh bạc nếu chơi từ 5 triệu đồng trở lên",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Hành vi đánh bạc trái phép dù giá trị nhỏ vẫn bị xử phạt hành chính và kỷ luật nghiêm khắc trong nhà trường; nếu từ 5 triệu đồng trở lên hoặc đã bị xử phạt thì có thể bị truy cứu trách nhiệm hình sự.",
+    points: 10,
+  },
+  {
+    id: 31,
+    topic: "Phòng chống tệ nạn xã hội",
+    prompt:
+      "Hành vi tham gia cá độ bóng đá trực tuyến qua các trang web nước ngoài bị xử lý như thế nào?",
+    options: [
+      "Là hành vi đánh bạc trái phép, tùy mức độ tiền cá cược có thể bị phạt hành chính hoặc bị phạt tù theo Bộ luật Hình sự",
+      "Không bị xử lý vì máy chủ trang web đặt ở nước ngoài",
+      "Chỉ người tổ chức mới phạm luật, người đặt cược không bị phạt",
+    ],
+    correctIndex: 0,
+    explanation:
+      "Cá độ bóng đá dưới mọi hình thức (kể cả qua mạng Internet) đều là hành vi đánh bạc trái phép, bị xử lý nghiêm minh theo quy định pháp luật.",
+    points: 10,
+  },
+  {
+    id: 32,
+    topic: "Phòng chống tệ nạn xã hội",
+    prompt:
+      "Các tệ nạn xã hội như cờ bạc, ma túy, mại dâm, mê tín dị đoan để lại hậu quả gì lớn nhất cho lứa tuổi thanh thiếu niên?",
+    options: [
+      "Chỉ tốn kém một ít thời gian rảnh rỗi",
+      "Làm suy đồi nhân cách, sa sút học tập, hủy hoại sức khỏe, vi phạm pháp luật và gánh nặng cho gia đình, xã hội",
+      "Giúp học sinh có nhiều trải nghiệm sống hơn",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Tệ nạn xã hội hủy hoại tương lai của thanh thiếu niên, kéo theo nhiều hệ lụy nghiêm trọng về sức khỏe, kinh tế và pháp lý.",
+    points: 10,
+  },
 ]);
 
 const lawById = new Map<number, LawItem>(laws.map((law) => [law.id, law]));

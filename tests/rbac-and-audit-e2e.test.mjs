@@ -49,7 +49,7 @@ const { drizzle } = await import("drizzle-orm/pglite");
 const { bootstrapLegalDatabase, setTestDb } = await import("../db/index.ts");
 const { createAdminSession, adminCookieName } = await import("../lib/admin-auth.ts");
 const { POST: postAccount } = await import("../app/admin/api/accounts/route.ts");
-const { POST: postContent } = await import("../app/admin/api/content/route.ts");
+const { GET: getContent, POST: postContent } = await import("../app/admin/api/content/route.ts");
 const { GET: getAuditLogs } = await import("../app/admin/api/audit-logs/route.ts");
 
 test("RBAC and System Audit Logs E2E flow", async () => {
@@ -147,4 +147,75 @@ test("RBAC and System Audit Logs E2E flow", async () => {
   const { logs } = await auditRes.json();
   assert.ok(logs.some((l) => l.action === "CREATE_ACCOUNT" && l.targetId === editorUsername));
   assert.ok(logs.some((l) => l.action === "CREATE_LAW" && l.actor === editorUsername));
+
+  // 7. Biên tập viên gọi GET /admin/api/content -> Chỉ nhận được nội dung thuộc các chuyên mục được cấp quyền
+  const editorGetReq = new Request("http://localhost:3000/admin/api/content", {
+    method: "GET",
+    headers: editorHeaders,
+  });
+  const editorGetRes = await getContent(editorGetReq);
+  assert.equal(editorGetRes.status, 200);
+  const editorData = await editorGetRes.json();
+  assert.equal(editorData.actor?.username, editorUsername);
+  assert.deepEqual(editorData.actor?.allowedTopics, ["Giao thông", "Mạng xã hội"]);
+  assert.ok(editorData.laws.length > 0);
+  assert.ok(editorData.laws.every((l) => ["Giao thông", "Mạng xã hội"].includes(l.topic)));
+  assert.ok(editorData.showcases.every((s) => ["Giao thông", "Mạng xã hội"].includes(s.topic)));
+
+  // 8. Tạo tài khoản Người xem (Viewer) và kiểm tra chặn quyền chỉnh sửa
+  const viewerUsername = `viewer_e2e_${Date.now()}`;
+  const createViewerReq = new Request("http://localhost:3000/admin/api/accounts", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      username: viewerUsername,
+      fullName: "Người xem E2E",
+      password: "ViewerPassword2026@",
+      role: "viewer",
+      allowedTopics: ["Giao thông"],
+    }),
+  });
+  const createViewerRes = await postAccount(createViewerReq);
+  assert.equal(createViewerRes.status, 201);
+
+  const viewerSession = await createAdminSession(viewerUsername);
+  const viewerHeaders = {
+    cookie: `${adminCookieName}=${viewerSession.token}`,
+    "content-type": "application/json",
+    origin: "http://localhost:3000",
+  };
+
+  // Viewer xem nội dung -> Thành công và chỉ nhận chuyên mục "Giao thông"
+  const viewerGetReq = new Request("http://localhost:3000/admin/api/content", {
+    method: "GET",
+    headers: viewerHeaders,
+  });
+  const viewerGetRes = await getContent(viewerGetReq);
+  assert.equal(viewerGetRes.status, 200);
+  const viewerData = await viewerGetRes.json();
+  assert.equal(viewerData.actor?.role, "viewer");
+  assert.ok(viewerData.laws.every((l) => l.topic === "Giao thông"));
+
+  // Viewer thử tạo bài -> Bị chặn 403 do quyền viewer
+  const viewerPostReq = new Request("http://localhost:3000/admin/api/content", {
+    method: "POST",
+    headers: viewerHeaders,
+    body: JSON.stringify({
+      entity: "law",
+      topic: "Giao thông",
+      icon: "🚗",
+      title: "Bài của viewer",
+      legalBasis: "Luật Giao thông đường bộ",
+      penalty: "Phạt 200k",
+      remedy: "Khắc phục",
+      caseStudy: "Minh họa",
+      tags: "viewer",
+      status: "draft",
+    }),
+  });
+  const viewerPostRes = await postContent(viewerPostReq);
+  assert.equal(viewerPostRes.status, 403);
+  const viewerErr = await viewerPostRes.json();
+  assert.match(viewerErr.error, /Người xem/);
 });
+

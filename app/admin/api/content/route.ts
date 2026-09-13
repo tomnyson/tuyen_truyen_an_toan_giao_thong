@@ -108,18 +108,32 @@ async function authorize(
   if (mutation && !hasTrustedOrigin(request)) {
     return { response: Response.json({ error: "Yêu cầu không hợp lệ." }, { status: 403 }) };
   }
+  if (mutation && actor.role === "viewer") {
+    return {
+      response: Response.json(
+        { error: "Tài khoản có quyền Người xem (Viewer) không được phép thực hiện thay đổi dữ liệu." },
+        { status: 403 },
+      ),
+    };
+  }
   return { actor };
 }
 
 export async function GET(request: Request) {
   const auth = await authorize(request);
   if (auth.response) return auth.response;
+  const actor = auth.actor!;
   const db = await getInitializedDb();
-  const [laws, caseStudies] = await Promise.all([
+  const [allLaws, allCaseStudies] = await Promise.all([
     db.select().from(legalEntries).orderBy(desc(legalEntries.updatedAt), desc(legalEntries.id)),
     db.select().from(showcases).orderBy(desc(showcases.updatedAt), desc(showcases.id)),
   ]);
-  return Response.json({ laws, showcases: caseStudies });
+
+  // Phân quyền chuyên mục: nếu người dùng bị giới hạn chuyên mục, chỉ trả về nội dung thuộc chuyên mục được cấp phép
+  const laws = allLaws.filter((l) => canAccessTopic(actor, l.topic));
+  const filteredShowcases = allCaseStudies.filter((s) => canAccessTopic(actor, s.topic));
+
+  return Response.json({ laws, showcases: filteredShowcases, actor });
 }
 
 export async function POST(request: Request) {

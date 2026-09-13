@@ -25,3 +25,30 @@ test("processInterviewMessage fails gracefully for generic messages", () => {
   const result = processInterviewMessage(message, []);
   assert.ok(result.assistantReply.length > 20);
 });
+
+test("processInterviewMessage understands direct name input in conversational context", () => {
+  const history = [
+    {
+      role: "assistant",
+      content: "Chào em, em hãy kể lại tóm tắt sự việc: Ai là người đã làm tổn hại/lừa dối em?",
+    },
+  ];
+  // The exact case reported by the user:
+  const message = "Nguyên văn linh";
+  const result = processInterviewMessage(message, history);
+
+  assert.ok(result.extractedFields.accused?.fullName, "Must extract accused name");
+  assert.equal(result.extractedFields.accused.fullName, "Nguyên Văn Linh");
+  assert.ok(
+    result.assistantReply.includes("Nguyên Văn Linh") || result.assistantReply.includes("đối tượng"),
+    "Assistant must acknowledge the accused name instead of repeating the opening greeting"
+  );
+  assert.ok(!result.assistantReply.includes("Chào em, em đừng quá lo lắng nhé. Em hãy kể lại tóm tắt sự việc đang gặp phải"));
+});
+
+test("processInterviewMessage extracts standalone name without keywords", () => {
+  const result = processInterviewMessage("Nguyễn Văn Linh", []);
+  assert.equal(result.extractedFields.accused?.fullName, "Nguyễn Văn Linh");
+  assert.ok(result.assistantReply.includes("Nguyễn Văn Linh"));
+});
+

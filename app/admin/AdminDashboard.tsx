@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   engagementCountKey,
   formatEngagementCount,
@@ -88,10 +88,18 @@ type CandidateRow = {
 const emptyLaw = { topic: "Giao thông", icon: "§", title: "", legalBasis: "", penalty: "", remedy: "", caseStudy: "", tags: "", mediaUrl: "", status: "draft" as Status };
 const emptyShowcase = { topic: "Mạng xã hội", title: "", summary: "", sourceUrl: "", mediaUrl: "", status: "draft" as Status };
 
+type SessionActor = {
+  username: string;
+  principalId: string;
+  role?: "admin" | "editor" | "viewer" | string;
+  allowedTopics?: string[];
+};
+
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Entity>("law");
   const [laws, setLaws] = useState<LawRow[]>([]);
   const [showcases, setShowcases] = useState<ShowcaseRow[]>([]);
+  const [sessionActor, setSessionActor] = useState<SessionActor | null>(null);
   const [lawForm, setLawForm] = useState(emptyLaw);
   const [showcaseForm, setShowcaseForm] = useState(emptyShowcase);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -109,10 +117,16 @@ export default function AdminDashboard() {
       window.location.assign("/admin/login");
       return;
     }
-    const body = (await response.json()) as { laws?: LawRow[]; showcases?: ShowcaseRow[]; error?: string };
+    const body = (await response.json()) as {
+      laws?: LawRow[];
+      showcases?: ShowcaseRow[];
+      actor?: SessionActor;
+      error?: string;
+    };
     if (!response.ok) throw new Error(body.error ?? "Không thể tải dữ liệu.");
     setLaws(body.laws ?? []);
     setShowcases(body.showcases ?? []);
+    if (body.actor) setSessionActor(body.actor);
   }, []);
 
   useEffect(() => {
@@ -125,6 +139,7 @@ export default function AdminDashboard() {
         const body = (await response.json()) as {
           laws?: LawRow[];
           showcases?: ShowcaseRow[];
+          actor?: SessionActor;
           error?: string;
         };
         if (!response.ok) throw new Error(body.error ?? "Không thể tải dữ liệu.");
@@ -134,6 +149,7 @@ export default function AdminDashboard() {
         if (!body) return;
         setLaws(body.laws ?? []);
         setShowcases(body.showcases ?? []);
+        if (body.actor) setSessionActor(body.actor);
       })
       .catch((loadError: unknown) => {
         setError(loadError instanceof Error ? loadError.message : "Không thể tải dữ liệu.");
@@ -178,10 +194,51 @@ export default function AdminDashboard() {
     return `${formatEngagementCount(count.viewCount)} lượt xem · ${formatEngagementCount(count.favoriteCount)} thích`;
   }
 
+  const isAdmin = !sessionActor?.role || sessionActor.role === "admin";
+  const isEditor = sessionActor?.role === "editor";
+  const isViewer = sessionActor?.role === "viewer";
+  const isReadOnly = isViewer;
+
+  const accessibleTopics: string[] = useMemo(() => {
+    if (isAdmin) return contentTopics.map((t) => t.name as string);
+    const allowed = Array.isArray(sessionActor?.allowedTopics) ? sessionActor.allowedTopics : [];
+    if (allowed.includes("*")) return contentTopics.map((t) => t.name as string);
+    return contentTopics.map((t) => t.name as string).filter((name) => allowed.includes(name));
+  }, [isAdmin, sessionActor]);
+
+  const visibleLaws: LawRow[] = useMemo(() => {
+    return laws.filter((l) => accessibleTopics.includes(l.topic));
+  }, [laws, accessibleTopics]);
+
+  const visibleShowcases: ShowcaseRow[] = useMemo(() => {
+    return showcases.filter((s) => accessibleTopics.includes(s.topic));
+  }, [showcases, accessibleTopics]);
+
+  useEffect(() => {
+    if (accessibleTopics.length > 0) {
+      if (!accessibleTopics.includes(lawForm.topic)) {
+        setLawForm((prev) => ({ ...prev, topic: accessibleTopics[0] }));
+      }
+      if (!accessibleTopics.includes(showcaseForm.topic)) {
+        setShowcaseForm((prev) => ({ ...prev, topic: accessibleTopics[0] }));
+      }
+    }
+  }, [accessibleTopics]);
+
+  useEffect(() => {
+    if (sessionActor && !isAdmin) {
+      const adminOnlyTabs: Entity[] = ["candidate", "game", "link_health", "topics", "accounts", "audit_logs"];
+      if (adminOnlyTabs.includes(tab)) {
+        setTab("law");
+      }
+    }
+  }, [sessionActor, isAdmin, tab]);
+
   function resetForm() {
+    const defaultTopic = accessibleTopics[0] ?? contentTopics[0].name;
     setEditingId(null);
-    setLawForm(emptyLaw);
-    setShowcaseForm(emptyShowcase);
+    setLawForm({ ...emptyLaw, topic: defaultTopic });
+    setShowcaseForm({ ...emptyShowcase, topic: defaultTopic });
     setError("");
     setNotice("");
   }
@@ -190,6 +247,18 @@ export default function AdminDashboard() {
     event.preventDefault();
     setError("");
     setNotice("");
+
+    if (isReadOnly) {
+      setError("Tài khoản chỉ có quyền xem, không thể thay đổi dữ liệu.");
+      return;
+    }
+
+    const currentTopic = tab === "law" ? lawForm.topic : showcaseForm.topic;
+    if (!accessibleTopics.includes(currentTopic)) {
+      setError("Bạn không có quyền thao tác trên chuyên mục này.");
+      return;
+    }
+
     const isLaw = tab === "law";
     const payload = isLaw
       ? {
@@ -220,6 +289,10 @@ export default function AdminDashboard() {
   }
 
   async function remove(entity: "law" | "showcase", id: number) {
+    if (isReadOnly) {
+      setError("Tài khoản chỉ có quyền xem, không thể xóa dữ liệu.");
+      return;
+    }
     if (!window.confirm("Bạn có chắc chắn muốn xóa mục này?")) return;
     setError("");
     setNotice("");
@@ -265,8 +338,8 @@ export default function AdminDashboard() {
   }
 
   const publishedCount =
-    laws.filter((item) => item.status === "published").length +
-    showcases.filter((item) => item.status === "published").length;
+    visibleLaws.filter((item) => item.status === "published").length +
+    visibleShowcases.filter((item) => item.status === "published").length;
 
   const tabTitleMap: Record<Entity, string> = {
     law: "Điều luật & mức phạt",
@@ -385,7 +458,7 @@ export default function AdminDashboard() {
                   <span>Điều luật &amp; mức phạt</span>
                 </div>
                 <span className="text-xs bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full">
-                  {laws.length}
+                  {visibleLaws.length}
                 </span>
               </button>
 
@@ -410,123 +483,8 @@ export default function AdminDashboard() {
                   <span>Case study &amp; Tình huống</span>
                 </div>
                 <span className="text-xs bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full">
-                  {showcases.length}
+                  {visibleShowcases.length}
                 </span>
-              </button>
-
-              {/* Level 1: Bản nháp từ AI */}
-              <button
-                type="button"
-                onClick={() => {
-                  setTab("candidate");
-                  resetForm();
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors text-left ${
-                  tab === "candidate"
-                    ? "bg-sky-50 text-sky-700 font-semibold"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                  </svg>
-                  <span>Bản nháp từ AI</span>
-                </div>
-                <span className="text-[10px] bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded uppercase">
-                  Mới
-                </span>
-              </button>
-
-              {/* Level 1: Rèn luyện & huy hiệu */}
-              <button
-                type="button"
-                onClick={() => {
-                  setTab("game");
-                  resetForm();
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-left ${
-                  tab === "game"
-                    ? "bg-sky-50 text-sky-700 font-semibold"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <svg className={`w-4 h-4 ${tab === "game" ? "text-sky-600" : "text-slate-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                </svg>
-                <span>Rèn luyện &amp; huy hiệu</span>
-              </button>
-
-              {/* ACTIVE ITEM: Liên kết & Tên miền with Level 3 Sub-menu */}
-              <div className="pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTab("link_health");
-                    resetForm();
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold rounded-lg transition-all text-left ${
-                    tab === "link_health"
-                      ? "bg-sky-50 text-sky-700 border-l-4 border-sky-600 shadow-2xs"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <svg className={`w-4 h-4 ${tab === "link_health" ? "text-sky-600" : "text-slate-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                    </svg>
-                    <span>Liên kết &amp; Tên miền</span>
-                  </div>
-                  <svg
-                    className={`w-3.5 h-3.5 transition-transform ${tab === "link_health" ? "rotate-90 text-sky-600" : "text-slate-400"}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                  </svg>
-                </button>
-
-                {/* Level 3 Nested Submenu items */}
-                {tab === "link_health" && (
-                  <div className="ml-6 pl-3 border-l-2 border-slate-200 mt-1.5 space-y-1">
-                    <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-sky-700 bg-sky-100/60 rounded">
-                      <span className="w-1.5 h-1.5 rounded-full bg-sky-600"></span>
-                      <span>Danh sách liên kết</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 rounded transition-colors cursor-default">
-                      <span className="w-1.5 h-1.5 rounded-full bg-transparent"></span>
-                      <span>Cấu hình tên miền</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 rounded transition-colors cursor-default">
-                      <span className="w-1.5 h-1.5 rounded-full bg-transparent"></span>
-                      <span>Lịch sử quét hệ thống</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ITEM: Chủ đề & Lĩnh vực */}
-              <button
-                type="button"
-                onClick={() => {
-                  setTab("topics");
-                  resetForm();
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-lg transition-colors text-left ${
-                  tab === "topics"
-                    ? "bg-sky-50 text-sky-700 border-l-4 border-sky-600 shadow-2xs"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <svg className={`w-4 h-4 ${tab === "topics" ? "text-sky-600" : "text-slate-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                </svg>
-                <span>Chủ đề &amp; Lĩnh vực</span>
               </button>
 
               {/* ITEM: Kho văn bản pháp luật */}
@@ -548,57 +506,185 @@ export default function AdminDashboard() {
                 </svg>
                 <span>Kho văn bản pháp luật</span>
               </button>
+
+              {isAdmin && (
+                <>
+                  {/* Level 1: Bản nháp từ AI */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab("candidate");
+                      resetForm();
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors text-left ${
+                      tab === "candidate"
+                        ? "bg-sky-50 text-sky-700 font-semibold"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                      </svg>
+                      <span>Bản nháp từ AI</span>
+                    </div>
+                    <span className="text-[10px] bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded uppercase">
+                      Mới
+                    </span>
+                  </button>
+
+                  {/* Level 1: Rèn luyện & huy hiệu */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab("game");
+                      resetForm();
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-left ${
+                      tab === "game"
+                        ? "bg-sky-50 text-sky-700 font-semibold"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <svg className={`w-4 h-4 ${tab === "game" ? "text-sky-600" : "text-slate-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                    </svg>
+                    <span>Rèn luyện &amp; huy hiệu</span>
+                  </button>
+
+                  {/* ACTIVE ITEM: Liên kết & Tên miền with Level 3 Sub-menu */}
+                  <div className="pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTab("link_health");
+                        resetForm();
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold rounded-lg transition-all text-left ${
+                        tab === "link_health"
+                          ? "bg-sky-50 text-sky-700 border-l-4 border-sky-600 shadow-2xs"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <svg className={`w-4 h-4 ${tab === "link_health" ? "text-sky-600" : "text-slate-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                        </svg>
+                        <span>Liên kết &amp; Tên miền</span>
+                      </div>
+                      <svg
+                        className={`w-3.5 h-3.5 transition-transform ${tab === "link_health" ? "rotate-90 text-sky-600" : "text-slate-400"}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                      </svg>
+                    </button>
+
+                    {/* Level 3 Nested Submenu items */}
+                    {tab === "link_health" && (
+                      <div className="ml-6 pl-3 border-l-2 border-slate-200 mt-1.5 space-y-1">
+                        <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-sky-700 bg-sky-100/60 rounded">
+                          <span className="w-1.5 h-1.5 rounded-full bg-sky-600"></span>
+                          <span>Danh sách liên kết</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 rounded transition-colors cursor-default">
+                          <span className="w-1.5 h-1.5 rounded-full bg-transparent"></span>
+                          <span>Cấu hình tên miền</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 rounded transition-colors cursor-default">
+                          <span className="w-1.5 h-1.5 rounded-full bg-transparent"></span>
+                          <span>Lịch sử quét hệ thống</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ITEM: Chủ đề & Lĩnh vực */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab("topics");
+                      resetForm();
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-lg transition-colors text-left ${
+                      tab === "topics"
+                        ? "bg-sky-50 text-sky-700 border-l-4 border-sky-600 shadow-2xs"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <svg className={`w-4 h-4 ${tab === "topics" ? "text-sky-600" : "text-slate-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                    </svg>
+                    <span>Chủ đề &amp; Lĩnh vực</span>
+                  </button>
+                </>
+              )}
             </nav>
           </div>
 
-          {/* Group 3: Người dùng & Tư vấn */}
-          <div>
-            <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Người dùng &amp; Tư vấn
-            </p>
-            <nav className="space-y-1">
-              <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-500 rounded-lg opacity-80 cursor-default">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                </svg>
-                <span>Yêu cầu trợ giúp pháp lý</span>
-              </div>
-              <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-500 rounded-lg opacity-80 cursor-default">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                </svg>
-                <span>Quản lý học sinh - sinh viên</span>
-              </div>
-              <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-500 rounded-lg opacity-80 cursor-default">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                </svg>
-                <span>Phân quyền &amp; Tài khoản</span>
-              </div>
-            </nav>
-          </div>
+          {/* Group 3: Người dùng & Phân quyền (Chỉ quản trị viên) */}
+          {isAdmin && (
+            <div>
+              <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                Người dùng &amp; Phân quyền
+              </p>
+              <nav className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTab("accounts");
+                    resetForm();
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-left ${
+                    tab === "accounts"
+                      ? "bg-sky-50 text-sky-700 font-semibold"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <svg className={`w-4 h-4 ${tab === "accounts" ? "text-sky-600" : "text-slate-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                  </svg>
+                  <span>Phân quyền &amp; Tài khoản</span>
+                </button>
+              </nav>
+            </div>
+          )}
 
-          {/* Group 4: Hệ thống */}
-          <div>
-            <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Hệ thống
-            </p>
-            <nav className="space-y-1">
-              <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-500 rounded-lg opacity-80 cursor-default">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                  <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                </svg>
-                <span>Cài đặt chung</span>
-              </div>
-              <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-500 rounded-lg opacity-80 cursor-default">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                </svg>
-                <span>Nhật ký hệ thống</span>
-              </div>
-            </nav>
-          </div>
+          {/* Group 4: Hệ thống (Chỉ quản trị viên) */}
+          {isAdmin && (
+            <div>
+              <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                Hệ thống
+              </p>
+              <nav className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTab("audit_logs");
+                    resetForm();
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-left ${
+                    tab === "audit_logs"
+                      ? "bg-sky-50 text-sky-700 font-semibold"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <svg className={`w-4 h-4 ${tab === "audit_logs" ? "text-sky-600" : "text-slate-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                  </svg>
+                  <span>Lịch sử hệ thống</span>
+                </button>
+              </nav>
+            </div>
+          )}
         </div>
 
         {/* Sidebar Footer with User Profile and Logout */}
@@ -606,14 +692,22 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
               <div className="relative flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-xs">
-                  PC
+                <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-xs uppercase">
+                  {sessionActor?.username ? sessionActor.username.slice(0, 2).toUpperCase() : "QTV"}
                 </div>
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
               </div>
               <div className="truncate">
-                <p className="text-xs font-bold text-slate-800 truncate">Ban Pháp chế - QTV</p>
-                <p className="text-[11px] text-slate-500 truncate">admin@phaplyhssv.vn</p>
+                <p className="text-xs font-bold text-slate-800 truncate">
+                  @{sessionActor?.username || "admin"}
+                </p>
+                <p className="text-[11px] text-slate-500 truncate">
+                  {isAdmin
+                    ? "Toàn quyền hệ thống"
+                    : isEditor
+                    ? `Biên tập viên (${accessibleTopics.length} CĐ)`
+                    : `Người xem (${accessibleTopics.length} CĐ)`}
+                </p>
               </div>
             </div>
             <button
@@ -716,11 +810,11 @@ export default function AdminDashboard() {
             {/* 3 Header Metric Cards */}
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <div className="bg-white border border-stone-200 rounded-xl px-4 sm:px-5 py-3 text-center shadow-xs min-w-[95px] sm:min-w-[105px]">
-                <span className="text-2xl font-black text-slate-800 block">{laws.length}</span>
+                <span className="text-2xl font-black text-slate-800 block">{visibleLaws.length}</span>
                 <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-slate-400">Điều luật</span>
               </div>
               <div className="bg-white border border-stone-200 rounded-xl px-4 sm:px-5 py-3 text-center shadow-xs min-w-[95px] sm:min-w-[105px]">
-                <span className="text-2xl font-black text-slate-800 block">{showcases.length}</span>
+                <span className="text-2xl font-black text-slate-800 block">{visibleShowcases.length}</span>
                 <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-slate-400">Tình huống</span>
               </div>
               <div className="bg-white border border-stone-200 rounded-xl px-4 sm:px-5 py-3 text-center shadow-xs min-w-[95px] sm:min-w-[105px]">
@@ -756,50 +850,6 @@ export default function AdminDashboard() {
             </button>
             <button
               type="button"
-              onClick={() => { setTab("candidate"); resetForm(); }}
-              className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
-                tab === "candidate"
-                  ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
-                  : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
-              }`}
-            >
-              Bản nháp từ AI
-            </button>
-            <button
-              type="button"
-              onClick={() => { setTab("game"); resetForm(); }}
-              className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
-                tab === "game"
-                  ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
-                  : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
-              }`}
-            >
-              Rèn luyện &amp; huy hiệu
-            </button>
-            <button
-              type="button"
-              onClick={() => { setTab("link_health"); resetForm(); }}
-              className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
-                tab === "link_health"
-                  ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
-                  : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
-              }`}
-            >
-              Liên kết &amp; Tên miền
-            </button>
-            <button
-              type="button"
-              onClick={() => { setTab("topics"); resetForm(); }}
-              className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
-                tab === "topics"
-                  ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
-                  : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
-              }`}
-            >
-              Chủ đề &amp; Lĩnh vực
-            </button>
-            <button
-              type="button"
               onClick={() => { setTab("documents"); resetForm(); }}
               className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
                 tab === "documents"
@@ -809,248 +859,328 @@ export default function AdminDashboard() {
             >
               Kho văn bản pháp luật
             </button>
-            <button
-              type="button"
-              onClick={() => { setTab("accounts"); resetForm(); }}
-              className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
-                tab === "accounts"
-                  ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
-                  : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
-              }`}
-            >
-              Tài khoản &amp; Phân quyền
-            </button>
-            <button
-              type="button"
-              onClick={() => { setTab("audit_logs"); resetForm(); }}
-              className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
-                tab === "audit_logs"
-                  ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
-                  : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
-              }`}
-            >
-              Lịch sử hệ thống
-            </button>
+            {isAdmin && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setTab("candidate"); resetForm(); }}
+                  className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    tab === "candidate"
+                      ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
+                      : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
+                  }`}
+                >
+                  Bản nháp từ AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTab("game"); resetForm(); }}
+                  className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    tab === "game"
+                      ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
+                      : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
+                  }`}
+                >
+                  Rèn luyện &amp; huy hiệu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTab("link_health"); resetForm(); }}
+                  className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    tab === "link_health"
+                      ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
+                      : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
+                  }`}
+                >
+                  Liên kết &amp; Tên miền
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTab("topics"); resetForm(); }}
+                  className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    tab === "topics"
+                      ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
+                      : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
+                  }`}
+                >
+                  Chủ đề &amp; Lĩnh vực
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTab("accounts"); resetForm(); }}
+                  className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    tab === "accounts"
+                      ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
+                      : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
+                  }`}
+                >
+                  Tài khoản &amp; Phân quyền
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTab("audit_logs"); resetForm(); }}
+                  className={`px-4 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    tab === "audit_logs"
+                      ? "bg-blue-600 text-white rounded-lg shadow font-semibold hover:bg-blue-700"
+                      : "bg-white text-slate-700 border border-stone-300 rounded-lg hover:bg-stone-50 shadow-2xs"
+                  }`}
+                >
+                  Lịch sử hệ thống
+                </button>
+              </>
+            )}
           </nav>
 
           {/* Active Tab Content Rendering */}
-          {tab === "candidate" ? (
+          {tab === "candidate" && isAdmin ? (
             <CandidatePanel />
-          ) : tab === "game" ? (
+          ) : tab === "game" && isAdmin ? (
             <GameManager />
-          ) : tab === "link_health" ? (
+          ) : tab === "link_health" && isAdmin ? (
             <LinkHealthManager />
-          ) : tab === "topics" ? (
+          ) : tab === "topics" && isAdmin ? (
             <TopicManager />
           ) : tab === "documents" ? (
             <LegalDocumentManager />
-          ) : tab === "accounts" ? (
+          ) : tab === "accounts" && isAdmin ? (
             <AccountManager />
-          ) : tab === "audit_logs" ? (
+          ) : tab === "audit_logs" && isAdmin ? (
             <AuditLogManager />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Form Editor Card */}
-              <form className="lg:col-span-5 bg-white rounded-xl border border-stone-200 p-6 shadow-xs space-y-4" onSubmit={save}>
-                <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-sky-600">
-                      {editingId ? "CHỈNH SỬA NỘI DUNG" : "THÊM NỘI DUNG MỚI"}
+              {isReadOnly ? (
+                <div className="lg:col-span-5 bg-white rounded-xl border border-stone-200 p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">CHẾ ĐỘ XEM</p>
+                      <h2 className="text-lg font-bold text-slate-900 mt-0.5">Quyền Người xem (Viewer)</h2>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs space-y-2">
+                    <p className="font-semibold">Tài khoản chỉ có quyền đọc dữ liệu.</p>
+                    <p className="text-amber-700 leading-relaxed">
+                      Bạn có thể tra cứu và xem toàn bộ nội dung trong các chuyên mục được cấp phép. Để thêm mới hoặc chỉnh sửa dữ liệu, vui lòng liên hệ Quản trị viên để được cấp quyền Biên tập viên.
                     </p>
-                    <h2 className="text-lg font-bold text-slate-900 mt-0.5">
-                      {tab === "law" ? "Nội dung pháp luật" : "Tình huống cảnh báo"}
-                    </h2>
-                  </div>
-                  {editingId && (
-                    <button
-                      type="button"
-                      className="text-xs font-semibold text-slate-500 hover:text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md"
-                      onClick={resetForm}
-                    >
-                      Hủy sửa
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 block mb-1">Lĩnh vực</label>
-                    <select
-                      className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
-                      value={tab === "law" ? lawForm.topic : showcaseForm.topic}
-                      onChange={(event) =>
-                        tab === "law"
-                          ? setLawForm({ ...lawForm, topic: event.target.value })
-                          : setShowcaseForm({ ...showcaseForm, topic: event.target.value })
-                      }
-                    >
-                      {contentTopics.map((item) => (
-                        <option key={item.name}>{item.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 block mb-1">Trạng thái</label>
-                    <select
-                      className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
-                      value={tab === "law" ? lawForm.status : showcaseForm.status}
-                      onChange={(event) =>
-                        tab === "law"
-                          ? setLawForm({ ...lawForm, status: event.target.value as Status })
-                          : setShowcaseForm({ ...showcaseForm, status: event.target.value as Status })
-                      }
-                    >
-                      <option value="draft">Bản nháp</option>
-                      <option value="published">Đã xuất bản</option>
-                    </select>
                   </div>
                 </div>
+              ) : accessibleTopics.length === 0 ? (
+                <div className="lg:col-span-5 bg-white rounded-xl border border-stone-200 p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-rose-500">CHƯA PHÂN QUYỀN</p>
+                      <h2 className="text-lg font-bold text-slate-900 mt-0.5">Không có chuyên mục</h2>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs space-y-2">
+                    <p className="font-semibold">Bạn chưa được phân quyền phụ trách bất kỳ chuyên mục nào.</p>
+                    <p className="text-rose-700 leading-relaxed">
+                      Vui lòng liên hệ Quản trị viên hệ thống để gán các chuyên mục phù hợp cho tài khoản của bạn.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <form className="lg:col-span-5 bg-white rounded-xl border border-stone-200 p-6 shadow-xs space-y-4" onSubmit={save}>
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-sky-600">
+                        {editingId ? "CHỈNH SỬA NỘI DUNG" : "THÊM NỘI DUNG MỚI"}
+                      </p>
+                      <h2 className="text-lg font-bold text-slate-900 mt-0.5">
+                        {tab === "law" ? "Nội dung pháp luật" : "Tình huống cảnh báo"}
+                      </h2>
+                    </div>
+                    {editingId && (
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-slate-500 hover:text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md"
+                        onClick={resetForm}
+                      >
+                        Hủy sửa
+                      </button>
+                    )}
+                  </div>
 
-                {tab === "law" ? (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                      <div className="sm:col-span-1">
-                        <label className="text-xs font-semibold text-slate-600 block mb-1">Icon</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 block mb-1">Lĩnh vực</label>
+                      <select
+                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                        value={tab === "law" ? lawForm.topic : showcaseForm.topic}
+                        onChange={(event) =>
+                          tab === "law"
+                            ? setLawForm({ ...lawForm, topic: event.target.value })
+                            : setShowcaseForm({ ...showcaseForm, topic: event.target.value })
+                        }
+                      >
+                        {accessibleTopics.map((topicName) => (
+                          <option key={topicName} value={topicName}>{topicName}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 block mb-1">Trạng thái</label>
+                      <select
+                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                        value={tab === "law" ? lawForm.status : showcaseForm.status}
+                        onChange={(event) =>
+                          tab === "law"
+                            ? setLawForm({ ...lawForm, status: event.target.value as Status })
+                            : setShowcaseForm({ ...showcaseForm, status: event.target.value as Status })
+                        }
+                      >
+                        <option value="draft">Bản nháp</option>
+                        <option value="published">Đã xuất bản</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {tab === "law" ? (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div className="sm:col-span-1">
+                          <label className="text-xs font-semibold text-slate-600 block mb-1">Icon</label>
+                          <input
+                            maxLength={8}
+                            className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                            value={lawForm.icon}
+                            onChange={(event) => setLawForm({ ...lawForm, icon: event.target.value })}
+                          />
+                        </div>
+                        <div className="sm:col-span-3">
+                          <label className="text-xs font-semibold text-slate-600 block mb-1">Tiêu đề</label>
+                          <input
+                            required
+                            className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                            value={lawForm.title}
+                            onChange={(event) => setLawForm({ ...lawForm, title: event.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">Căn cứ pháp lý</label>
                         <input
-                          maxLength={8}
+                          required
                           className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                          value={lawForm.icon}
-                          onChange={(event) => setLawForm({ ...lawForm, icon: event.target.value })}
+                          value={lawForm.legalBasis}
+                          onChange={(event) => setLawForm({ ...lawForm, legalBasis: event.target.value })}
                         />
                       </div>
-                      <div className="sm:col-span-3">
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">Mức phạt</label>
+                        <input
+                          required
+                          className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                          value={lawForm.penalty}
+                          onChange={(event) => setLawForm({ ...lawForm, penalty: event.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">Biện pháp khắc phục</label>
+                        <textarea
+                          required
+                          rows={3}
+                          className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                          value={lawForm.remedy}
+                          onChange={(event) => setLawForm({ ...lawForm, remedy: event.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">Tình huống minh họa</label>
+                        <textarea
+                          required
+                          rows={4}
+                          className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                          value={lawForm.caseStudy}
+                          onChange={(event) => setLawForm({ ...lawForm, caseStudy: event.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">Thẻ (cách nhau dấu phẩy)</label>
+                        <input
+                          placeholder="giao-thong, mu-bao-hiem"
+                          className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                          value={lawForm.tags}
+                          onChange={(event) => setLawForm({ ...lawForm, tags: event.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">Ảnh / Video minh họa (nếu có)</label>
+                        <input
+                          type="url"
+                          placeholder="https://..."
+                          className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                          value={lawForm.mediaUrl}
+                          onChange={(event) => setLawForm({ ...lawForm, mediaUrl: event.target.value })}
+                        />
+                        <span className="text-[11px] text-slate-400 block mt-1">Link YouTube hoặc ảnh .jpg/.png/.webp.</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
                         <label className="text-xs font-semibold text-slate-600 block mb-1">Tiêu đề</label>
                         <input
                           required
                           className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                          value={lawForm.title}
-                          onChange={(event) => setLawForm({ ...lawForm, title: event.target.value })}
+                          value={showcaseForm.title}
+                          onChange={(event) => setShowcaseForm({ ...showcaseForm, title: event.target.value })}
                         />
                       </div>
-                    </div>
 
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">Căn cứ pháp lý</label>
-                      <input
-                        required
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={lawForm.legalBasis}
-                        onChange={(event) => setLawForm({ ...lawForm, legalBasis: event.target.value })}
-                      />
-                    </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">Nội dung tình huống</label>
+                        <textarea
+                          required
+                          rows={6}
+                          className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                          value={showcaseForm.summary}
+                          onChange={(event) => setShowcaseForm({ ...showcaseForm, summary: event.target.value })}
+                        />
+                      </div>
 
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">Mức phạt</label>
-                      <input
-                        required
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={lawForm.penalty}
-                        onChange={(event) => setLawForm({ ...lawForm, penalty: event.target.value })}
-                      />
-                    </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">URL nguồn chính thức</label>
+                        <input
+                          type="url"
+                          placeholder="https://vbpl.vn/..."
+                          className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                          value={showcaseForm.sourceUrl}
+                          onChange={(event) => setShowcaseForm({ ...showcaseForm, sourceUrl: event.target.value })}
+                        />
+                        <span className="text-[11px] text-slate-400 block mt-1">Chỉ nhận vbpl.vn, chinhphu.vn...</span>
+                      </div>
 
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">Biện pháp khắc phục</label>
-                      <textarea
-                        required
-                        rows={3}
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={lawForm.remedy}
-                        onChange={(event) => setLawForm({ ...lawForm, remedy: event.target.value })}
-                      />
-                    </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">Ảnh / Video minh họa (nếu có)</label>
+                        <input
+                          type="url"
+                          placeholder="https://..."
+                          className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+                          value={showcaseForm.mediaUrl}
+                          onChange={(event) => setShowcaseForm({ ...showcaseForm, mediaUrl: event.target.value })}
+                        />
+                      </div>
+                    </>
+                  )}
 
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">Tình huống minh họa</label>
-                      <textarea
-                        required
-                        rows={4}
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={lawForm.caseStudy}
-                        onChange={(event) => setLawForm({ ...lawForm, caseStudy: event.target.value })}
-                      />
-                    </div>
+                  {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg font-medium">{error}</div>}
+                  {notice && <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-lg font-medium">{notice}</div>}
 
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">Thẻ (cách nhau dấu phẩy)</label>
-                      <input
-                        placeholder="giao-thong, mu-bao-hiem"
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={lawForm.tags}
-                        onChange={(event) => setLawForm({ ...lawForm, tags: event.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">Ảnh / Video minh họa (nếu có)</label>
-                      <input
-                        type="url"
-                        placeholder="https://..."
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={lawForm.mediaUrl}
-                        onChange={(event) => setLawForm({ ...lawForm, mediaUrl: event.target.value })}
-                      />
-                      <span className="text-[11px] text-slate-400 block mt-1">Link YouTube hoặc ảnh .jpg/.png/.webp.</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">Tiêu đề</label>
-                      <input
-                        required
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={showcaseForm.title}
-                        onChange={(event) => setShowcaseForm({ ...showcaseForm, title: event.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">Nội dung tình huống</label>
-                      <textarea
-                        required
-                        rows={6}
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={showcaseForm.summary}
-                        onChange={(event) => setShowcaseForm({ ...showcaseForm, summary: event.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">URL nguồn chính thức</label>
-                      <input
-                        type="url"
-                        placeholder="https://vbpl.vn/..."
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={showcaseForm.sourceUrl}
-                        onChange={(event) => setShowcaseForm({ ...showcaseForm, sourceUrl: event.target.value })}
-                      />
-                      <span className="text-[11px] text-slate-400 block mt-1">Chỉ nhận vbpl.vn, chinhphu.vn...</span>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">Ảnh / Video minh họa (nếu có)</label>
-                      <input
-                        type="url"
-                        placeholder="https://..."
-                        className="w-full border border-stone-300 rounded-lg p-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-sky-500 outline-none"
-                        value={showcaseForm.mediaUrl}
-                        onChange={(event) => setShowcaseForm({ ...showcaseForm, mediaUrl: event.target.value })}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg font-medium">{error}</div>}
-                {notice && <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-lg font-medium">{notice}</div>}
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer"
-                >
-                  {editingId ? "Lưu thay đổi" : "Tạo nội dung"}
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer"
+                  >
+                    {editingId ? "Lưu thay đổi" : "Tạo nội dung"}
+                  </button>
+                </form>
+              )}
 
               {/* Content List Card */}
               <section className="lg:col-span-7 bg-white rounded-xl border border-stone-200 p-6 shadow-xs space-y-4">
@@ -1058,7 +1188,7 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">KHO NỘI DUNG</p>
                     <h2 className="text-lg font-bold text-slate-900 mt-0.5">
-                      {tab === "law" ? `${laws.length} điều luật` : `${showcases.length} tình huống`}
+                      {tab === "law" ? `${visibleLaws.length} điều luật` : `${visibleShowcases.length} tình huống`}
                     </h2>
                   </div>
                 </div>
@@ -1066,13 +1196,13 @@ export default function AdminDashboard() {
                 {isLoading ? (
                   <p className="text-xs text-slate-400 py-8 text-center">Đang tải dữ liệu…</p>
                 ) : tab === "law" ? (
-                  laws.length === 0 ? (
+                  visibleLaws.length === 0 ? (
                     <div className="text-center py-10 border-2 border-dashed border-stone-200 rounded-xl">
                       <p className="text-xs text-slate-500">Chưa có nội dung điều luật.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {laws.map((item) => (
+                      {visibleLaws.map((item) => (
                         <article key={item.id} className="p-4 rounded-xl border border-stone-200 hover:border-slate-300 transition bg-white space-y-2">
                           <div className="flex items-center justify-between gap-2">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
@@ -1087,34 +1217,36 @@ export default function AdminDashboard() {
                           <h3 className="text-sm font-bold text-slate-900">{item.title}</h3>
                           <p className="text-[11px] text-slate-400">{engagementLabel("law", item.id)}</p>
                           <p className="text-xs text-slate-600 line-clamp-2">{item.legalBasis}</p>
-                          <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
-                            <button
-                              type="button"
-                              onClick={() => editLaw(item)}
-                              className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 shadow-2xs"
-                            >
-                              Chỉnh sửa
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void remove("law", item.id)}
-                              className="px-3 py-1 text-xs font-semibold text-rose-700 bg-white border border-rose-200 rounded-md hover:bg-rose-50 shadow-2xs"
-                            >
-                              Xóa
-                            </button>
-                          </div>
+                          {!isReadOnly && (
+                            <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
+                              <button
+                                type="button"
+                                onClick={() => editLaw(item)}
+                                className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 shadow-2xs"
+                              >
+                                Chỉnh sửa
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void remove("law", item.id)}
+                                className="px-3 py-1 text-xs font-semibold text-rose-700 bg-white border border-rose-200 rounded-md hover:bg-rose-50 shadow-2xs"
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          )}
                         </article>
                       ))}
                     </div>
                   )
                 ) : (
-                  showcases.length === 0 ? (
+                  visibleShowcases.length === 0 ? (
                     <div className="text-center py-10 border-2 border-dashed border-stone-200 rounded-xl">
                       <p className="text-xs text-slate-500">Chưa có nội dung tình huống.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {showcases.map((item) => (
+                      {visibleShowcases.map((item) => (
                         <article key={item.id} className="p-4 rounded-xl border border-stone-200 hover:border-slate-300 transition bg-white space-y-2">
                           <div className="flex items-center justify-between gap-2">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
@@ -1129,22 +1261,24 @@ export default function AdminDashboard() {
                           <h3 className="text-sm font-bold text-slate-900">{item.title}</h3>
                           <p className="text-[11px] text-slate-400">{engagementLabel("showcase", item.id)}</p>
                           <p className="text-xs text-slate-600 line-clamp-3">{item.summary}</p>
-                          <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
-                            <button
-                              type="button"
-                              onClick={() => editShowcase(item)}
-                              className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 shadow-2xs"
-                            >
-                              Chỉnh sửa
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void remove("showcase", item.id)}
-                              className="px-3 py-1 text-xs font-semibold text-rose-700 bg-white border border-rose-200 rounded-md hover:bg-rose-50 shadow-2xs"
-                            >
-                              Xóa
-                            </button>
-                          </div>
+                          {!isReadOnly && (
+                            <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
+                              <button
+                                type="button"
+                                onClick={() => editShowcase(item)}
+                                className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 shadow-2xs"
+                              >
+                                Chỉnh sửa
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void remove("showcase", item.id)}
+                                className="px-3 py-1 text-xs font-semibold text-rose-700 bg-white border border-rose-200 rounded-md hover:bg-rose-50 shadow-2xs"
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          )}
                         </article>
                       ))}
                     </div>

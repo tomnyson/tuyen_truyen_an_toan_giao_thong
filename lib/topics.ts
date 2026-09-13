@@ -8,6 +8,11 @@ export const contentTopicNames = [
   "Bạo lực học đường",
   "An ninh trật tự",
   "Sở hữu trí tuệ",
+  "Chuyên đề phòng chống ma túy",
+  "Chuyên đề an ninh trật tự trường học",
+  "Chuyên đề game và không gian mạng",
+  "Tài chính - tín dụng đen",
+  "Phòng chống tệ nạn xã hội",
 ] as const;
 
 export type ContentTopic = (typeof contentTopicNames)[number];
@@ -28,7 +33,7 @@ export type TopicDefinition = Readonly<{
 export const contentTopics: readonly TopicDefinition[] = Object.freeze([
   Object.freeze({
     name: "Giao thông",
-    icon: "◉",
+    icon: "FaCarSide",
     detail: "Xe điện & xe máy",
     abbreviations: ["atgt", "gtdb"],
     keywords: [
@@ -50,7 +55,7 @@ export const contentTopics: readonly TopicDefinition[] = Object.freeze([
   }),
   Object.freeze({
     name: "Mạng xã hội",
-    icon: "@",
+    icon: "FaComments",
     detail: "Ứng xử trên không gian mạng",
     abbreviations: ["mxh", "kgm"],
     keywords: [
@@ -71,7 +76,7 @@ export const contentTopics: readonly TopicDefinition[] = Object.freeze([
   }),
   Object.freeze({
     name: "Bạo lực học đường",
-    icon: "⚠",
+    icon: "FaUserShield",
     detail: "Bắt nạt & xô xát trong trường",
     abbreviations: ["blhd"],
     keywords: [
@@ -91,7 +96,7 @@ export const contentTopics: readonly TopicDefinition[] = Object.freeze([
   }),
   Object.freeze({
     name: "An ninh trật tự",
-    icon: "▣",
+    icon: "FaShieldHalved",
     detail: "Trật tự công cộng & an toàn",
     abbreviations: ["antt"],
     keywords: [
@@ -110,7 +115,7 @@ export const contentTopics: readonly TopicDefinition[] = Object.freeze([
   }),
   Object.freeze({
     name: "Sở hữu trí tuệ",
-    icon: "©",
+    icon: "FaCopyright",
     detail: "Bản quyền & đạo văn",
     abbreviations: ["shtt"],
     keywords: [
@@ -123,6 +128,113 @@ export const contentTopics: readonly TopicDefinition[] = Object.freeze([
     situations: [
       "Chép bài trên mạng nộp cho cô có bị coi là đạo văn?",
       "Dùng nhạc có bản quyền cho video của lớp được không?",
+    ],
+  }),
+  Object.freeze({
+    name: "Chuyên đề phòng chống ma túy",
+    icon: "FaCapsules",
+    detail: "Tác hại ma túy, bóng cười & chất gây nghiện",
+    abbreviations: ["pcmt", "matuy"],
+    keywords: [
+      "phòng chống ma túy",
+      "ma túy",
+      "chất ma túy",
+      "thuốc lắc",
+      "heroin",
+      "bóng cười",
+      "khí n2o",
+      "cần sa",
+      "cỏ mỹ",
+      "nấm thức thần",
+      "tinh dầu pod",
+    ],
+    situations: [
+      "Rủ rê dùng thử thuốc lắc hoặc kẹo ngậm lạ",
+      "Hút hoặc rủ nhau hít bóng cười khí N2O",
+      "Tác hại của các loại cỏ Mỹ, nấm thức thần",
+    ],
+  }),
+  Object.freeze({
+    name: "Chuyên đề an ninh trật tự trường học",
+    icon: "FaSchool",
+    detail: "An toàn cổng trường & bảo vệ tài sản trường lớp",
+    abbreviations: ["anttth", "an-ninh-truong"],
+    keywords: [
+      "an ninh trường học",
+      "bảo vệ cổng trường",
+      "người lạ đột nhập",
+      "phá hoại bàn ghế",
+      "trộm cắp xe đạp",
+      "quậy phá phòng học",
+    ],
+    situations: [
+      "Người lạ mặt trèo tường đột nhập khuôn viên trường",
+      "Cố ý đập phá làm hư hỏng bàn ghế thiết bị trường",
+      "Kẻ gian trà trộn bãi xe trộm cắp đồ dùng",
+    ],
+  }),
+  Object.freeze({
+    name: "Chuyên đề game và không gian mạng",
+    icon: "FaGamepad",
+    detail: "Văn minh game số, quản lý giờ chơi & nạp thẻ ảo",
+    abbreviations: ["game", "trochoi"],
+    keywords: [
+      "game online",
+      "nghiện game",
+      "nạp thẻ game",
+      "vật phẩm game",
+      "tài khoản game",
+      "giờ chơi game",
+      "game bài đổi thưởng",
+      "hack game",
+    ],
+    situations: [
+      "Thời gian chơi trò chơi điện tử trực tuyến dưới 18 tuổi",
+      "Lừa đảo nạp thẻ hoặc mua bán vật phẩm game online",
+      "Chơi game bài đổi điểm lấy tiền thật",
+    ],
+  }),
+  Object.freeze({
+    name: "Tài chính - tín dụng đen",
+    icon: "FaMoneyBillWave",
+    detail: "Cảnh giác bẫy nợ, app vay tiền & vay nặng lãi",
+    abbreviations: ["tctdd", "tindungden", "vayapp"],
+    keywords: [
+      "tín dụng đen",
+      "vay nặng lãi",
+      "app vay tiền",
+      "bốc bát họ",
+      "cho vay lãi ngày",
+      "đòi nợ thuê",
+      "mở tài khoản thuê",
+      "lãi suất cắt cổ",
+    ],
+    situations: [
+      "Vướng bẫy vay tiền qua app lãi suất cắt cổ",
+      "Đứng tên mở tài khoản ngân hàng thuê cho người lạ",
+      "Đối tượng cho vay nặng lãi khủng bố đòi nợ",
+    ],
+  }),
+  Object.freeze({
+    name: "Phòng chống tệ nạn xã hội",
+    icon: "FaTriangleExclamation",
+    detail: "Phòng ngừa cờ bạc, cá độ, số đề & mê tín dị đoan",
+    abbreviations: ["pctnxh", "tenan", "cobac", "cado"],
+    keywords: [
+      "tệ nạn xã hội",
+      "cờ bạc",
+      "cá độ bóng đá",
+      "đánh bài ăn tiền",
+      "lô đề",
+      "số đề",
+      "mê tín dị đoan",
+      "mại dâm",
+      "bói toán lừa đảo",
+    ],
+    situations: [
+      "Chơi bài tây ăn tiền ăn thua bạc bịp",
+      "Tham gia cá cược cá độ bóng đá độ tiền",
+      "Bị dụ dỗ vào các hội nhóm bói toán mê tín",
     ],
   }),
 ]);
@@ -153,6 +265,19 @@ export function isContentTopic(value: unknown): value is ContentTopic {
 
 export function findTopic(name: string): TopicDefinition | null {
   return topicByName.get(name) ?? null;
+}
+
+// Bổ sung các chủ đề động được tải từ cơ sở dữ liệu (US-047, DEC-028)
+export function registerDynamicTopics(topics: readonly TopicDefinition[]): void {
+  topicByName.clear();
+  for (const topic of contentTopics) {
+    topicByName.set(topic.name, topic);
+  }
+  for (const topic of topics) {
+    if (topic && typeof topic.name === "string" && topic.name.trim().length > 0) {
+      topicByName.set(topic.name, topic);
+    }
+  }
 }
 
 // Chip gợi ý: khi chưa chọn lĩnh vực thì lấy câu đầu tiên của mỗi lĩnh vực để

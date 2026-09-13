@@ -35,6 +35,13 @@ const emptyState: ConsultState = {
   error: "",
 };
 
+const SUGGESTED_QUESTIONS = [
+  "Bị đe dọa, xúc phạm hoặc bôi nhọ trên mạng xã hội",
+  "Bị bạo lực, bắt nạt hoặc cô lập trong trường học",
+  "Bị quay lén và phát tán hình ảnh riêng tư lên mạng",
+  "Bị dụ dỗ vay tiền qua app với lãi suất cao",
+];
+
 export function LegalAidConsult() {
   const [question, setQuestion] = useState("");
   const [isLoading, setLoading] = useState(false);
@@ -102,23 +109,76 @@ export function LegalAidConsult() {
     }
   }
 
+  const handleReset = () => {
+    setState(emptyState);
+    setQuestion("");
+  };
+
   return (
     <div className="legal-aid">
       <form className="legal-aid-form" onSubmit={submit}>
-        <label htmlFor="legal-aid-question">
-          Bạn đang gặp chuyện gì? Kể ngắn gọn cũng được.
-        </label>
-        <textarea
-          id="legal-aid-question"
-          value={question}
-          rows={3}
-          maxLength={600}
-          placeholder="Ví dụ: Em bị bạn cùng lớp đe dọa qua tin nhắn thì báo cho ai?"
-          onChange={(event) => setQuestion(event.target.value)}
-        />
-        <button type="submit" className="btn-gold" disabled={isLoading}>
-          {isLoading ? "Đang tìm…" : "Tìm nơi tiếp nhận"}
-        </button>
+        <div className="flex items-center justify-between w-full">
+          <label htmlFor="legal-aid-question" className="text-sm font-bold text-[var(--ink)]">
+            Bạn hoặc bạn bè đang gặp chuyện gì? Kể ngắn gọn tình huống:
+          </label>
+          <span className="text-xs text-[var(--ink-mute)]">
+            {question.length}/600 ký tự
+          </span>
+        </div>
+
+        {/* Gợi ý tình huống nhanh */}
+        <div className="w-full flex flex-wrap items-center gap-1.5 pt-1 pb-1">
+          <span className="text-xs text-[var(--ink-soft)] font-semibold mr-1">
+            Gợi ý nhanh:
+          </span>
+          {SUGGESTED_QUESTIONS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => setQuestion(q)}
+              className="text-xs px-2.5 py-1 rounded-full bg-[var(--cream-warm)] hover:bg-[var(--gold-soft)] text-[var(--ink-soft)] hover:text-[var(--brick-deep)] border border-[var(--line-card)] transition-colors cursor-pointer"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full">
+          <textarea
+            id="legal-aid-question"
+            value={question}
+            rows={3}
+            maxLength={600}
+            placeholder="Ví dụ: Em bị bạn cùng lớp đe dọa qua tin nhắn và yêu cầu nộp tiền thì phải báo cho ai?"
+            onChange={(event) => setQuestion(event.target.value)}
+            className="w-full"
+          />
+          {question.length > 0 && !isLoading && (
+            <button
+              type="button"
+              onClick={() => setQuestion("")}
+              className="absolute right-3 top-3 text-xs text-[var(--ink-mute)] hover:text-[var(--brick-deep)] cursor-pointer"
+              aria-label="Xóa nội dung"
+            >
+              Xóa
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 pt-1">
+          <button type="submit" className="btn-gold" disabled={isLoading || question.trim() === ""}>
+            {isLoading ? "Đang phân tích thẩm quyền…" : "Tìm nơi tiếp nhận & Hỗ trợ"}
+          </button>
+          {state.answer && (
+            <button
+              type="button"
+              onClick={handleReset}
+              className="px-4 py-2 text-xs font-semibold text-[var(--ink-soft)] hover:text-[var(--brick-deep)] hover:underline cursor-pointer"
+            >
+              Đặt lại câu hỏi
+            </button>
+          )}
+        </div>
       </form>
 
       <AiDisclaimer variant="compact" />
@@ -129,7 +189,11 @@ export function LegalAidConsult() {
         </p>
       ) : null}
 
-      {state.answer ? <ChatAnswerBody answer={state.answer} /> : null}
+      {state.answer ? (
+        <div className="legal-aid-answer-wrapper p-5 rounded-2xl bg-[var(--cream-warm)] border border-[var(--line-card)]">
+          <ChatAnswerBody answer={state.answer} />
+        </div>
+      ) : null}
 
       <ReferralChain steps={state.chain} degraded={state.degraded} />
     </div>

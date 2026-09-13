@@ -214,6 +214,11 @@ a.head-chip:active { transform: translateY(0); }
 .topic-chip[data-topic="Bạo lực học đường"] { background: var(--blush); color: var(--brick-deep); }
 .topic-chip[data-topic="An ninh trật tự"] { background: var(--gold-soft); color: #8a6410; }
 .topic-chip[data-topic="Sở hữu trí tuệ"] { background: var(--gold-soft); color: #8a6410; }
+.topic-chip[data-topic="Chuyên đề phòng chống ma túy"] { background: #fee2e2; color: #991b1b; }
+.topic-chip[data-topic="Chuyên đề an ninh trật tự trường học"] { background: #e0e7ff; color: #3730a3; }
+.topic-chip[data-topic="Chuyên đề game và không gian mạng"] { background: #f3e8ff; color: #6b21a8; }
+.topic-chip[data-topic="Tài chính - tín dụng đen"] { background: #ecfdf5; color: #065f46; }
+.topic-chip[data-topic="Phòng chống tệ nạn xã hội"] { background: #ffedd5; color: #9a3412; }
 
 /* Dải trang trí ngăn giữa các mảng nội dung. */
 /* Dải thổ cẩm ngăn giữa các mục — nền đỏ sẫm, viền vàng ở mép trên, hàng thoi

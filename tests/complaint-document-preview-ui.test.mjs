@@ -24,3 +24,29 @@ test("ComplaintDocumentPreview adheres strictly to Stitch design specifications"
   // Signature placeholder matching Stitch
   assert.ok(content.includes("[Chưa ký xác nhận]"));
 });
+
+test("Printing isolates A4 legal complaint document and hides all website chrome", () => {
+  const pageContent = fs.readFileSync("app/tro-giup-phap-ly/soan-don/page.tsx", "utf8");
+  const docContent = fs.readFileSync("components/ComplaintDocumentPreview.tsx", "utf8");
+  const cssContent = fs.readFileSync("app/styles/legal-aid.css", "utf8");
+
+  // SiteHeader and SiteFooter must be hidden in print mode on soan-don page
+  assert.ok(pageContent.includes("print:hidden") && (
+    pageContent.includes("print:hidden\">\n        <SiteHeader") ||
+    pageContent.includes("print:hidden\">\n      <SiteHeader") ||
+    pageContent.includes("<div className=\"print:hidden\">\n        <SiteHeader")
+  ), "SiteHeader must be hidden on print");
+  assert.ok(pageContent.includes("<div className=\"print:hidden\">\n        <SiteFooter") ||
+            pageContent.includes("<div className=\"print:hidden\">\n      <SiteFooter"),
+    "SiteFooter must be hidden on print"
+  );
+
+  // In-document interactive button must be hidden in print mode
+  assert.ok(docContent.includes("Tải tệp đính kèm ngay") && docContent.includes("print:hidden"), "Document upload button must be print:hidden");
+
+  // CSS must contain standard @media print rules with A4 page format
+  assert.ok(cssContent.includes("@media print"), "legal-aid.css must contain @media print");
+  assert.ok(cssContent.includes("size: A4 portrait") || cssContent.includes("size: A4"), "Must specify A4 portrait page size");
+  assert.ok(cssContent.includes(".site-header") && cssContent.includes(".site-footer"), "CSS must hide site header and footer in print");
+});
+

@@ -14,6 +14,7 @@ interface ComplaintDocumentPreviewProps {
 
 export function ComplaintDocumentPreview({
   state,
+  onFieldChange,
   onDownloadDocx,
   onOpenGuidance,
   progressPercentage,
@@ -25,7 +26,7 @@ export function ComplaintDocumentPreview({
   const r = state.recipient;
 
   return (
-    <section className="flex flex-col h-full bg-white dark:bg-stone-900 rounded-2xl border border-[#EFE5DA] dark:border-stone-800 shadow-warm-md overflow-hidden">
+    <section className="flex flex-col h-full bg-white rounded-2xl border border-[#EFE5DA] shadow-warm-md overflow-hidden">
       {/* Document Toolbar Header */}
       <div className="p-4 bg-gradient-to-r from-stone-900 to-stone-800 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-700 sticky top-0 z-10 print:hidden">
         <div>
@@ -74,10 +75,10 @@ export function ComplaintDocumentPreview({
       </div>
 
       {/* Scrollable A4 Paper Wrapper */}
-      <div className="flex-1 bg-[#EBE5DC] dark:bg-stone-950 p-4 sm:p-6 overflow-y-auto flex justify-center print:p-0 print:overflow-visible print:bg-white">
+      <div className="flex-1 bg-[#EBE5DC] p-4 sm:p-6 overflow-y-auto flex justify-center print:p-0 print:overflow-visible print:bg-white">
         {/* Virtual A4 Page Layout */}
         <article
-          className="bg-white text-stone-900 w-full max-w-2xl min-h-[880px] p-8 sm:p-12 shadow-paper rounded-xs legal-doc border border-stone-200/70 print:shadow-none print:border-none print:p-0 print:max-w-none text-sm leading-relaxed selection:bg-amber-100"
+          className="bg-white text-stone-900 w-full max-w-2xl min-h-[880px] p-8 sm:p-12 shadow-paper rounded-xs legal-doc border border-stone-200/70 print:shadow-none print:border-none print:max-w-none text-sm leading-relaxed selection:bg-amber-100"
           data-purpose="a4-printed-document"
         >
           {/* National Formal Header */}
@@ -105,52 +106,82 @@ export function ComplaintDocumentPreview({
 
           {/* Recipient / Authority Header */}
           <div className="mb-5 text-sm pl-2 sm:pl-4 leading-relaxed font-serif">
-            <p className="font-bold">
-              Kính gửi:{" "}
-              <span className="font-normal italic border-b border-dotted border-stone-400 pl-2 pr-4 inline-block min-w-[280px] sm:min-w-[320px] text-stone-800">
-                {r.name || "Cơ quan Cảnh sát điều tra - Công an Huyện/Thành phố ........................"}
-              </span>
-            </p>
-            <p className="font-bold ml-12 sm:ml-16 mt-1">
-              <span className="font-normal italic border-b border-dotted border-stone-400 pl-2 pr-4 inline-block min-w-[240px] sm:min-w-[280px] text-stone-800">
-                Viện kiểm sát nhân dân cùng cấp ................................................
-              </span>
-            </p>
+            <div className="flex items-baseline">
+              <span className="font-bold mr-2 whitespace-nowrap">Kính gửi:</span>
+              <input
+                type="text"
+                value={r.name || ""}
+                onChange={(e) => onFieldChange?.("recipient.name", e.target.value)}
+                placeholder="Cơ quan Cảnh sát điều tra - Công an Huyện/Thành phố ........................"
+                className="inline-doc-input flex-1 italic text-stone-800"
+              />
+            </div>
+            <div className="flex items-baseline ml-12 sm:ml-16 mt-1">
+              <input
+                type="text"
+                value="Viện kiểm sát nhân dân cùng cấp ................................................"
+                readOnly
+                className="inline-doc-input flex-1 italic text-stone-800 cursor-default"
+              />
+            </div>
           </div>
 
           {/* Petitioner Personal Details */}
           <div className="text-sm space-y-2 mb-4 leading-relaxed font-serif">
             <div className="flex items-baseline">
               <span className="w-40 font-semibold shrink-0 whitespace-nowrap mr-2">Tôi tên là (Người làm đơn):</span>
-              <span className="flex-1 border-b border-dotted border-stone-400 font-bold uppercase text-stone-900">
-                {c.fullName || "[Họ và tên học sinh / Người đại diện]"}
-              </span>
+              <input
+                type="text"
+                value={c.fullName || ""}
+                onChange={(e) => onFieldChange?.("complainant.fullName", e.target.value)}
+                placeholder="[Họ và tên học sinh / Người đại diện]"
+                className="inline-doc-input flex-1 font-bold uppercase text-stone-900"
+              />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="flex items-baseline">
                 <span className="w-24 font-semibold shrink-0">Sinh ngày:</span>
-                <span className="flex-1 border-b border-dotted border-stone-400 text-stone-800">
-                  {c.birthDate || (c.birthYear ? `.../.../${c.birthYear}` : "... / ... / 200...")}
-                </span>
+                <input
+                  type="text"
+                  value={c.birthDate || (c.birthYear ? `.../.../${c.birthYear}` : "")}
+                  onChange={(e) => onFieldChange?.("complainant.birthDate", e.target.value)}
+                  placeholder="... / ... / 200..."
+                  className="inline-doc-input flex-1 text-stone-800"
+                />
               </div>
               <div className="flex items-baseline">
                 <span className="w-24 font-semibold shrink-0">Số CCCD:</span>
-                <span className="flex-1 border-b border-dotted border-stone-400 text-stone-700 font-medium">
-                  {c.idNumber || "[Quét để nhập tự động]"}
-                </span>
+                <input
+                  type="text"
+                  value={c.idNumber || ""}
+                  onChange={(e) => onFieldChange?.("complainant.idNumber", e.target.value)}
+                  placeholder="[Quét để nhập tự động]"
+                  className="inline-doc-input flex-1 text-stone-700 font-medium"
+                />
               </div>
             </div>
             <div className="flex items-baseline">
               <span className="w-40 font-semibold shrink-0 whitespace-nowrap mr-2">Nơi cư trú / Thường trú:</span>
-              <span className="flex-1 border-b border-dotted border-stone-400 text-stone-800">
-                {c.permanentAddress || "..........................................................................................................."}
-              </span>
+              <input
+                type="text"
+                value={c.permanentAddress || ""}
+                onChange={(e) => onFieldChange?.("complainant.permanentAddress", e.target.value)}
+                placeholder="..........................................................................................................."
+                className="inline-doc-input flex-1 text-stone-800"
+              />
             </div>
             <div className="flex items-baseline">
               <span className="w-40 font-semibold shrink-0 whitespace-nowrap mr-2">Nơi cư ngụ / SĐT liên hệ:</span>
-              <span className="flex-1 border-b border-dotted border-stone-400 text-stone-800">
-                {c.phone || c.currentAddress || "..........................................................................................................."}
-              </span>
+              <input
+                type="text"
+                value={c.phone || c.currentAddress || ""}
+                onChange={(e) => {
+                  onFieldChange?.("complainant.phone", e.target.value);
+                  onFieldChange?.("complainant.currentAddress", e.target.value);
+                }}
+                placeholder="..........................................................................................................."
+                className="inline-doc-input flex-1 text-stone-800"
+              />
             </div>
           </div>
 
@@ -159,15 +190,20 @@ export function ComplaintDocumentPreview({
             <p className="font-bold text-stone-900">
               Đối tượng này đã có hành vi vi phạm như sau:
             </p>
-            {/* Highlighted auto-populated section from chat */}
+            {/* Highlighted auto-populated and user-editable section */}
             <div className="p-3.5 bg-stone-50 border border-stone-300 rounded text-stone-900 italic leading-relaxed text-justify font-sans text-xs sm:text-sm">
-              {inc.chronology || inc.behaviorSummary ? (
-                `"${a.fullName ? `${a.fullName}${a.addressOrAccount ? ` (${a.addressOrAccount})` : ""}: ` : ""}${inc.chronology || inc.behaviorSummary}"`
-              ) : (
-                <span className="text-stone-400">
-                  (Nội dung hành vi và diễn biến sự việc sẽ được Trợ lý AI tự động trích xuất từ cuộc phỏng vấn và điền vào đây...)
-                </span>
-              )}
+              <textarea
+                value={inc.chronology || inc.behaviorSummary || ""}
+                onChange={(e) => {
+                  onFieldChange?.("incident.chronology", e.target.value);
+                  if (!inc.behaviorSummary) {
+                    onFieldChange?.("incident.behaviorSummary", e.target.value.slice(0, 80));
+                  }
+                }}
+                rows={4}
+                placeholder="(Nội dung hành vi và diễn biến sự việc sẽ được Trợ lý AI tự động trích xuất từ cuộc phỏng vấn và điền vào đây... Em cũng có thể nhấp chuột trực tiếp vào đây để sửa hoặc bổ sung)"
+                className="inline-doc-textarea w-full bg-transparent border-none p-0 focus:ring-0 resize-y text-stone-900 italic leading-relaxed font-sans text-xs sm:text-sm placeholder:text-stone-400 placeholder:not-italic"
+              />
             </div>
           </div>
 
@@ -180,11 +216,23 @@ export function ComplaintDocumentPreview({
               (Chưa có tài liệu đính kèm: Ảnh chụp màn hình tin nhắn, mã giao dịch sao kê ngân hàng, ghi âm...)
             </p>
             <div className="border border-dashed border-stone-300 rounded p-2.5 bg-stone-50 text-xs text-stone-600 flex items-center justify-between font-sans">
-              <span>📎 {ev.items.length > 0 ? ev.items.join("; ") : "Chưa có file đính kèm"}</span>
+              <div className="flex items-center gap-1.5 flex-1 mr-2">
+                <span className="shrink-0">📎</span>
+                <input
+                  type="text"
+                  value={ev.items.length > 0 ? ev.items.join("; ") : ""}
+                  onChange={(e) => {
+                    const parsedItems = e.target.value.split(";").map((s) => s.trim()).filter(Boolean);
+                    onFieldChange?.("evidence.items", parsedItems);
+                  }}
+                  placeholder="Chưa có file đính kèm (gõ các bằng chứng cách nhau bằng dấu chấm phẩy)"
+                  className="inline-doc-input flex-1 text-xs text-stone-600"
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => alert("Em có thể gõ nội dung hoặc thông tin bằng chứng trong ô chat, Trợ lý AI sẽ trích xuất vào mục này.")}
-                className="text-[#B84724] font-semibold hover:underline cursor-pointer"
+                className="text-[#B84724] font-semibold hover:underline cursor-pointer print:hidden shrink-0"
               >
                 Tải tệp đính kèm ngay
               </button>
@@ -209,15 +257,12 @@ export function ComplaintDocumentPreview({
             <div className="text-center w-64">
               <p className="font-bold text-sm">Người làm đơn</p>
               <p className="italic text-xs text-stone-500">(Ký và ghi rõ họ tên)</p>
-              <div className="h-20 flex items-center justify-center text-xs text-stone-400 italic">
-                {c.fullName ? (
-                  <span className="text-stone-800 font-bold font-serif text-sm">{c.fullName}</span>
-                ) : (
-                  "[Chưa ký xác nhận]"
-                )}
+              {/* Khoảng trống ký tay — screen: hiển thị placeholder italic; print: khoảng trắng */}
+              <div className="h-20 flex items-center justify-center text-xs text-stone-400 italic print:opacity-0">
+                {!c.fullName && "[Chưa ký xác nhận]"}
               </div>
-              <p className="text-xs font-semibold text-stone-700">
-                {c.fullName ? c.fullName.toUpperCase() : "............................................"}
+              <p className="text-xs font-semibold text-stone-700 uppercase">
+                {c.fullName || "............................................"}
               </p>
             </div>
           </div>

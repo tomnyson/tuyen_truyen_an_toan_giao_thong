@@ -242,4 +242,128 @@ button.btn-quick-pill:hover {
   color: #FFFFFF !important;
 }
 
+/* ---- Inline Editable Document Fields ---- */
+.inline-doc-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dotted #A8A29E;
+  color: #1C1917;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  padding: 0 4px;
+  transition: all 0.15s ease-in-out;
+}
+.inline-doc-input:hover {
+  border-bottom-color: #B84724;
+  background-color: rgba(254, 243, 199, 0.3);
+}
+.inline-doc-input:focus {
+  outline: none;
+  border-bottom: 2px solid #B84724;
+  background-color: rgba(254, 243, 199, 0.45);
+}
+
+.inline-doc-textarea {
+  background: transparent;
+  border: 1px solid #D6D3D1;
+  border-radius: 4px;
+  color: #1C1917;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  padding: 8px 10px;
+  width: 100%;
+  resize: vertical;
+  transition: all 0.15s ease-in-out;
+}
+.inline-doc-textarea:hover {
+  border-color: #B84724;
+  background-color: rgba(254, 243, 199, 0.15);
+}
+.inline-doc-textarea:focus {
+  outline: none;
+  border-color: #B84724;
+  box-shadow: 0 0 0 2px rgba(184, 71, 36, 0.2);
+  background-color: #FFFFFF;
+}
+
+/* ---- Thể thức in ấn văn bản A4 chuẩn (Nghị định 30/2020/NĐ-CP) ---- */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0; /* Padding handled by article itself for emulated + real print consistency */
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 13pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Ẩn hoàn toàn tất cả các thành phần thuộc giao diện website ngoài văn bản đơn */
+  header,
+  footer,
+  nav,
+  .site-header,
+  .site-footer,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset các container bọc ngoài để không làm vỡ hoặc cắt xén trang */
+  main,
+  section,
+  article,
+  div {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Khối văn bản đơn A4 chuẩn — padding khớp Word: top 20mm, right 20mm, bottom 20mm, left 30mm */
+  .legal-doc,
+  [data-purpose="a4-printed-document"] {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 20mm 20mm 20mm 30mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: "Times New Roman", Times, serif !important;
+    font-size: 13pt !important;
+    line-height: 1.45 !important;
+    page-break-after: auto;
+    page-break-inside: auto;
+  }
+
+  /* Loại bỏ mọi màu nền, viền input khi in thành văn bản chính thức */
+  .legal-doc * {
+    color: #000000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .inline-doc-input {
+    border-bottom: 1px dotted #000000 !important;
+    padding: 0 !important;
+  }
+
+  .inline-doc-textarea {
+    border: none !important;
+    padding: 0 !important;
+  }
+}
+
+
 

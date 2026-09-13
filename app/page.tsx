@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import {
-  ShowcaseGallery,
-  type ShowcaseDataState,
-} from "@/components/ShowcaseGallery";
+import { ShowcaseGallery, type ShowcaseDataState } from "@/components/ShowcaseGallery";
 import { SiteQrCode } from "@/components/SiteQrCode";
 import { HelpHotlines } from "@/components/HelpHotlines";
 import { ContentMedia } from "@/components/ContentMedia";
@@ -12,60 +9,26 @@ import { GameZone } from "@/components/GameZone";
 import { SituationAnswer } from "@/components/SituationAnswer";
 import { HeroArt } from "@/components/HeroArt";
 import {
-  ArrowRightIcon,
-  ArrowUpRightIcon,
-  BoltIcon,
-  BookIcon,
-  ChatIcon,
-  CloseIcon,
-  MailIcon,
-  MenuIcon,
-  EyeIcon,
-  PhoneIcon,
-  PlayCircleIcon,
-  ScalesIcon,
-  SearchIcon,
-  SendIcon,
-  ShieldIcon,
-  TopicIcon,
-  TrafficIcon,
-  WarningIcon,
+  ArrowRightIcon, ArrowUpRightIcon, BoltIcon, BookIcon, ChatIcon, CloseIcon,
+  MailIcon, MenuIcon, EyeIcon, PhoneIcon, PlayCircleIcon, ScalesIcon,
+  SearchIcon, SendIcon, ShieldIcon, TopicIcon, TrafficIcon, WarningIcon,
 } from "@/components/icons";
 import { EngagementProvider } from "@/components/EngagementProvider";
 import { EngagementBar, EngagementStat } from "@/components/EngagementBar";
+import { useSharedContentId, useSharedContentUrl } from "@/components/useSharedContentLink";
+import { brandLocality, brandName, brandShortName } from "@/lib/brand";
 import {
-  useSharedContentId,
-  useSharedContentUrl,
-} from "@/components/useSharedContentLink";
-import {
-  brandLocality,
-  brandName,
-  brandShortName,
-} from "@/lib/brand";
-import {
-  laws,
-  reviewedLegalBasisOf as reviewedLegalBasis,
-  reviewedPenaltyOf as reviewedPenalty,
-  sources,
-  type LawItem,
+  laws, reviewedLegalBasisOf as reviewedLegalBasis,
+  reviewedPenaltyOf as reviewedPenalty, sources, type LawItem,
 } from "@/lib/legal-content";
-import {
-  filterTopics,
-  heroQuickChips,
-  type Topic,
-} from "@/lib/topics";
+import { filterTopics, heroQuickChips, registerDynamicTopics, type Topic } from "@/lib/topics";
 import { rankBySituation } from "@/lib/situation-search";
 import { resolveShowcaseMedia } from "@/lib/showcase-media";
-import {
-  parsePublicShowcases,
-  type PublicShowcase,
-} from "@/lib/public-showcase";
+import { parsePublicShowcases, type PublicShowcase } from "@/lib/public-showcase";
 import { AiDisclaimer } from "@/components/AiDisclaimer";
 import { ChatAnswerBody } from "@/components/ChatAnswerBody";
 import {
-  chatAnswerNetworkErrorText,
-  parseChatAnswerPayload,
-  type ChatAnswerView,
+  chatAnswerNetworkErrorText, parseChatAnswerPayload, type ChatAnswerView,
 } from "@/lib/chat-answer-view";
 
 type ChatMessage = {
@@ -137,7 +100,10 @@ function managedLawId(id: number): number | null {
 }
 
 function HomeContent() {
-  const [topic, setTopic] = useState<Topic>("Tất cả");
+  const [topic, setTopic] = useState<string>("Tất cả");
+  const [topicList, setTopicList] = useState<
+    readonly { name: string; icon: string; detail?: string }[]
+  >(filterTopics);
   const [query, setQuery] = useState("");
   // Bản thiết kế mở đầu lưới tra cứu bằng 6 thẻ; phần còn lại hiện dần qua nút
   // "Xem thêm" nên không mất tình huống nào.
@@ -159,6 +125,31 @@ function HomeContent() {
   useEffect(() => {
     let active = true;
     void (async () => {
+      // 1. Tải danh mục chủ đề động từ cơ sở dữ liệu qua /api/topics
+      try {
+        const topicsResponse = await fetch("/api/topics");
+        if (topicsResponse.ok) {
+          const topicsData = await topicsResponse.json();
+          if (Array.isArray(topicsData.topics) && topicsData.topics.length > 0) {
+            if (active) {
+              const dynamicList = [
+                { name: "Tất cả", icon: "⌕", detail: "Mọi lĩnh vực" },
+                ...topicsData.topics.map((t: any) => ({
+                  name: t.name,
+                  icon: t.icon || "◉",
+                  detail: t.detail || "",
+                })),
+              ];
+              setTopicList(dynamicList);
+              registerDynamicTopics(topicsData.topics);
+            }
+          }
+        }
+      } catch {
+        // Fallback filterTopics nếu API chưa sẵn sàng
+      }
+
+      // 2. Tải tình huống và nội dung pháp lý đã xuất bản từ /api/content
       try {
         const response = await fetch("/api/content");
         if (!response.ok) throw new Error("content dependency unavailable");
@@ -219,7 +210,11 @@ function HomeContent() {
     };
   }, [sharedLawId]);
 
-  const availableLaws = useMemo(() => [...managedLaws, ...laws], [managedLaws]);
+  // Ưu tiên nạp dữ liệu từ DB (managedLaws); chỉ fallback tĩnh khi DB đang tải hoặc trống
+  const availableLaws = useMemo(
+    () => (managedLaws.length > 0 ? managedLaws : laws),
+    [managedLaws],
+  );
 
   const selectedLawEngagementId = selectedLaw ? managedLawId(selectedLaw.id) : null;
   useSharedContentUrl("law", selectedLawEngagementId);
@@ -345,6 +340,7 @@ function HomeContent() {
             <a href="#tra-cuu">Tra cứu</a>
             <a href="#tinh-huong">Tình huống</a>
             <a href="#ren-luyen">Thử thách</a>
+            <a href="/tra-cuu-van-ban">Kho văn bản</a>
             <a href="/tro-giup-phap-ly">Trợ giúp pháp lý</a>
           </nav>
           <button
@@ -455,9 +451,9 @@ function HomeContent() {
                 <span className="section-kicker">Chủ đề pháp luật</span>
                 <h2>Chọn chủ đề bạn quan tâm</h2>
                 <p className="lead">
-                  Năm nhóm quy định sát với đời sống học sinh, sinh viên. Mỗi chủ
-                  đề gom sẵn tình huống, mức xử lý tham khảo và điều luật để bạn
-                  đối chiếu, thay vì phải đọc trọn cả nghị định.
+                  Các chuyên đề pháp luật thiết thực sát với đời sống học sinh,
+                  sinh viên. Mỗi chủ đề gom sẵn tình huống, mức xử lý tham khảo
+                  và điều luật để bạn đối chiếu, thay vì phải đọc trọn cả nghị định.
                 </p>
               </div>
               <span className="head-chip">
@@ -468,7 +464,7 @@ function HomeContent() {
 
             <div className="topics-grid">
               <div className="topic-list">
-                {filterTopics.slice(1).map((item, index) => (
+                {topicList.slice(1).map((item, index) => (
                   <button
                     type="button"
                     key={item.name}
@@ -478,12 +474,14 @@ function HomeContent() {
                       scrollToResults();
                     }}
                   >
-                    <span className={`topic-icon t${index + 1}`} aria-hidden="true">
-                      <TopicIcon topic={item.name} />
+                    <span className={`topic-icon t${(index % 10) + 1}`} aria-hidden="true">
+                      <TopicIcon topic={item.name} icon={item.icon} />
                     </span>
                     <span className="topic-body">
                       <strong>
-                        <span className="topic-index">0{index + 1}</span>
+                        <span className="topic-index">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
                         {item.name}
                       </strong>
                       <small>{item.detail}</small>
@@ -558,7 +556,7 @@ function HomeContent() {
             </div>
 
             <div className="filter-bar" role="group" aria-label="Bộ lọc lĩnh vực">
-              {filterTopics.map((item) => (
+              {topicList.map((item) => (
                 <button
                   type="button"
                   key={item.name}
@@ -566,7 +564,7 @@ function HomeContent() {
                   aria-pressed={topic === item.name}
                   onClick={() => setTopic(item.name)}
                 >
-                  <TopicIcon topic={item.name} />
+                  <TopicIcon topic={item.name} icon={item.icon} />
                   {item.name}
                 </button>
               ))}
@@ -685,6 +683,11 @@ function HomeContent() {
                   Nội dung ở đây được diễn giải ngắn gọn để học tập, không thay
                   thế tư vấn pháp lý cho một vụ việc cụ thể.
                 </p>
+                <div style={{ margin: "14px 0" }}>
+                  <a href="/tra-cuu-van-ban" className="btn-gold" style={{ display: "inline-flex", textDecoration: "none" }}>
+                    <BookIcon /> Kho văn bản tra cứu &amp; học tập →
+                  </a>
+                </div>
                 <SiteQrCode />
               </div>
               <div className="source-list">
@@ -767,7 +770,7 @@ function HomeContent() {
             <div className="footer-col">
               <h3>Chủ đề</h3>
               <ul>
-                {filterTopics.slice(1).map((item) => (
+                {topicList.slice(1).map((item) => (
                   <li key={item.name}>
                     <a
                       href="#tra-cuu"
@@ -786,6 +789,7 @@ function HomeContent() {
                 <li><a href="#tra-cuu">Tra cứu tình huống</a></li>
                 <li><a href="#tinh-huong">Góc cảnh báo</a></li>
                 <li><a href="#ren-luyen">Thử thách kiến thức</a></li>
+                <li><a href="/tra-cuu-van-ban">Kho văn bản pháp luật</a></li>
                 <li><a href="/tro-giup-phap-ly">Trợ giúp pháp lý</a></li>
                 <li><a href="#nguon">Nguồn luật gốc</a></li>
               </ul>

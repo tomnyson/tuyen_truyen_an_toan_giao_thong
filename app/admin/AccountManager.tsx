@@ -146,31 +146,41 @@ export function AccountManager() {
   };
 
   const handleToggleTopic = (topic: string) => {
-    if (formData.allowedTopics.includes("*")) {
-      const remaining = contentTopicNames.filter((t) => t !== topic);
-      setFormData((prev) => ({ ...prev, allowedTopics: remaining }));
-      return;
-    }
+    setFormData((prev) => {
+      const currentAllowed = prev.allowedTopics.includes("*")
+        ? [...contentTopicNames]
+        : prev.allowedTopics;
 
-    if (formData.allowedTopics.includes(topic)) {
-      setFormData((prev) => ({
+      const alreadyHas = currentAllowed.includes(topic);
+      let nextAllowed: string[];
+
+      if (alreadyHas) {
+        nextAllowed = currentAllowed.filter((t) => t !== topic);
+      } else {
+        nextAllowed = [...currentAllowed, topic];
+        if (contentTopicNames.every((t) => nextAllowed.includes(t))) {
+          nextAllowed = ["*"];
+        }
+      }
+
+      return {
         ...prev,
-        allowedTopics: prev.allowedTopics.filter((t) => t !== topic),
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        allowedTopics: [...prev.allowedTopics, topic],
-      }));
-    }
+        allowedTopics: nextAllowed,
+      };
+    });
   };
 
   const handleSelectAllTopics = () => {
-    if (formData.allowedTopics.includes("*") || formData.allowedTopics.length === contentTopicNames.length) {
-      setFormData((prev) => ({ ...prev, allowedTopics: [] }));
-    } else {
-      setFormData((prev) => ({ ...prev, allowedTopics: ["*"] }));
-    }
+    setFormData((prev) => {
+      const isAll =
+        prev.allowedTopics.includes("*") ||
+        (contentTopicNames.length > 0 &&
+          contentTopicNames.every((t) => prev.allowedTopics.includes(t)));
+      return {
+        ...prev,
+        allowedTopics: isAll ? [] : ["*"],
+      };
+    });
   };
 
   const handleSaveAccount = async (e: React.FormEvent) => {
@@ -691,7 +701,6 @@ export function AccountManager() {
                       return (
                         <label
                           key={topic}
-                          onClick={() => handleToggleTopic(topic)}
                           className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer text-xs font-medium transition-colors select-none ${
                             isChecked
                               ? "bg-sky-50 text-sky-900 border border-sky-200"
@@ -701,8 +710,8 @@ export function AccountManager() {
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={() => {}}
-                            className="w-3.5 h-3.5 text-sky-600 rounded border-stone-300 focus:ring-sky-500 pointer-events-none"
+                            onChange={() => handleToggleTopic(topic)}
+                            className="w-4 h-4 text-sky-600 rounded border-stone-300 focus:ring-sky-500 cursor-pointer"
                           />
                           <TopicIcon icon={getTopicIconKey(topic)} size={12} className="shrink-0" />
                           <span className="truncate">{topic}</span>

@@ -1,0 +1,518 @@
+/* Kho văn bản pháp luật tra cứu & học tập (US-049).
+   Kế thừa toàn bộ hệ design tokens từ tokens.css; không dùng màu generic xám/xanh lạnh. */
+
+.legal-lookup-page-wrapper {
+  position: relative;
+  background: radial-gradient(circle at 50% 0%, rgba(246, 196, 69, 0.12) 0%, transparent 45%), var(--cream);
+  min-height: 100dvh;
+}
+
+.legal-kicker-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--blush);
+  border: 1px solid rgba(184, 67, 42, 0.18);
+  color: var(--brick-deep);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legal-kicker-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.legal-page-header {
+  display: grid;
+  gap: 8px;
+}
+
+.legal-page-title {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(1.8rem, 1.4rem + 1.6vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.legal-page-desc {
+  font-size: clamp(0.875rem, 0.82rem + 0.2vw, 0.95rem);
+  color: var(--ink-soft);
+  max-width: 68ch;
+  line-height: 1.65;
+}
+
+/* Khối tra cứu chính */
+.legal-container-card {
+  background: var(--paper);
+  border: 1px solid var(--line-card);
+  border-radius: var(--r-xl);
+  padding: clamp(20px, 3vw, 32px);
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  gap: 20px;
+}
+
+/* Thanh điều khiển bộ lọc (Filter Control Panel) */
+.legal-filter-panel {
+  background: var(--cream-warm);
+  border: 1px solid var(--line-card);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+  display: grid;
+  gap: 14px;
+}
+
+/* Hàng trên: Ô tìm kiếm + Bộ chọn loại văn bản */
+.legal-filter-top-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 840px) {
+  .legal-filter-top-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* Ô tìm kiếm từ khóa */
+.legal-search-box {
+  position: relative;
+  flex: 1;
+  max-width: 440px;
+}
+
+.legal-search-input {
+  width: 100%;
+  padding: 10px 38px 10px 42px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-card);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+
+.legal-search-input::placeholder {
+  color: var(--ink-mute);
+  font-weight: 400;
+}
+
+.legal-search-input:focus {
+  border-color: var(--brick);
+  box-shadow: 0 0 0 3px rgba(184, 67, 42, 0.15);
+}
+
+.legal-search-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-mute);
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+}
+
+.legal-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-pill);
+  background: var(--sand);
+  border: none;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+.legal-search-clear:hover {
+  background: var(--blush);
+  color: var(--brick);
+}
+
+/* Segmented Control cho Loại văn bản */
+.legal-segmented-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--sand);
+  padding: 4px;
+  border-radius: var(--r-pill);
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+
+.legal-segmented-container::-webkit-scrollbar {
+  display: none;
+}
+
+.legal-segmented-btn {
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--fast) var(--ease);
+}
+
+.legal-segmented-btn:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.legal-segmented-btn.active {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: var(--shadow-xs);
+}
+
+/* Dải chọn chủ đề (Topic Chips) */
+.legal-topic-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-block: 4px;
+  scrollbar-width: none;
+}
+
+.legal-topic-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.legal-topic-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  padding-right: 4px;
+}
+
+.legal-topic-chip {
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--fast) var(--ease);
+}
+
+.legal-topic-chip:hover {
+  border-color: var(--brick);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.legal-topic-chip:active {
+  transform: translateY(0);
+}
+
+.legal-topic-chip.active {
+  background: var(--brick);
+  border-color: var(--brick);
+  color: #fff8ec;
+  font-weight: 700;
+  box-shadow: var(--shadow-brick);
+}
+
+/* Thanh trạng thái bộ lọc (Active Filter Status) */
+.legal-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 4px;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+.legal-status-count strong {
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.legal-active-filter-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.legal-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: var(--r-pill);
+  background: var(--blush);
+  border: 1px solid rgba(184, 67, 42, 0.2);
+  color: var(--brick);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+
+.legal-reset-btn:hover {
+  background: var(--blush-deep);
+  transform: translateY(-1px);
+}
+
+/* Lưới thẻ văn bản (Document Cards Grid) */
+.legal-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 16px;
+}
+
+.legal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  background: var(--paper);
+  border: 1px solid var(--line-card);
+  border-radius: var(--r-lg);
+  padding: 20px 22px;
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease), border-color var(--fast) var(--ease);
+  overflow: hidden;
+}
+
+/* Dải viền đỉnh phân biệt theo loại văn bản */
+.legal-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--sand-deep);
+}
+
+.legal-card[data-type="luat"]::before { background: var(--brick); }
+.legal-card[data-type="nghi_dinh"]::before { background: var(--sky); }
+.legal-card[data-type="thong_tu"]::before { background: var(--green); }
+.legal-card[data-type="quyet_dinh"]::before { background: var(--gold-deep); }
+.legal-card[data-type="van_ban_hop_nhat"]::before { background: var(--brown); }
+
+.legal-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--sand-deep);
+}
+
+.legal-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.legal-badge-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--r-xs);
+  border: 1px solid transparent;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.legal-badge-luat {
+  background: var(--blush);
+  color: var(--brick-deep);
+  border-color: rgba(184, 67, 42, 0.2);
+}
+
+.legal-badge-nghi_dinh {
+  background: var(--sky-soft);
+  color: #1e4b7a;
+  border-color: rgba(47, 111, 179, 0.2);
+}
+
+.legal-badge-thong_tu {
+  background: var(--mint);
+  color: var(--green-deep);
+  border-color: rgba(46, 125, 79, 0.2);
+}
+
+.legal-badge-quyet_dinh {
+  background: var(--gold-soft);
+  color: #8c6307;
+  border-color: rgba(246, 196, 69, 0.35);
+}
+
+.legal-badge-van_ban_hop_nhat {
+  background: var(--sand);
+  color: var(--brown);
+  border-color: rgba(91, 58, 34, 0.2);
+}
+
+.legal-badge-khac {
+  background: var(--cream-warm);
+  color: var(--ink-soft);
+  border-color: var(--line-card);
+}
+
+.legal-authority {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink-mute);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legal-card-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink);
+  transition: color var(--fast) var(--ease);
+}
+
+.legal-card:hover .legal-card-title {
+  color: var(--brick);
+}
+
+.legal-card-summary {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin-top: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.legal-card-footer {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.legal-topic-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--cream-warm);
+  border: 1px solid var(--line);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+}
+
+.legal-external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--brick);
+  text-decoration: none;
+  transition: color var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+
+.legal-external-link:hover {
+  color: var(--brick-deep);
+  transform: translateX(2px);
+}
+
+.legal-external-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Trạng thái rỗng (Empty State) */
+.legal-empty-state {
+  padding: 48px 24px;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  background: var(--cream-warm);
+  border-radius: var(--r-lg);
+  border: 1px dashed var(--line-card);
+}
+
+.legal-empty-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-md);
+  background: var(--sand);
+  color: var(--ink-mute);
+  display: grid;
+  place-items: center;
+}
+
+.legal-empty-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.legal-empty-desc {
+  font-size: 0.84rem;
+  color: var(--ink-soft);
+  max-width: 44ch;
+  line-height: 1.5;
+}
+
+/* Loading spinner */
+.legal-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--sand-deep);
+  border-top-color: var(--brick);
+  border-radius: 50%;
+  animation: legal-spin 0.7s linear infinite;
+  margin: 0 auto 12px;
+}
+
+@keyframes legal-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

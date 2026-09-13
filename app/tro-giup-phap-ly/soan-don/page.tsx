@@ -37,6 +37,7 @@ interface ChatMessage {
   text: string;
   time: string;
   isExtractedUpdate?: boolean;
+  extractedBadges?: string[];
 }
 
 const QUICK_PROMPTS = [
@@ -186,6 +187,7 @@ export default function SoanDonToGiacPage() {
             text: data.assistantReply || "Anh/chị đã ghi nhận thông tin vào đơn.",
             time: "Vừa xong",
             isExtractedUpdate: hasExtracted,
+            extractedBadges: data.extractedSummary,
           },
         ]);
       } else {
@@ -249,13 +251,31 @@ export default function SoanDonToGiacPage() {
     }
   };
 
+  const handleFieldChange = (path: string, value: any) => {
+    updateFormState((prev) => {
+      const next = { ...prev };
+      const parts = path.split(".");
+      if (parts.length === 1) {
+        (next as any)[parts[0]] = value;
+      } else if (parts.length === 2) {
+        (next as any)[parts[0]] = {
+          ...(next as any)[parts[0]],
+          [parts[1]]: value,
+        };
+      }
+      return next;
+    });
+  };
+
   const { percentage } = calculateFormCompletionProgress(formState);
 
   return (
-    <div className="legal-lookup-page-wrapper min-h-screen flex flex-col justify-between bg-[#FAF6F0] dark:bg-stone-950 text-stone-800 dark:text-stone-100">
-      <SiteHeader currentPath="/tro-giup-phap-ly" />
+    <div className="legal-lookup-page-wrapper min-h-screen flex flex-col justify-between bg-[#FAF6F0] text-stone-800">
+      <div className="print:hidden">
+        <SiteHeader currentPath="/tro-giup-phap-ly" />
+      </div>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 print:p-0 print:max-w-none print:mx-0">
         {/* Breadcrumb & System Sub-nav */}
         <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm text-stone-500 mb-4 print:hidden">
           <Link href="/" className="hover:text-stone-800 transition-colors">
@@ -272,21 +292,21 @@ export default function SoanDonToGiacPage() {
         </nav>
 
         {/* Security Guarantee Banner (Stitch Design Standard) */}
-        <section className="bg-[#EFF8F3] dark:bg-emerald-950/40 border border-[#BDE5D2] dark:border-emerald-800 rounded-2xl p-3.5 sm:px-5 mb-5 shadow-warm-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-stone-700 dark:text-stone-200 print:hidden">
+        <section className="bg-[#EFF8F3] border border-[#BDE5D2] rounded-2xl p-3.5 sm:px-5 mb-5 shadow-warm-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-stone-700 print:hidden">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
               <FaShieldHalved className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                <h2 className="text-sm font-bold text-emerald-950">
                   Cam kết bảo mật 100% (Zero-Knowledge Privacy)
                 </h2>
-                <span className="hidden sm:inline-flex bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 text-[11px] font-semibold px-2 py-0.5 rounded-md">
+                <span className="hidden sm:inline-flex bg-emerald-100 text-emerald-800 text-[11px] font-semibold px-2 py-0.5 rounded-md">
                   An toàn tuyệt đối
                 </span>
               </div>
-              <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-0.5 leading-relaxed">
+              <p className="text-xs text-emerald-800 mt-0.5 leading-relaxed">
                 Dữ liệu cá nhân từ thẻ CCCD và nội dung khai báo chỉ được xử lý và lưu tạm cục bộ trong trình duyệt máy bạn, tuyệt đối không lưu trữ trên máy chủ công cộng.
               </p>
             </div>
@@ -294,7 +314,7 @@ export default function SoanDonToGiacPage() {
           <button
             onClick={handleResetAll}
             type="button"
-            className="text-xs font-semibold text-stone-600 dark:text-stone-300 hover:text-red-700 dark:hover:text-red-400 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/60 transition-colors px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 ml-auto shrink-0 cursor-pointer"
+            className="text-xs font-semibold text-stone-600 hover:text-red-700 hover:bg-emerald-100/60 transition-colors px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 ml-auto shrink-0 cursor-pointer"
             title="Xóa toàn bộ dữ liệu phiên làm việc"
           >
             <FaTrashCan className="w-3.5 h-3.5 text-stone-500 hover:text-red-600" />
@@ -305,9 +325,9 @@ export default function SoanDonToGiacPage() {
         {/* Main Dual Workspace */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* LEFT COLUMN: Legal Assistant Chatbot & Guidance (5 Cols) */}
-          <section className="lg:col-span-5 flex flex-col bg-white dark:bg-stone-900 rounded-2xl border border-[#EFE5DA] dark:border-stone-800 shadow-warm-md overflow-hidden h-[740px] print:hidden">
+          <section className="lg:col-span-5 flex flex-col bg-white rounded-2xl border border-[#EFE5DA] shadow-warm-md overflow-hidden h-[740px] print:hidden">
             {/* Assistant Header */}
-            <div className="p-4 bg-gradient-to-r from-[#FAF5F0] via-white to-[#FAF5F0] dark:from-stone-900 dark:via-stone-850 dark:to-stone-900 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between">
+            <div className="p-4 bg-gradient-to-r from-[#FAF5F0] via-white to-[#FAF5F0] border-b border-stone-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[#B84724]/10 border border-[#B84724]/20 flex items-center justify-center text-[#B84724] shadow-sm">
                   <svg className="w-5 h-5 text-[#B84724]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -315,10 +335,10 @@ export default function SoanDonToGiacPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-stone-900 dark:text-white tracking-tight uppercase">
+                  <h3 className="text-sm font-bold text-stone-900 tracking-tight uppercase">
                     TRỢ LÝ PHÁP LÝ ĐỒNG HÀNH
                   </h3>
-                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
                     Sẵn sàng lắng nghe & hỗ trợ em
                   </p>
@@ -341,7 +361,7 @@ export default function SoanDonToGiacPage() {
             {/* Chat Conversation Stream */}
             <div
               ref={chatListRef}
-              className="flex-1 p-4 overflow-y-auto space-y-4 text-sm bg-[#FCFAF8] dark:bg-stone-950/60"
+              className="flex-1 p-4 overflow-y-auto space-y-4 text-sm bg-[#FCFAF8]"
               data-purpose="chat-messages-container"
             >
               {messages.map((m) => (
@@ -352,7 +372,7 @@ export default function SoanDonToGiacPage() {
                   }`}
                 >
                   {m.sender === "ai" && (
-                    <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950 text-[#B84724] dark:text-orange-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 border border-orange-200 dark:border-orange-800">
+                    <div className="w-8 h-8 rounded-full bg-orange-100 text-[#B84724] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 border border-orange-200">
                       AI
                     </div>
                   )}
@@ -361,7 +381,7 @@ export default function SoanDonToGiacPage() {
                     className={
                       m.sender === "user"
                         ? "bg-gradient-to-r from-[#B84724] to-stone-800 text-white rounded-2xl rounded-tr-none px-4 py-2.5 shadow-sm max-w-[80%] leading-relaxed text-sm"
-                        : "bg-white dark:bg-stone-850 border border-stone-200/90 dark:border-stone-750 rounded-2xl rounded-tl-none p-3.5 shadow-sm text-stone-800 dark:text-stone-200 max-w-[85%] leading-relaxed"
+                        : "bg-white border border-stone-200/90 rounded-2xl rounded-tl-none p-3.5 shadow-sm text-stone-800 max-w-[85%] leading-relaxed"
                     }
                   >
                     {m.sender === "ai" && (
@@ -372,14 +392,32 @@ export default function SoanDonToGiacPage() {
                     <p className="whitespace-pre-wrap">{m.text}</p>
 
                     {m.isExtractedUpdate && (
-                      <p className="mt-2 text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-900 p-2 rounded-lg border border-dashed border-stone-300 dark:border-stone-700">
-                        ✍️ Bản thảo đơn tố giác phía bên phải đã được tự động cập nhật vào các mục tương ứng.
-                      </p>
+                      <div className="mt-2.5 pt-2 border-t border-stone-200/80">
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold mb-1">
+                          <span>✍️ Tự động cập nhật vào đơn:</span>
+                        </div>
+                        {m.extractedBadges && m.extractedBadges.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {m.extractedBadges.map((badge, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              >
+                                {badge}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-stone-500 italic">
+                            Bản thảo đơn tố giác phía bên phải đã được tự động cập nhật vào các mục tương ứng.
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
 
                   {m.sender === "user" && (
-                    <div className="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 flex items-center justify-center font-semibold text-xs shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-full bg-stone-200 text-stone-700 flex items-center justify-center font-semibold text-xs shrink-0 mt-0.5">
                       Em
                     </div>
                   )}
@@ -391,7 +429,7 @@ export default function SoanDonToGiacPage() {
                   <div className="w-8 h-8 rounded-full bg-orange-50 text-[#B84724] flex items-center justify-center shrink-0">
                     <FaRobot className="w-3.5 h-3.5 animate-spin" />
                   </div>
-                  <div className="bg-white dark:bg-stone-850 p-3 rounded-2xl rounded-tl-none border border-stone-200 dark:border-stone-750">
+                  <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-stone-200">
                     <span>Trợ lý đang phân tích và trích xuất dữ liệu vào đơn...</span>
                   </div>
                 </div>
@@ -399,7 +437,7 @@ export default function SoanDonToGiacPage() {
             </div>
 
             {/* Suggestion Chips & Prompt Quick-Pills */}
-            <div className="p-2.5 bg-stone-50 dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800">
+            <div className="p-2.5 bg-stone-50 border-t border-stone-200">
               <p className="text-[11px] font-bold text-stone-500 uppercase tracking-wider px-1 mb-1.5">
                 Gợi ý nhanh theo tình huống phổ biến:
               </p>
@@ -418,7 +456,7 @@ export default function SoanDonToGiacPage() {
             </div>
 
             {/* Chat Input Field */}
-            <div className="p-3.5 bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800">
+            <div className="p-3.5 bg-white border-t border-stone-200">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -431,13 +469,13 @@ export default function SoanDonToGiacPage() {
                   value={inputMsg}
                   onChange={(e) => setInputMsg(e.target.value)}
                   placeholder="Kể về sự việc em đang gặp phải (ví dụ: bị đe dọa, bị lừa chuyển khoản...)"
-                  className="w-full pl-4 pr-24 py-3 bg-stone-50 dark:bg-stone-800/80 border border-stone-300 dark:border-stone-700 rounded-xl text-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#B84724]/30 focus:border-[#B84724] placeholder-stone-400"
+                  className="w-full pl-4 pr-24 py-3 bg-stone-50 border border-stone-300 rounded-xl text-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#B84724]/30 focus:border-[#B84724] placeholder-stone-400"
                 />
                 <div className="absolute right-2 flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => alert("Em có thể gõ mô tả các tài liệu/ảnh chụp bằng chứng vào ô chat, Trợ lý sẽ tự động trích xuất vào mục Chứng cứ đính kèm của đơn.")}
-                    className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
+                    className="p-1.5 text-stone-400 hover:text-stone-700 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
                     title="Đính kèm thông tin bằng chứng"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -467,6 +505,7 @@ export default function SoanDonToGiacPage() {
           <div className="lg:col-span-7 h-[740px]">
             <ComplaintDocumentPreview
               state={formState}
+              onFieldChange={handleFieldChange}
               onDownloadDocx={handleDownloadDocx}
               onOpenGuidance={() => setIsGuidanceOpen(true)}
               progressPercentage={percentage}
@@ -475,16 +514,16 @@ export default function SoanDonToGiacPage() {
         </div>
 
         {/* Civic Hotline Bar (Stitch Design Standard) */}
-        <section className="mt-6 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-4 sm:p-5 shadow-warm-sm flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
+        <section className="mt-6 bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-warm-sm flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 flex items-center justify-center font-bold text-lg shrink-0">
+            <div className="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-lg shrink-0">
               <FaPhone className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-stone-900 dark:text-white">
+              <h4 className="text-sm font-bold text-stone-900">
                 Đường dây nóng khẩn cấp & tư vấn bảo vệ trẻ em, học sinh 24/7
               </h4>
-              <p className="text-xs text-stone-500 dark:text-stone-400">
+              <p className="text-xs text-stone-500">
                 Nếu bạn đang bị đe dọa bạo lực hoặc nguy hiểm ngay lập tức, hãy gọi ngay đường dây khẩn cấp miễn phí:
               </p>
             </div>
@@ -492,21 +531,21 @@ export default function SoanDonToGiacPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <a
               href="tel:111"
-              className="px-3.5 py-1.5 rounded-full bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 text-xs font-bold border border-red-200 dark:border-red-800 flex items-center gap-1.5 transition-colors"
+              className="px-3.5 py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold border border-red-200 flex items-center gap-1.5 transition-colors"
             >
               <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
               Tổng đài 111 (Bảo vệ trẻ em)
             </a>
             <a
               href="tel:113"
-              className="px-3.5 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold border border-amber-200 dark:border-amber-800 flex items-center gap-1.5 transition-colors"
+              className="px-3.5 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200 flex items-center gap-1.5 transition-colors"
             >
               <span className="w-2 h-2 rounded-full bg-amber-600" />
               113 (Công an khẩn cấp)
             </a>
             <a
               href="tel:115"
-              className="px-3.5 py-1.5 rounded-full bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-bold border border-stone-300 dark:border-stone-700 flex items-center gap-1.5 transition-colors"
+              className="px-3.5 py-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold border border-stone-300 flex items-center gap-1.5 transition-colors"
             >
               115 (Cấp cứu y tế)
             </a>
@@ -530,7 +569,9 @@ export default function SoanDonToGiacPage() {
         />
       )}
 
-      <SiteFooter />
+      <div className="print:hidden">
+        <SiteFooter />
+      </div>
     </div>
   );
 }

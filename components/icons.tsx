@@ -2,6 +2,14 @@
 // Tự vẽ thay vì kéo thư viện icon để giữ đúng độ dày nét và tránh phụ thuộc mới.
 
 import type { SVGProps } from "react";
+import {
+  FaCapsules,
+  FaSchool,
+  FaGamepad,
+  FaMoneyBillWave,
+  FaTriangleExclamation,
+} from "react-icons/fa6";
+import { TOPIC_ICON_MAP } from "./TopicIcon";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -273,16 +281,30 @@ export const MailIcon = (p: IconProps) => (
 );
 
 // Ánh xạ lĩnh vực → biểu tượng, dùng chung cho danh sách chủ đề và chip.
-export const topicIcons: Record<string, (p: IconProps) => React.ReactElement> = {
+export const topicIcons: Record<string, React.ComponentType<any>> = {
   "Giao thông": BikeIcon,
   "Mạng xã hội": ChatIcon,
   "Bạo lực học đường": ShieldAlertIcon,
   "An ninh trật tự": UsersIcon,
   "Sở hữu trí tuệ": CopyrightIcon,
+  "Chuyên đề phòng chống ma túy": FaCapsules,
+  "Chuyên đề an ninh trật tự trường học": FaSchool,
+  "Chuyên đề game và không gian mạng": FaGamepad,
+  "Tài chính - tín dụng đen": FaMoneyBillWave,
+  "Phòng chống tệ nạn xã hội": FaTriangleExclamation,
   "Tất cả": SearchIcon,
 };
 
-export function TopicIcon({ topic, ...props }: IconProps & { topic: string }) {
-  const Cmp = topicIcons[topic] ?? BookIcon;
+export function TopicIcon({
+  topic,
+  icon,
+  ...props
+}: IconProps & { topic?: string; icon?: string }) {
+  const Cmp =
+    (icon && TOPIC_ICON_MAP[icon]) ||
+    (topic && topicIcons[topic]) ||
+    (topic && TOPIC_ICON_MAP[topic]) ||
+    BookIcon;
   return <Cmp {...props} />;
 }
+

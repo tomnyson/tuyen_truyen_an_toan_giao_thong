@@ -27,17 +27,22 @@
     "shadow:ai": "node --env-file=.env.local --experimental-strip-types scripts/shadow-openai-evidence.mjs",
     "auth:hash": "node --experimental-strip-types scripts/generate-admin-password-hash.mjs",
     "seed": "node --env-file=.env.local --experimental-strip-types scripts/seed-db.mjs",
+    "seed:topics": "node --env-file=.env.local --experimental-strip-types scripts/seed-topics.mjs",
     "test:seed": "node --experimental-strip-types --test tests/seed-db.test.mjs",
+    "test:seed-topics": "node --test tests/seed-topics.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "docx": "^9.7.1",
     "drizzle-orm": "0.45.2",
+    "jsqr": "^1.4.0",
     "next": "^16.2.10",
     "qrcode-generator": "^2.0.4",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "react-icons": "^5.7.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.44.0",

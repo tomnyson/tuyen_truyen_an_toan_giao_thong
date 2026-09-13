@@ -1813,4 +1813,24 @@ ngày 2026-09-12. Mọi story dưới đây chưa có bằng chứng triển kha
 
 **Evidence:** `db/pg-schema.ts`, `db/pg-bootstrap.ts`, `lib/account-store.ts`, `lib/audit-log-store.ts`, `lib/admin-auth.ts`, `app/admin/api/accounts/route.ts`, `app/admin/api/audit-logs/route.ts`, `app/admin/api/content/route.ts`, `app/admin/api/login/route.ts`, `app/admin/api/logout/route.ts`, `app/admin/AccountManager.tsx`, `app/admin/AuditLogManager.tsx`, `app/admin/AdminDashboard.tsx`; `tests/admin-accounts-schema.test.mjs` (2/2 pass), `tests/account-and-audit-store.test.mjs` (3/3 pass), `tests/admin-accounts-api.test.mjs` (2/2 pass), `tests/admin-accounts-ui.test.mjs` (2/2 pass), `tests/rbac-and-audit-e2e.test.mjs` (1/1 pass); toàn bộ test suite dự án 540/540 pass, `npx tsc --noEmit` 0 lỗi.
 
+### [x] US-051 — Trợ lý AI hỗ trợ soạn đơn tố giác tội phạm & Quét CCCD Client-Side
+
+- **Priority:** P0
+- **Persona:** Học sinh, sinh viên, người dân bị xâm hại quyền lợi hợp pháp
+- **Mô tả:** Là người học hoặc người dân, tôi muốn được trợ lý AI đồng hành phỏng vấn từng bước bằng ngôn ngữ thân thiện, hỗ trợ quét mã QR thẻ CCCD gắn chip hoàn toàn trên máy cá nhân (không đẩy dữ liệu định danh lên server), tự động ráp thông tin vào mẫu Đơn tố giác tội phạm chuẩn của Bộ Công an, xem trước thời gian thực (Live Preview A4), tải file Word (.docx), in/lưu PDF và nhận hướng dẫn chi tiết về thẩm quyền cơ quan tiếp nhận kèm cẩm nang 4 bước nộp đơn an toàn.
+
+**Acceptance criteria**
+
+- [x] Quét và giải mã mã QR CCCD gắn chip (chuẩn 7 trường dữ liệu) 100% tại Client (`lib/cccd-parser.ts`, `components/CccdQrScanner.tsx`) bằng `jsQR`/`BarcodeDetector`, không gửi ảnh hay dữ liệu định danh (PII) lên bất kỳ server nào.
+- [x] Quản lý state tờ đơn và lưu trữ an toàn trong `sessionStorage` của trình duyệt (`lib/complaint-form-state.ts`), cung cấp tính năng tính tiến độ hoàn thiện (%) và nút xóa sạch dữ liệu phiên khẩn cấp.
+- [x] Sinh file Microsoft Word (`.docx`) chuẩn mẫu đơn Nhà nước [`docs/don/don-to-giac.docx`](file:///Applications/work/tuyentruyenantoangiaothong/docs/don/don-to-giac.docx) trực tiếp trên trình duyệt bằng thư viện `docx` (`lib/docx-generator.ts`).
+- [x] Trợ lý AI phỏng vấn khai thác tình huống qua API `/api/legal-aid/interview` (`lib/legal-aid-interview.ts`), chỉ nhận lời kể phi định danh, trích xuất cấu trúc hành vi, đối tượng, thiệt hại và bằng chứng.
+- [x] Component xem trước tờ đơn thời gian thực (`components/ComplaintDocumentPreview.tsx`) mô phỏng trang giấy A4 chuẩn, reactive highlight và hỗ trợ `@media print` cho in ấn/lưu PDF trực tiếp.
+- [x] Modal hướng dẫn thẩm quyền và 4 bước nộp đơn an toàn (`components/SubmissionGuidanceModal.tsx`) theo Điều 145, 146 BLTTHS 2015, kết nối danh bạ từ `/api/co-quan`.
+- [x] Chuyên trang độc lập `/tro-giup-phap-ly/soan-don` (`app/tro-giup-phap-ly/soan-don/page.tsx`) bố cục 2 cột mượt mà, tích hợp đầy đủ `SiteHeader` và `SiteFooter`, liên kết nổi bật từ `/tro-giup-phap-ly`.
+- [x] 100% test suites bao phủ toàn diện: `tests/cccd-parser.test.mjs`, `tests/complaint-form-state.test.mjs`, `tests/docx-generator.test.mjs`, `tests/legal-aid-interview.test.mjs`, `tests/cccd-qr-scanner-ui.test.mjs`, `tests/complaint-document-preview-ui.test.mjs`, `tests/submission-guidance.test.mjs`, `tests/soan-don-page.test.mjs`. Toàn bộ 558 bài kiểm thử dự án vượt qua 100%, `npx tsc --noEmit` đạt 0 lỗi, `app/page.tsx` duy trì < 990 dòng.
+
+**Evidence:** `lib/cccd-parser.ts`, `lib/complaint-form-state.ts`, `lib/docx-generator.ts`, `lib/legal-aid-interview.ts`, `app/api/legal-aid/interview/route.ts`, `components/CccdQrScanner.tsx`, `components/ComplaintDocumentPreview.tsx`, `components/SubmissionGuidanceModal.tsx`, `app/tro-giup-phap-ly/soan-don/page.tsx`, `app/tro-giup-phap-ly/page.tsx`; 15 tests mới pass, toàn bộ test suite dự án 558/558 pass, `npx tsc --noEmit` 0 lỗi.
+
+
 

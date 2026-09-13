@@ -2517,6 +2517,26 @@ Một feature citation-first chỉ được coi là hoàn thành khi:
      - Tab "Tài khoản & Phân quyền": Cung cấp giao diện quản lý nhân sự hoàn chỉnh, thẻ KPI tổng quan, bộ lọc vai trò/trạng thái, modal thêm/sửa tài khoản với lưới chọn chuyên mục trực quan (checkbox + icon chuyên đề).
      - Tab "Lịch sử hệ thống": Cung cấp giao diện theo dõi dòng thời gian mọi sự kiện, hỗ trợ tìm kiếm và lọc theo loại hành động, huy hiệu trạng thái màu sắc nhận diện rõ ràng.
 
+- **DEC-032:** Trợ lý AI Soạn Đơn Tố Giác Tội Phạm và Quét CCCD Zero-Knowledge Client-Side (US-051):
+  Hệ thống hỗ trợ học sinh, sinh viên và công dân hoàn thiện Đơn tố giác/kiến nghị khởi tố tội phạm đúng theo biểu mẫu chuẩn tư pháp (`docs/don/don-to-giac.docx`), giải tỏa rào cản tâm lý e ngại và thiếu hiểu biết pháp luật, đồng thời bảo đảm an toàn dữ liệu cá nhân tuyệt đối.
+  1. Bảo vệ quyền riêng tư tuyệt đối (Zero-Knowledge Privacy Architecture):
+     - Dữ liệu CCCD gắn chip (Họ tên, số định danh, ngày sinh, giới tính, nơi thường trú, ngày cấp) được quét và giải mã hoàn toàn tại trình duyệt (`lib/cccd-parser.ts`, `components/CccdQrScanner.tsx`) bằng API `BarcodeDetector` hoặc thư viện `jsQR` trên HTML Canvas nội bộ.
+     - Dữ liệu định danh cá nhân (PII) **tuyệt đối không bao giờ được gửi lên máy chủ** hoặc lưu trong cơ sở dữ liệu.
+     - Sau khi quét hoặc tắt camera, canvas và luồng video được dọn sạch khỏi bộ nhớ. Dữ liệu đơn chỉ tồn tại cục bộ trong `sessionStorage` của người dùng (`lib/complaint-form-state.ts`) và tự động giải phóng khi đóng phiên làm việc.
+  2. Phỏng vấn khai thác thông tin bằng AI (Legal Aid Interview Engine):
+     - Trợ lý AI (`lib/legal-aid-interview.ts`, API `POST /api/legal-aid/interview`) chỉ tiếp nhận mô tả phi định danh về vụ việc từ người dùng.
+     - AI giữ giọng điệu ân cần, lắng nghe, bảo mật, từng bước phỏng vấn làm rõ: Thời gian, địa điểm, nhân vật/đối tượng liên quan, hành vi vi phạm cụ thể, thiệt hại xảy ra và các tài liệu/bằng chứng kèm theo (ảnh chụp màn hình, tin nhắn, video...).
+     - Phân tích và trích xuất cấu trúc sự việc tự động cập nhật vào các trường của đơn tố giác.
+  3. Bản xem trước thời gian thực & Xuất tài liệu tư pháp (Live Preview & Export Engine):
+     - Giao diện 2 cột chuyên nghiệp (`app/tro-giup-phap-ly/soan-don/page.tsx`): Cột trái là Trợ lý AI phỏng vấn tương tác, Cột phải là Bản xem trước tờ đơn A4 trực quan (`components/ComplaintDocumentPreview.tsx`) với Quốc hiệu, Tiêu ngữ, bố cục chuẩn tư pháp, tự động tô đậm các trường mới được AI cập nhật và hiển thị thanh tiến độ hoàn thiện (%).
+     - Xuất văn bản chuẩn mẫu: Tích hợp thư viện `docx` chạy trực tiếp ở client (`lib/docx-generator.ts`) để tạo và tải tệp Microsoft Word (`.docx`) chuẩn mẫu `don-to-giac.docx` hoàn chỉnh. Đồng thời hỗ trợ in ấn hoặc lưu PDF trực tiếp qua lệnh in trình duyệt với CSS `@media print` tối ưu trang A4.
+  4. Cẩm nang 4 bước nộp đơn và danh bạ cơ quan tiếp nhận:
+     - Component `SubmissionGuidanceModal.tsx` cung cấp quy trình 4 bước theo đúng quy định tại Điều 145, 146 Bộ luật Tố tụng Hình sự 2015:
+       (1) Chuẩn bị và ký đơn (bản in hoặc nộp trực tiếp);
+       (2) Xác định thẩm quyền cơ quan tiếp nhận (kết nối trực tiếp API `/api/co-quan` để gợi ý Công an cấp xã/phường, quận/huyện, hotline 113);
+       (3) Nộp đơn và nhận Giấy biên nhận tiếp nhận nguồn tin về tội phạm;
+       (4) Theo dõi thời hạn giải quyết tố giác (20 ngày đến tối đa 2 hoặc 4 tháng đối với vụ việc phức tạp).
+
 ### Điểm còn mở
 
 Các điểm cần product/technical owner chốt trước Sprint 1:

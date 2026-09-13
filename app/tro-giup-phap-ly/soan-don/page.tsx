@@ -59,7 +59,7 @@ export default function SoanDonToGiacPage() {
     },
   ]);
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatListRef = useRef<HTMLDivElement>(null);
 
   // Load state từ local session khi mở trang
   useEffect(() => {
@@ -69,9 +69,11 @@ export default function SoanDonToGiacPage() {
     }
   }, []);
 
-  // Tự động cuộn chat
+  // Tự động cuộn chat nội bộ
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatListRef.current) {
+      chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
+    }
   }, [messages, isAiThinking]);
 
   // Lưu state local mỗi khi có thay đổi
@@ -315,7 +317,7 @@ export default function SoanDonToGiacPage() {
             </div>
 
             {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+            <div ref={chatListRef} className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
               {messages.map((m) => (
                 <div
                   key={m.id}
@@ -351,7 +353,6 @@ export default function SoanDonToGiacPage() {
                   <span>Trợ lý đang phân tích và trích xuất dữ liệu vào đơn...</span>
                 </div>
               )}
-              <div ref={chatEndRef} />
             </div>
 
             {/* Quick Prompts */}

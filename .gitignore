@@ -43,3 +43,6 @@ next-env.d.ts
 /work/
 /.omx/
 *.tsbuildinfo
+
+# MCP config chứa API keys — không commit
+.agents/mcp_config.json
